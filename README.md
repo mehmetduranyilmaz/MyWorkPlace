@@ -82,7 +82,7 @@ Full reasoning, alternatives and trade-offs: [docs/architecture.md](docs/archite
 | Database | PostgreSQL (one database per service), EF Core |
 | Messaging | RabbitMQ (transactional outbox) |
 | Auth | JWT (RS256) issued by our own Identity service, validated via JWKS |
-| Tests | xUnit v3, Aspire integration testing |
+| Tests | xUnit v3, Testcontainers (real PostgreSQL), Aspire integration testing |
 
 ## Getting started
 
@@ -90,7 +90,7 @@ Full reasoning, alternatives and trade-offs: [docs/architecture.md](docs/archite
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Aspire CLI](https://get.aspire.dev) — or run `dnx aspire.cli -- setup` once
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — needed from Sprint 1, when PostgreSQL arrives
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — runs PostgreSQL for the system and the tests
 - VS Code with the C# Dev Kit extension, or Visual Studio 2026
 
 ### Run

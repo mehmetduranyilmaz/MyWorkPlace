@@ -44,6 +44,24 @@ Guidelines:
 - `Program.cs` top-level statements are documented with regular `//` comments in both languages.
 - Test methods are exempt: their names (`Method_Scenario_ExpectedResult`) are their documentation.
 
+## Endpoints
+
+Every Minimal API endpoint has a bilingual summary and description; they appear in the OpenAPI document and Scalar.
+
+```csharp
+group.MapPost("/register", RegisterTenant.HandleAsync)
+    .WithName("RegisterTenant")
+    .WithSummary("EN: Register a company | TR: Firma kaydı")
+    .WithDescription("EN: Creates a company on the Basic plan and its first user. " +
+                     "TR: Basic planda bir firma ve ilk kullanıcısını oluşturur.");
+```
+
+Authorization is declared with **named policies** (`RequireAuthorization("...")`), never with role checks inside handlers.
+
+## Audit logging
+
+Never put `[AuditChanges]` on sensitive properties (password hashes, keys, tokens): their values would be copied into `audit_log`.
+
 ## Enforcement
 
 `GenerateDocumentationFile` is on and warnings are errors, so a public member without an XML comment

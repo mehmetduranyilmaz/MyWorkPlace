@@ -56,4 +56,5 @@ Notes:
 - The first build of the AppHost needs the **Aspire CLI bundle** (DCP + dashboard). If the build fails with
   `ASPIRE009`, install it with `dnx aspire.cli -- setup`, then rebuild with `--no-incremental`.
 - Tests use xUnit v3 on **Microsoft.Testing.Platform** (configured in `global.json`), hence `--solution`.
-- Integration tests start the real system; they need no Docker until a task adds containers.
+- Tests need **Docker** running: BuildingBlocks tests use a throw-away PostgreSQL via Testcontainers,
+  integration tests start the real system through Aspire.

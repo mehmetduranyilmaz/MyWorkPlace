@@ -140,6 +140,8 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   - A Basic tenant cannot access a Pro module (403)
   - A tenant cannot see another tenant's data
   - Orders can be placed while Inventory is down
+- **Library tests** (e.g. BuildingBlocks) run against a real PostgreSQL started by **Testcontainers** — an in-memory
+  database can't reproduce PostgreSQL behavior such as `xmin`.
 - **Tools:** xUnit v3 on Microsoft.Testing.Platform (the .NET 10 default direction; set in `global.json`),
   Aspire.Hosting.Testing.
 

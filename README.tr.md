@@ -82,7 +82,7 @@ Kararların tüm gerekçeleri, alternatifleri ve bedelleri: [docs/architecture.m
 | Veritabanı | PostgreSQL (her servise ayrı veritabanı), EF Core |
 | Mesajlaşma | RabbitMQ (transactional outbox) |
 | Kimlik | Kendi Identity servisimizin ürettiği JWT (RS256), JWKS ile doğrulama |
-| Testler | xUnit v3, Aspire entegrasyon testleri |
+| Testler | xUnit v3, Testcontainers (gerçek PostgreSQL), Aspire entegrasyon testleri |
 
 ## Başlarken
 
@@ -90,7 +90,7 @@ Kararların tüm gerekçeleri, alternatifleri ve bedelleri: [docs/architecture.m
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
 - [Aspire CLI](https://get.aspire.dev) — veya bir kez `dnx aspire.cli -- setup` çalıştırın
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — Sprint 1'de PostgreSQL eklendiğinde gerekecek
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — sistem ve testler için PostgreSQL'i çalıştırır
 - C# Dev Kit eklentili VS Code veya Visual Studio 2026
 
 ### Çalıştırma

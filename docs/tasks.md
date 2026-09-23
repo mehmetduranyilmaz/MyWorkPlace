@@ -75,22 +75,34 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 
 ### T-024 — Building blocks: shared persistence conventions
 
-- **State:** Todo
+- **State:** Done
 - **Goal:** Shared technical infrastructure every service's data layer builds on (ADR-011, ADR-014).
 - **Acceptance criteria:**
-  - [ ] `MyWorkplace.BuildingBlocks` project with `Entity` (UUID v7 `Id`), `ITenantOwned`, `IAuditable`,
+  - [x] `MyWorkplace.BuildingBlocks` project with `Entity` (UUID v7 `Id`), `ITenantOwned`, `IAuditable`,
         `ISoftDeletable`, `[AuditChanges]`, `ICurrentUser` — and no domain types
-  - [ ] Model conventions applied automatically: tenant filter for `ITenantOwned`, soft-delete filter for
+  - [x] Model conventions applied automatically: tenant filter for `ITenantOwned`, soft-delete filter for
         `ISoftDeletable`, `xmin` concurrency token, `snake_case` naming, `NoTracking` by default
-  - [ ] Auditing interceptor fills `CreatedAt/By` and `UpdatedAt/By` from `TimeProvider` and `ICurrentUser`;
+  - [x] Auditing interceptor fills `CreatedAt/By` and `UpdatedAt/By` from `TimeProvider` and `ICurrentUser`;
         sets `TenantId` on insert and rejects any later change to it
-  - [ ] Change-history interceptor writes one `audit_log` row per changed `[AuditChanges]` property
+  - [x] Change-history interceptor writes one `audit_log` row per changed `[AuditChanges]` property
         (entity, id, property, old value, new value, user, tenant, time) in the same transaction; unmarked properties are not logged
-  - [ ] `FindForUpdateAsync` loads a tracked entity; a concurrency conflict becomes a `409` ProblemDetails
-  - [ ] Shared ProblemDetails setup for `400` (field errors), `401`, `403`, `404`, `409`
-  - [ ] Tests against a **real PostgreSQL** prove: tenant A can't read tenant B's rows; soft-deleted rows are hidden;
+  - [x] `FindForUpdateAsync` loads a tracked entity; a concurrency conflict becomes a `409` ProblemDetails
+  - [x] Shared ProblemDetails setup for `400` (field errors), `401`, `403`, `404`, `409`
+  - [x] Tests against a **real PostgreSQL** prove: tenant A can't read tenant B's rows; soft-deleted rows are hidden;
         audit fields are filled; only marked properties are logged; a stale update fails with a concurrency error;
         queries are untracked by default
+- **Notes:**
+  - Base `ServiceDbContext` seals `OnModelCreating`: services describe their model in `ConfigureModel`, then the
+    conventions are applied on top, so no service can skip them. `AddServiceDbContext<T>("name")` wires everything.
+  - Filters are **named** (EF 10): `IgnoreQueryFilters([QueryFilters.SoftDelete])` shows deleted rows while the
+    tenant filter stays active.
+  - Soft delete: `Remove()` becomes an update. `[AuditChanges]` logs modifications only (not inserts).
+  - `xmin` is a shadow property (`Version`); it can be exposed later for HTTP ETags.
+  - 400 field errors: this task provides the ProblemDetails format; the validation itself (.NET 10 built-in
+    Minimal API validation) is wired per service, starting with T-006.
+  - Tests: 15 against a real PostgreSQL (Testcontainers) and an in-memory test server. Tests now need Docker.
+  - Added to conventions: bilingual `WithSummary`/`WithDescription` on endpoints, named authorization policies,
+    no `[AuditChanges]` on sensitive data. Roles and permissions went to the backlog as T-025.
 
 ### T-006 — Identity: service, database and tenant sign-up
 
@@ -180,6 +192,8 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 - **T-020** — Refresh tokens
 - **T-021** — User interface (Blazor or React; to be decided)
 - **T-022** — Dependabot for NuGet packages and GitHub Actions
+- **T-025** — Roles and permissions: permission-based policies, roles as permission sets, per-user extra
+  permissions (needs `/refine` and an ADR: storage, token claims, default roles)
 
 ---
 
