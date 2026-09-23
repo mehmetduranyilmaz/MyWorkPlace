@@ -6,11 +6,18 @@
 
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- EN: Versions below also win for transitive dependencies, so one package family can't end up in two versions.
+         TR: Aşağıdaki sürümler dolaylı bağımlılıklarda da geçerli olur; böylece bir paket ailesi iki farklı sürüme düşemez. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup Label="Aspire">
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.5.4" />
     <PackageVersion Include="Aspire.Hosting.Testing" Version="13.5.4" />
+  </ItemGroup>
+
+  <ItemGroup Label="Tokens">
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
   </ItemGroup>
 
   <ItemGroup Label="Web APIs">
@@ -19,6 +26,10 @@
   </ItemGroup>
 
   <ItemGroup Label="Persistence">
+    <!-- EN: Pinned: Npgsql and EF Design would otherwise bring different EF Core patch versions.
+         TR: Sabitlendi: yoksa Npgsql ve EF Design farklı EF Core yama sürümleri getirir. -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.5.4" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />

@@ -136,15 +136,26 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 
 ### T-023 — Identity: login, signing key, JWT and JWKS
 
-- **State:** Todo
+- **State:** Done
 - **Goal:** Registered users get a signed token that any service can verify on its own (ADR-005, ADR-012).
 - **Acceptance criteria:**
-  - [ ] An RSA key is generated on first start, stored in `identity-db` with a `kid`, and reused after a restart
-  - [ ] `POST /identity/login` with `{ email, password }` → `200` with `{ accessToken, expiresIn: 900 }`;
+  - [x] An RSA key is generated on first start, stored in `identity-db` with a `kid`, and reused after a restart
+  - [x] `POST /identity/login` with `{ email, password }` → `200` with `{ accessToken, expiresIn: 900 }`;
         the token is RS256-signed, carries the `kid`, and has `sub`, `tenant_id`, `plan` and a 15-minute `exp`
-  - [ ] Wrong email and wrong password return **identical** `401` ProblemDetails (ADR-013)
-  - [ ] `GET /identity/.well-known/jwks.json` publishes the public key(s) and no private key material
-  - [ ] An integration test validates an issued token using only the JWKS response
+  - [x] Wrong email and wrong password return **identical** `401` ProblemDetails (ADR-013)
+  - [x] `GET /identity/.well-known/jwks.json` publishes the public key(s) and no private key material
+  - [x] An integration test validates an issued token using only the JWKS response
+- **Notes:**
+  - `SigningKeyProvider` (singleton) loads the keys at startup, creating the first one on first start; the newest
+    key signs, every key is published. `kid` is the key's UUID v7.
+  - JWKS is built by hand from public RSA parameters only (`n`, `e`), so private fields can't leak by accident.
+  - Added a minimal OpenID discovery document; `iss = myworkplace-identity`, `aud = myworkplace-api`.
+    Claim names and plan values moved to `BuildingBlocks.Identity.TokenClaims` for the gateway and services.
+  - Unknown emails verify a decoy hash (same timing as a wrong password); `SuccessRehashNeeded` re-hashes at sign-in.
+  - Build found an EF Core version conflict (10.0.11 via Npgsql vs 10.0.12 via EF Design); fixed at the root with
+    central **transitive pinning**, not by suppressing the warning.
+  - New `MyWorkplace.Identity.Tests` project (Testcontainers + real migrations) for the key-reuse test;
+    `IdentityApi` test helper shared by sign-up and sign-in integration tests.
 
 ### T-007 — Gateway: routing, authentication and plan policy
 

@@ -98,7 +98,10 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   With a symmetric key every service would hold the secret that can *issue* tokens.
 - **Alternatives:** Keycloak / Duende / Entra ID — preferred in real projects, but they hide the mechanics.
   Rejected on purpose for learning.
-- **Token claims:** `sub` (user), `tenant_id`, `plan` (`basic` | `pro`); short lifetime (15 min).
+- **Token claims:** `sub` (user), `tenant_id`, `plan` (`basic` | `pro`); short lifetime (15 min);
+  `iss = myworkplace-identity`, `aud = myworkplace-api`. Claim names live in `BuildingBlocks.Identity.TokenClaims`.
+- **Discovery:** Identity publishes `/identity/.well-known/jwks.json` and a minimal
+  `/identity/.well-known/openid-configuration`, so standard JWT middleware finds and refreshes the keys by itself.
 
 ### ADR-006 — Plan enforcement in two layers
 
@@ -181,7 +184,9 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   Users working for several tenants are out of scope.
 - **Passwords** are hashed with ASP.NET Core's `PasswordHasher` (salted PBKDF2, 100k+ iterations);
   minimum length 8. Full ASP.NET Core Identity is not used — too heavy for our needs and it hides the mechanics.
-- **No user enumeration:** a wrong email and a wrong password return the **same** `401` response.
+- **No user enumeration:** a wrong email and a wrong password return the **same** `401` response — and take the same
+  time: for an unknown email a decoy hash is verified, so response timing can't reveal registered emails.
+- **Hash upgrades:** when `PasswordHasher` reports `SuccessRehashNeeded`, the hash is re-created at sign-in.
 
 ### ADR-014 — Errors as ProblemDetails (RFC 9457)
 

@@ -11,6 +11,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MyWorkplace.BuildingBlocks.Tests/MyWorkplace.BuildingBlocks.Tests.csproj" />
+    <Project Path="tests/MyWorkplace.Identity.Tests/MyWorkplace.Identity.Tests.csproj" />
     <Project Path="tests/MyWorkplace.IntegrationTests/MyWorkplace.IntegrationTests.csproj" />
   </Folder>
 </Solution>

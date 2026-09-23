@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Npgsql;
+using static MyWorkplace.IntegrationTests.IdentityApi;
 
 namespace MyWorkplace.IntegrationTests;
 
@@ -12,9 +13,6 @@ namespace MyWorkplace.IntegrationTests;
 /// <param name="app">EN: The running system. TR: Çalışan sistem.</param>
 public sealed class RegisterTenantTests(AppFixture app)
 {
-    /// <summary>EN: A password that satisfies the rules. TR: Kurallara uyan bir parola.</summary>
-    private const string ValidPassword = "Correct-Horse-9";
-
     /// <summary>EN: Test cancellation token. TR: Test iptal belirteci.</summary>
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -23,7 +21,7 @@ public sealed class RegisterTenantTests(AppFixture app)
     {
         using var client = app.CreateGatewayClient();
 
-        using var response = await RegisterAsync(client, "Acme Ltd", UniqueEmail(), ValidPassword);
+        using var response = await RegisterAsync(client, "Acme Ltd", UniqueEmail(), ValidPassword, Ct);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
@@ -35,8 +33,7 @@ public sealed class RegisterTenantTests(AppFixture app)
     public async Task Register_NewTenant_IsOnBasicPlan()
     {
         using var client = app.CreateGatewayClient();
-        using var response = await RegisterAsync(client, "Basic Co", UniqueEmail(), ValidPassword);
-        var tenantId = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("tenantId").GetGuid();
+        var (tenantId, _) = await RegisterNewTenantAsync(client, UniqueEmail(), Ct);
 
         var plan = await QueryScalarAsync<string>("select plan from tenants where id = @id", tenantId);
 
@@ -53,7 +50,7 @@ public sealed class RegisterTenantTests(AppFixture app)
         using var client = app.CreateGatewayClient();
 
         using var response = await RegisterAsync(
-            client, companyName, email == "valid" ? UniqueEmail() : email, password);
+            client, companyName, email == "valid" ? UniqueEmail() : email, password, Ct);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -68,9 +65,9 @@ public sealed class RegisterTenantTests(AppFixture app)
     {
         using var client = app.CreateGatewayClient();
         var email = UniqueEmail();
-        using var first = await RegisterAsync(client, "First", email, ValidPassword);
+        using var first = await RegisterAsync(client, "First", email, ValidPassword, Ct);
 
-        using var second = await RegisterAsync(client, "Second", email.ToUpperInvariant(), ValidPassword);
+        using var second = await RegisterAsync(client, "Second", email.ToUpperInvariant(), ValidPassword, Ct);
 
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
@@ -81,8 +78,7 @@ public sealed class RegisterTenantTests(AppFixture app)
     public async Task Register_StoresOnlyPasswordHash()
     {
         using var client = app.CreateGatewayClient();
-        using var response = await RegisterAsync(client, "Hash Co", UniqueEmail(), ValidPassword);
-        var userId = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("userId").GetGuid();
+        var (_, userId) = await RegisterNewTenantAsync(client, UniqueEmail(), Ct);
 
         var stored = await QueryScalarAsync<string>("select password_hash from users where id = @id", userId);
 
@@ -91,26 +87,6 @@ public sealed class RegisterTenantTests(AppFixture app)
         var verification = new PasswordHasher<object>().VerifyHashedPassword(new object(), stored, ValidPassword);
         Assert.Equal(PasswordVerificationResult.Success, verification);
     }
-
-    /// <summary>
-    /// EN: Posts a sign-up request through the gateway.
-    /// TR: Gateway üzerinden bir kayıt isteği gönderir.
-    /// </summary>
-    /// <param name="client">EN: Gateway client. TR: Gateway istemcisi.</param>
-    /// <param name="companyName">EN: Company name. TR: Firma adı.</param>
-    /// <param name="email">EN: Email. TR: E-posta.</param>
-    /// <param name="password">EN: Password. TR: Parola.</param>
-    /// <returns>EN: The response. TR: Cevap.</returns>
-    private static Task<HttpResponseMessage> RegisterAsync(
-        HttpClient client, string? companyName, string email, string password) =>
-        client.PostAsJsonAsync("/identity/register", new { companyName, email, password }, Ct);
-
-    /// <summary>
-    /// EN: An email no other test uses.
-    /// TR: Başka hiçbir testin kullanmadığı bir e-posta.
-    /// </summary>
-    /// <returns>EN: The email. TR: E-posta.</returns>
-    private static string UniqueEmail() => $"user-{Guid.NewGuid():N}@example.com";
 
     /// <summary>
     /// EN: Reads one value directly from identity-db, bypassing the API — to check what is really stored.

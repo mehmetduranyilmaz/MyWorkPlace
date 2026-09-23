@@ -20,6 +20,9 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
     /// <summary>EN: Users. TR: Kullanıcılar.</summary>
     public DbSet<User> Users => Set<User>();
 
+    /// <summary>EN: Token signing keys. TR: Token imzalama anahtarları.</summary>
+    public DbSet<SigningKey> SigningKeys => Set<SigningKey>();
+
     /// <inheritdoc />
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
@@ -39,6 +42,13 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             // TR: Benzersizliğin asıl garantisi — aynı anda yarışan iki kayda karşı da.
             user.HasIndex(u => u.NormalizedEmail).IsUnique();
             user.HasOne<Tenant>().WithMany().HasForeignKey(u => u.TenantId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SigningKey>(key =>
+        {
+            key.Property(k => k.KeyId).HasMaxLength(64);
+            key.Property(k => k.Algorithm).HasMaxLength(16);
+            key.HasIndex(k => k.KeyId).IsUnique();
         });
     }
 }
