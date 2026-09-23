@@ -46,10 +46,19 @@ jobs:
       - name: Install Aspire CLI bundle
         run: dotnet dnx --yes aspire.cli@13.5.4 -- setup
 
-      # EN: Integration tests start services over HTTPS.
-      # TR: Entegrasyon testleri servisleri HTTPS ile başlatır.
+      # EN: Integration tests may start services over HTTPS. Linux has no single trust store, so `--trust`
+      #     only trusts the certificate for OpenSSL (under ~/.aspnet/dev-certs/trust) and exits non-zero
+      #     when browser stores can't be updated. We verify the result explicitly and point .NET
+      #     (which uses OpenSSL on Linux) at that directory via SSL_CERT_DIR.
+      # TR: Entegrasyon testleri servisleri HTTPS ile başlatabilir. Linux'ta tek bir güven deposu yoktur; `--trust`
+      #     sertifikayı sadece OpenSSL için güvenilir yapar (~/.aspnet/dev-certs/trust altında) ve tarayıcı
+      #     depoları güncellenemediğinde sıfır olmayan kodla çıkar. Sonucu açıkça doğrular ve .NET'e
+      #     (Linux'ta OpenSSL kullanır) bu klasörü SSL_CERT_DIR ile gösteririz.
       - name: Trust HTTPS development certificate
-        run: dotnet dev-certs https --trust
+        run: |
+          dotnet dev-certs https --trust || echo "::notice::dev-certs reported partial trust (expected on Linux)"
+          test -n "$(ls -A "$HOME/.aspnet/dev-certs/trust")"
+          echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs" >> "$GITHUB_ENV"
 
       - name: Restore
         run: dotnet restore MyWorkplace.slnx
