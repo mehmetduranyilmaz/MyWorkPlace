@@ -10,6 +10,7 @@ Küçük işletmeler için **Basic** ve **Professional** planlı, çok kiracıl�
 > nasıl yürütülebileceğini göstermektir. Burada asistan bir kod üreticisi değil, disiplinli bir ekip üyesi gibi çalışır.
 > Her karar gerekçesiyle birlikte yazılıdır.
 
+[![CI](https://github.com/mehmetduranyilmaz/MyWorkPlace/actions/workflows/ci.yml/badge.svg)](https://github.com/mehmetduranyilmaz/MyWorkPlace/actions/workflows/ci.yml)
 ![Durum](https://img.shields.io/badge/durum-sprint%200%20%E2%80%94%20altyap%C4%B1-orange)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 ![Lisans](https://img.shields.io/badge/lisans-MIT-green)
@@ -95,8 +96,8 @@ Kararların tüm gerekçeleri, alternatifleri ve bedelleri: [docs/architecture.m
 ### Çalıştırma
 
 ```bash
-git clone <depo-adresi>
-cd <depo-klasörü>
+git clone https://github.com/mehmetduranyilmaz/MyWorkPlace.git
+cd MyWorkPlace
 dotnet run --project src/MyWorkplace.AppHost
 ```
 

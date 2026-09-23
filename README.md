@@ -10,6 +10,7 @@ built on .NET 10 with an API gateway and independent services.
 > as a disciplined team member rather than a code generator.
 > Every decision is written down with its reasons.
 
+[![CI](https://github.com/mehmetduranyilmaz/MyWorkPlace/actions/workflows/ci.yml/badge.svg)](https://github.com/mehmetduranyilmaz/MyWorkPlace/actions/workflows/ci.yml)
 ![Status](https://img.shields.io/badge/status-sprint%200%20%E2%80%94%20foundation-orange)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -95,8 +96,8 @@ Full reasoning, alternatives and trade-offs: [docs/architecture.md](docs/archite
 ### Run
 
 ```bash
-git clone <repository-url>
-cd <repository-folder>
+git clone https://github.com/mehmetduranyilmaz/MyWorkPlace.git
+cd MyWorkPlace
 dotnet run --project src/MyWorkplace.AppHost
 ```
 

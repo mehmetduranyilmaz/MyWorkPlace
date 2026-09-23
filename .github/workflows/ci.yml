@@ -1,0 +1,61 @@
+# EN: Builds the solution and runs all tests on every push to main and every pull request.
+# TR: Her main push'unda ve her pull request'te çözümü derler ve tüm testleri çalıştırır.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# EN: Least privilege: the workflow only needs to read the code.
+# TR: En az yetki: iş akışının sadece kodu okuması yeterli.
+permissions:
+  contents: read
+
+# EN: A newer push to the same branch cancels the outdated run.
+# TR: Aynı branch'e gelen yeni bir push, eskimiş çalıştırmayı iptal eder.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  ASPIRE_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    name: Build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # EN: The AppHost needs the Aspire CLI bundle (DCP + dashboard). Keep the version in sync with
+      #     Aspire.AppHost.Sdk in MyWorkplace.AppHost.csproj.
+      # TR: AppHost, Aspire CLI paketine (DCP + dashboard) ihtiyaç duyar. Sürüm, MyWorkplace.AppHost.csproj
+      #     içindeki Aspire.AppHost.Sdk ile aynı tutulmalı.
+      - name: Install Aspire CLI bundle
+        run: dotnet dnx --yes aspire.cli@13.5.4 -- setup
+
+      # EN: Integration tests start services over HTTPS.
+      # TR: Entegrasyon testleri servisleri HTTPS ile başlatır.
+      - name: Trust HTTPS development certificate
+        run: dotnet dev-certs https --trust
+
+      - name: Restore
+        run: dotnet restore MyWorkplace.slnx
+
+      - name: Build
+        run: dotnet build MyWorkplace.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test --solution MyWorkplace.slnx --no-build --configuration Release

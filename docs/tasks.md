@@ -46,10 +46,13 @@ Goal: an empty but professional skeleton. Everything builds and starts with one 
 
 ### T-004 — CI (GitHub Actions)
 
-- **State:** Todo
+- **State:** Done
 - **Acceptance criteria:**
-  - [ ] Build and tests run on every push and PR
-  - [ ] Status badge in README
+  - [x] Build and tests run on every push and PR
+  - [x] Status badge in README
+- **Notes:** `.github/workflows/ci.yml` on `ubuntu-latest`: installs the Aspire CLI bundle, trusts the dev
+  certificate, builds in Release and runs the integration test. Read-only permissions; outdated runs are cancelled.
+  Verified locally with the same commands. Remote: `github.com/mehmetduranyilmaz/MyWorkPlace`.
 
 ### T-005 — Claude Code project commands
 
@@ -133,6 +136,7 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 - **T-019** — Per-plan rate limiting at the gateway (Basic: low, Pro: high)
 - **T-020** — Refresh tokens
 - **T-021** — User interface (Blazor or React; to be decided)
+- **T-022** — Dependabot for NuGet packages and GitHub Actions
 
 ---
 
