@@ -50,6 +50,8 @@ The repository is **public**. Code quality, documentation and commit history are
 | Build (must be 0 warnings) | `dotnet build MyWorkplace.slnx` |
 | Run the whole system | `dotnet run --project src/MyWorkplace.AppHost` |
 | Run all tests | `dotnet test --solution MyWorkplace.slnx` |
+| Restore local tools (`dotnet-ef`) | `dotnet tool restore` |
+| Add a migration | `dotnet ef migrations add <Name> --project src/Services/<Service> --output-dir Persistence/Migrations` |
 
 Notes:
 

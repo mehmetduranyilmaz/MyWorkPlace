@@ -102,7 +102,11 @@ dotnet run --project src/MyWorkplace.AppHost
 ```
 
 The Aspire dashboard opens in your browser and shows every service, its logs and traces.
-Try the gateway: open the `gateway` endpoint from the dashboard and append `/customers/info`.
+From the dashboard:
+
+- **Sign up a company:** open the `identity` endpoint and append `/scalar` — the API reference lets you call
+  `POST /identity/register` from the browser. Through the gateway the same URL is `<gateway>/identity/register`.
+- **Browse the database:** open **PgWeb** next to `postgres` to see the `tenants`, `users` and `audit_log` tables.
 
 - **VS Code:** press **F5** (launch profile *MyWorkplace (Aspire AppHost)*).
 - **Visual Studio:** open `MyWorkplace.slnx`, set `MyWorkplace.AppHost` as the startup project, press **F5**.

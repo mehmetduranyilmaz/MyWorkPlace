@@ -56,6 +56,9 @@ group.MapPost("/register", RegisterTenant.HandleAsync)
                      "TR: Basic planda bir firma ve ilk kullanıcısını oluşturur.");
 ```
 
+API documentation is wired with `AddServiceApiDocs()` / `MapServiceApiDocs()` from BuildingBlocks, never per service:
+every service gets the same OpenAPI document and Scalar UI (`/scalar`, Development only, C# samples by default).
+
 Authorization is declared with **named policies** (`RequireAuthorization("...")`), never with role checks inside handlers.
 
 ## Audit logging

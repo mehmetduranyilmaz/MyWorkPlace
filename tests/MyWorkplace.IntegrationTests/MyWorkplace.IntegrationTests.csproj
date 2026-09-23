@@ -7,7 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- EN: PasswordHasher, to verify stored hashes. TR: Saklanan hash'leri doğrulamak için PasswordHasher. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+
     <PackageReference Include="Aspire.Hosting.Testing" />
+    <PackageReference Include="Npgsql" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 

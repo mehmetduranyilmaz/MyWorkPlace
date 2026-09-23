@@ -45,6 +45,23 @@ public static class PersistenceExtensions
     }
 
     /// <summary>
+    /// EN: Applies pending EF Core migrations at startup. For Development only: with several instances running,
+    ///     migrations must run as a separate step before deployment (ADR-015).
+    /// TR: Bekleyen EF Core migration'larını açılışta uygular. Sadece geliştirme için: birden fazla kopya çalışırken
+    ///     migration'lar dağıtımdan önce ayrı bir adımda çalıştırılmalıdır (ADR-015).
+    /// </summary>
+    /// <typeparam name="TContext">EN: The service's DbContext. TR: Servisin DbContext'i.</typeparam>
+    /// <param name="app">EN: The built application. TR: Oluşturulmuş uygulama.</param>
+    /// <param name="cancellationToken">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: A task that completes when the schema is up to date. TR: Şema güncel olduğunda tamamlanan görev.</returns>
+    public static async Task MigrateDatabaseAsync<TContext>(this IHost app, CancellationToken cancellationToken = default)
+        where TContext : ServiceDbContext
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<TContext>().Database.MigrateAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// EN: Registers the pieces the interceptors need. Defaults can be replaced (T-008 replaces the current user).
     /// TR: Interceptor'ların ihtiyaç duyduğu parçaları kaydeder. Varsayılanlar değiştirilebilir (T-008 aktif kullanıcıyı değiştirir).
     /// </summary>

@@ -102,7 +102,11 @@ dotnet run --project src/MyWorkplace.AppHost
 ```
 
 Aspire paneli tarayıcıda açılır; tüm servisleri, loglarını ve izlerini gösterir.
-Gateway'i deneyin: panelden `gateway` adresini açın ve sonuna `/customers/info` ekleyin.
+Panelden:
+
+- **Firma kaydı yapın:** `identity` adresini açın ve sonuna `/scalar` ekleyin — API referansı, `POST /identity/register`
+  çağrısını tarayıcıdan yapmanızı sağlar. Gateway üzerinden aynı adres `<gateway>/identity/register` olur.
+- **Veritabanını inceleyin:** `postgres` yanındaki **PgWeb**'i açarak `tenants`, `users` ve `audit_log` tablolarını görün.
 
 - **VS Code:** **F5** tuşuna basın (*MyWorkplace (Aspire AppHost)* profili).
 - **Visual Studio:** `MyWorkplace.slnx` dosyasını açın, `MyWorkplace.AppHost` projesini başlangıç projesi yapın, **F5** tuşuna basın.

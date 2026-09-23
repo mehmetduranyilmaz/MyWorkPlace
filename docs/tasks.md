@@ -106,20 +106,33 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 
 ### T-006 — Identity: service, database and tenant sign-up
 
-- **State:** Todo
+- **State:** Done
 - **Goal:** A company can sign up; the first real service with its own PostgreSQL database.
 - **Acceptance criteria:**
-  - [ ] PostgreSQL runs in the AppHost with an `identity-db` database; the Identity service is registered and
+  - [x] PostgreSQL runs in the AppHost with an `identity-db` database; the Identity service is registered and
         the gateway routes `/identity/*` to it
-  - [ ] `Tenant` (name, plan) and `User` (email, password hash, tenant) entities built on BuildingBlocks;
+  - [x] `Tenant` (name, plan) and `User` (email, password hash, tenant) entities built on BuildingBlocks;
         the initial migration is committed and applied at startup in Development (ADR-015)
-  - [ ] `POST /identity/register` with `{ companyName, email, password }` → `201` with `{ tenantId, userId }`;
+  - [x] `POST /identity/register` with `{ companyName, email, password }` → `201` with `{ tenantId, userId }`;
         the new tenant's plan is **Basic**
-  - [ ] `400` ProblemDetails with field errors for: missing company name, invalid email, password shorter than 8
-  - [ ] `409` when the email is already registered — case-insensitive (`A@x.com` equals `a@x.com`)
-  - [ ] Passwords are stored only as `PasswordHasher` hashes (ADR-013): a test asserts the stored value is not the
+  - [x] `400` ProblemDetails with field errors for: missing company name, invalid email, password shorter than 8
+  - [x] `409` when the email is already registered — case-insensitive (`A@x.com` equals `a@x.com`)
+  - [x] Passwords are stored only as `PasswordHasher` hashes (ADR-013): a test asserts the stored value is not the
         password and verifies against it
-  - [ ] Integration tests through the gateway cover `201`, `400` and `409`
+  - [x] Integration tests through the gateway cover `201`, `400` and `409`
+- **Notes:**
+  - Vertical slice: `Features/Register/` holds the request, validation attributes and handler.
+  - Uniqueness is guaranteed by a unique index on `normalized_email`; a unique-violation (`23505`) from a racing
+    sign-up is also mapped to `409`. The pre-check only gives a fast answer.
+  - The duplicate check deliberately bypasses the tenant filter (`IgnoreQueryFilters([QueryFilters.Tenant])`).
+  - Audited properties: `Tenant.Name`, `Tenant.Plan`, `User.Email`. `PasswordHash` is never audited.
+  - `MigrateDatabaseAsync<T>()` added to BuildingBlocks for every service; `dotnet-ef` pinned as a local tool.
+  - AppHost: PostgreSQL with a data volume and PgWeb for development; tests pass `Storage:Ephemeral=true`
+    for a fresh database and no PgWeb. Scalar UI at `/scalar` on the Identity service in Development.
+  - API docs setup moved to BuildingBlocks (`AddServiceApiDocs` / `MapServiceApiDocs`) after review, so every
+    service shows C# code samples by default (owner's request).
+  - Integration tests now share one running system (`AppFixture`) instead of starting it per test.
+    The test HTTP client has no retry handler, so a POST is never sent twice.
 
 ### T-023 — Identity: login, signing key, JWT and JWKS
 

@@ -7,6 +7,7 @@
   </Folder>
   <Folder Name="/src/Services/">
     <Project Path="src/Services/MyWorkplace.Customers/MyWorkplace.Customers.csproj" />
+    <Project Path="src/Services/MyWorkplace.Identity/MyWorkplace.Identity.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MyWorkplace.BuildingBlocks.Tests/MyWorkplace.BuildingBlocks.Tests.csproj" />
