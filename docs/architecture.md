@@ -88,6 +88,7 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   scopes every query to the current tenant.
 - **Alternative:** Schema or database per tenant — stronger isolation, more expensive to operate.
 - **Cost:** A bug that bypasses the filter leaks another tenant's data, so there are dedicated tests for it.
+- **Implementation:** applied automatically to every `ITenantOwned` entity by BuildingBlocks (ADR-011).
 
 ### ADR-005 — Identity: our own service, JWT (RS256)
 
@@ -142,6 +143,57 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Tools:** xUnit v3 on Microsoft.Testing.Platform (the .NET 10 default direction; set in `global.json`),
   Aspire.Hosting.Testing.
 
+### ADR-011 — Building blocks: shared persistence conventions
+
+- **Context:** Every service stores data. Cross-cutting rules (ids, tenant isolation, auditing, soft delete,
+  concurrency) must be identical everywhere and are expensive to retrofit into existing entities and migrations.
+- **Decision:** A shared library, `MyWorkplace.BuildingBlocks`, provides:
+  - `Entity` base class with a `Guid Id` generated as **UUID v7** (unguessable, index-friendly because it is time-ordered).
+  - Opt-in interfaces: `ITenantOwned` (tenant filter + `TenantId` set on insert, immutable afterwards),
+    `IAuditable` (`CreatedAt/By`, `UpdatedAt/By`), `ISoftDeletable` (`IsDeleted`, `DeletedAt`; hidden by a filter).
+  - **Interceptors:** an auditing interceptor fills audit fields; a change-history interceptor writes
+    *who / when / entity / property / old value / new value* to an `audit_log` table **in the same transaction**
+    for properties marked `[AuditChanges]`. Which properties are marked is decided per entity, in the task that creates it.
+  - **Optimistic concurrency** via PostgreSQL `xmin`; a conflicting update returns `409`.
+  - `TimeProvider` for all timestamps (UTC, testable) and an `ICurrentUser` abstraction (filled from the JWT in T-008).
+  - PostgreSQL `snake_case` naming.
+  - **Reads are not tracked:** `DbContext` defaults to `NoTracking`; queries project to DTOs with `Select`.
+    Writes load entities explicitly with a `FindForUpdateAsync` helper that uses `AsTracking()`.
+- **Boundary:** BuildingBlocks contains **technical infrastructure only — never domain types**. A `Customer` class
+  there would couple services and defeat ADR-001.
+- **Cost:** A no-tracking default means an entity loaded without tracking and then modified is **silently not saved**.
+  The `FindForUpdateAsync` helper and a test guard against it. Every service depends on BuildingBlocks,
+  so changes to it must stay backward compatible.
+
+### ADR-012 — Token signing key stored in the Identity database
+
+- **Decision:** On first start the Identity service generates an RSA key pair and stores it in `identity-db`
+  with a key id (`kid`). Tokens carry the `kid`; JWKS publishes every active public key, which enables rotation later.
+- **Why:** Tokens survive restarts, no manual setup, works unchanged in CI.
+- **Alternatives:** In-memory key per start (every restart signs everyone out); user-secrets PEM (manual, extra CI setup).
+- **Cost:** The private key sits unencrypted in the database. Production must use a key vault or HSM.
+
+### ADR-013 — Identity rules
+
+- **Email is unique across the whole system**; each user belongs to exactly one tenant, so login needs only email + password.
+  Users working for several tenants are out of scope.
+- **Passwords** are hashed with ASP.NET Core's `PasswordHasher` (salted PBKDF2, 100k+ iterations);
+  minimum length 8. Full ASP.NET Core Identity is not used — too heavy for our needs and it hides the mechanics.
+- **No user enumeration:** a wrong email and a wrong password return the **same** `401` response.
+
+### ADR-014 — Errors as ProblemDetails (RFC 9457)
+
+- **Decision:** Every service returns errors in the standard `application/problem+json` format
+  (`400` validation with per-field errors, `401`, `403`, `404`, `409`).
+- **Why:** Clients handle errors from every service the same way.
+
+### ADR-015 — Schema changes with EF Core migrations
+
+- **Decision:** Each service owns its EF Core migrations, committed to the repository.
+  In Development, a service applies pending migrations at startup.
+- **Cost:** Startup migration is unsafe with multiple instances. Production must run migrations as a separate step
+  (a migration job) before deploying.
+
 ---
 
 ## 4. Solution layout (planned)
@@ -152,6 +204,7 @@ src/
   MyWorkplace.AppHost/            # Aspire: starts the whole system
   MyWorkplace.ServiceDefaults/    # Shared: OpenTelemetry, health checks, resilience
   MyWorkplace.Gateway/            # YARP
+  MyWorkplace.BuildingBlocks/     # Shared technical infrastructure (ADR-011) — no domain types
   MyWorkplace.Contracts/          # Cross-service event definitions (data only)
   Services/
     MyWorkplace.Identity/
