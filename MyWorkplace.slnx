@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MyWorkplace.AppHost/MyWorkplace.AppHost.csproj" />
+    <Project Path="src/MyWorkplace.Gateway/MyWorkplace.Gateway.csproj" />
+    <Project Path="src/MyWorkplace.ServiceDefaults/MyWorkplace.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/">
+    <Project Path="src/Services/MyWorkplace.Customers/MyWorkplace.Customers.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MyWorkplace.IntegrationTests/MyWorkplace.IntegrationTests.csproj" />
+  </Folder>
+</Solution>

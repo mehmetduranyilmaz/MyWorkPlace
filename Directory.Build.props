@@ -1,0 +1,27 @@
+<!--
+  EN: Settings shared by every project in the repository. Individual .csproj files stay minimal.
+  TR: Depodaki tüm projelerin ortak ayarları. Tek tek .csproj dosyaları sade kalır.
+-->
+<Project>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- EN: Quality gates: any warning fails the build. TR: Kalite kapısı: her uyarı derlemeyi kırar. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <!-- EN: Apply .editorconfig style rules at build time, not only in the editor.
+         TR: .editorconfig stil kuralları sadece editörde değil, derlemede de uygulanır. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- EN: Required for bilingual XML doc comments (CS1591) and unused-using detection (IDE0005).
+         TR: İki dilli XML yorum zorunluluğu (CS1591) ve gereksiz using tespiti (IDE0005) için gerekli. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <Product>MyWorkplace</Product>
+    <Authors>mehmetyilmaz</Authors>
+  </PropertyGroup>
+
+</Project>

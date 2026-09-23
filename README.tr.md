@@ -81,19 +81,18 @@ Kararların tüm gerekçeleri, alternatifleri ve bedelleri: [docs/architecture.m
 | Veritabanı | PostgreSQL (her servise ayrı veritabanı), EF Core |
 | Mesajlaşma | RabbitMQ (transactional outbox) |
 | Kimlik | Kendi Identity servisimizin ürettiği JWT (RS256), JWKS ile doğrulama |
-| Testler | xUnit, Aspire entegrasyon testleri |
+| Testler | xUnit v3, Aspire entegrasyon testleri |
 
 ## Başlarken
 
-> ⚠️ Çözüm iskeleti Sprint 0'da kuruluyor. Aşağıdaki komutlar T-003 görevi bitince çalışacaktır.
-
-**Gereksinimler**
+### Gereksinimler
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Aspire, PostgreSQL ve RabbitMQ'yu konteynerde çalıştırır)
+- [Aspire CLI](https://get.aspire.dev) — veya bir kez `dnx aspire.cli -- setup` çalıştırın
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — Sprint 1'de PostgreSQL eklendiğinde gerekecek
 - C# Dev Kit eklentili VS Code veya Visual Studio 2026
 
-**Çalıştırma**
+### Çalıştırma
 
 ```bash
 git clone <depo-adresi>
@@ -102,6 +101,16 @@ dotnet run --project src/MyWorkplace.AppHost
 ```
 
 Aspire paneli tarayıcıda açılır; tüm servisleri, loglarını ve izlerini gösterir.
+Gateway'i deneyin: panelden `gateway` adresini açın ve sonuna `/customers/info` ekleyin.
+
+- **VS Code:** **F5** tuşuna basın (*MyWorkplace (Aspire AppHost)* profili).
+- **Visual Studio:** `MyWorkplace.slnx` dosyasını açın, `MyWorkplace.AppHost` projesini başlangıç projesi yapın, **F5** tuşuna basın.
+
+### Test
+
+```bash
+dotnet test --solution MyWorkplace.slnx
+```
 
 ## Bu proje nasıl geliştiriliyor
 
@@ -112,7 +121,7 @@ Geliştirme süreci de bu deponun gösterdiği şeylerden biridir:
 | [CLAUDE.md](CLAUDE.md) | Yapay zeka asistanının kuralları; oturumlar arasındaki kalıcı hafızası |
 | [docs/architecture.md](docs/architecture.md) | Mimari karar kayıtları (ADR): neyi seçtik, neden, hangi bedelle |
 | [docs/tasks.md](docs/tasks.md) | Görev panosu: sprintler, kabul kriterleri, ilerleme |
-| [docs/process/](docs/process/) | Çalışma akışı, görev ve Git kuralları |
+| [docs/process/](docs/process/) | Çalışma akışı, görev, Git ve kod kuralları |
 
 Her mimari kararı insan verir ve her merge'ü insan onaylar. Asistan seçenekleri sunar, uygular, test eder ve açıklar.
 

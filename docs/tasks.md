@@ -29,13 +29,20 @@ Goal: an empty but professional skeleton. Everything builds and starts with one 
 
 ### T-003 — Solution skeleton
 
-- **State:** Todo
+- **State:** Done
 - **Acceptance criteria:**
-  - [ ] `MyWorkplace.slnx`, `Directory.Build.props`, `Directory.Packages.props`
-  - [ ] AppHost, ServiceDefaults, Gateway and one empty sample service
-  - [ ] `dotnet build` passes with no warnings
-  - [ ] Runs from VS Code (`launch.json` / `tasks.json`) and Visual Studio
-  - [ ] "Commands" section in `CLAUDE.md` filled in
+  - [x] `MyWorkplace.slnx`, `Directory.Build.props`, `Directory.Packages.props`
+  - [x] AppHost, ServiceDefaults, Gateway and one empty sample service
+  - [x] `dotnet build` passes with no warnings
+  - [x] Runs from VS Code (`launch.json` / `tasks.json`) and Visual Studio
+  - [x] "Commands" section in `CLAUDE.md` filled in
+- **Notes:**
+  - Sample service is Customers with a temporary `GET /customers/info`; the gateway routes `/customers/*` to it
+    via Aspire service discovery. Covered by an integration test that starts the real system.
+  - Added (not in the original scope): bilingual XML doc comments enforced by the build (CS1591),
+    `global.json` pinning the SDK and the test runner, `.gitattributes` switched to LF everywhere.
+  - Aspire 13.5 requires the Aspire CLI bundle; documented in `CLAUDE.md` and README.
+  - xUnit v3 runs on Microsoft.Testing.Platform; VSTest packages removed.
 
 ### T-004 — CI (GitHub Actions)
 

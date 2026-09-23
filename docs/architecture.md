@@ -139,7 +139,8 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   - A Basic tenant cannot access a Pro module (403)
   - A tenant cannot see another tenant's data
   - Orders can be placed while Inventory is down
-- **Tools:** xUnit, Aspire.Hosting.Testing.
+- **Tools:** xUnit v3 on Microsoft.Testing.Platform (the .NET 10 default direction; set in `global.json`),
+  Aspire.Hosting.Testing.
 
 ---
 
@@ -166,4 +167,4 @@ docs/
 ```
 
 Repository-wide: `Directory.Build.props` (shared settings), `Directory.Packages.props` (central package versions),
-`.editorconfig` (code style), nullable enabled, warnings as errors.
+`global.json` (pinned SDK and test runner), `.editorconfig` (code style), nullable enabled, warnings as errors.

@@ -1,0 +1,4 @@
+{
+  "dotnet.defaultSolution": "MyWorkplace.slnx",
+  "dotnet.testWindow.useTestingPlatformProtocol": true
+}

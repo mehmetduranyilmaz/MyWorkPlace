@@ -1,0 +1,16 @@
+<!--
+  EN: Test-only settings, layered on top of the root Directory.Build.props.
+  TR: Sadece testlere özel ayarlar; kökteki Directory.Build.props'un üzerine eklenir.
+-->
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- EN: Test method names are their documentation (see code-conventions.md).
+         TR: Test metotlarının isimleri kendi açıklamalarıdır (bkz. code-conventions.md). -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

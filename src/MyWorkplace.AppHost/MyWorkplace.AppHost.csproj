@@ -1,0 +1,14 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.5.4">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>29d7c169-2405-400a-881c-955ba60f0d4c</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyWorkplace.Gateway\MyWorkplace.Gateway.csproj" />
+    <ProjectReference Include="..\Services\MyWorkplace.Customers\MyWorkplace.Customers.csproj" />
+  </ItemGroup>
+
+</Project>

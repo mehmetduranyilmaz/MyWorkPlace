@@ -1,5 +1,5 @@
-# Normalize line endings: LF in the repository, native on checkout.
-* text=auto
+# Normalize line endings: LF everywhere (matches .editorconfig), except Windows scripts below.
+* text=auto eol=lf
 
 # Source files: always LF so diffs are identical on Windows, macOS and Linux.
 *.cs       text eol=lf diff=csharp

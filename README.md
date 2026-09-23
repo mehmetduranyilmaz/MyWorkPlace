@@ -81,19 +81,18 @@ Full reasoning, alternatives and trade-offs: [docs/architecture.md](docs/archite
 | Database | PostgreSQL (one database per service), EF Core |
 | Messaging | RabbitMQ (transactional outbox) |
 | Auth | JWT (RS256) issued by our own Identity service, validated via JWKS |
-| Tests | xUnit, Aspire integration testing |
+| Tests | xUnit v3, Aspire integration testing |
 
 ## Getting started
 
-> ⚠️ The solution skeleton is being built in Sprint 0. The commands below will work once task T-003 is done.
-
-**Prerequisites**
+### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Aspire runs PostgreSQL and RabbitMQ in containers)
+- [Aspire CLI](https://get.aspire.dev) — or run `dnx aspire.cli -- setup` once
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) — needed from Sprint 1, when PostgreSQL arrives
 - VS Code with the C# Dev Kit extension, or Visual Studio 2026
 
-**Run**
+### Run
 
 ```bash
 git clone <repository-url>
@@ -102,6 +101,16 @@ dotnet run --project src/MyWorkplace.AppHost
 ```
 
 The Aspire dashboard opens in your browser and shows every service, its logs and traces.
+Try the gateway: open the `gateway` endpoint from the dashboard and append `/customers/info`.
+
+- **VS Code:** press **F5** (launch profile *MyWorkplace (Aspire AppHost)*).
+- **Visual Studio:** open `MyWorkplace.slnx`, set `MyWorkplace.AppHost` as the startup project, press **F5**.
+
+### Test
+
+```bash
+dotnet test --solution MyWorkplace.slnx
+```
 
 ## How this project is built
 
@@ -112,7 +121,7 @@ The development process is part of what this repository demonstrates:
 | [CLAUDE.md](CLAUDE.md) | Rules for the AI assistant — its persistent memory between sessions |
 | [docs/architecture.md](docs/architecture.md) | Architecture Decision Records: what we chose, why, and at what cost |
 | [docs/tasks.md](docs/tasks.md) | Task board: sprints, acceptance criteria, progress |
-| [docs/process/](docs/process/) | Workflow, task and Git conventions |
+| [docs/process/](docs/process/) | Workflow, task, Git and code conventions |
 
 The human makes every architectural decision and approves every merge; the assistant proposes options,
 implements, tests and explains.
