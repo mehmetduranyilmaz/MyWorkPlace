@@ -28,6 +28,18 @@ Owner  ←→  docs/tasks.md (work: what's done, what's left)  ←→  Claude se
 6. **Review:** The owner reads the code and tries it.
 7. **Close:** After approval it is merged and the task becomes *Done*. **Claude never marks a task Done on its own.**
 
+## Project commands
+
+The recurring steps above are packaged as Claude Code slash commands in [.claude/commands/](../../.claude/commands/):
+
+| Command | Lifecycle steps | What it does |
+| --- | --- | --- |
+| `/refine T-xxx` | before 1 | Finds gaps in the acceptance criteria, asks the owner, rewrites them as testable checkboxes |
+| `/task T-xxx` | 1–3 | Checks readiness, moves the task to *In Progress*, creates the branch, proposes a plan and waits |
+| `/ship` | 5–7 | Builds, tests, checks criteria and conventions, moves to *In Review*, reports; after approval squash-merges, pushes and checks CI |
+
+The commands never skip a human checkpoint: `/task` waits for plan approval, `/ship` waits for merge approval.
+
 ## Unplanned work
 
 Anything that comes up outside the current task's scope:

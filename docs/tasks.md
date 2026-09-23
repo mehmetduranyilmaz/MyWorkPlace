@@ -56,12 +56,16 @@ Goal: an empty but professional skeleton. Everything builds and starts with one 
 
 ### T-005 — Claude Code project commands
 
-- **State:** Todo
+- **State:** Done
 - **Goal:** Turn recurring rituals into commands (like "modus" in the reference article).
 - **Acceptance criteria:**
-  - [ ] `/task T-xxx` → pick up the task, move to In Progress, create branch
-  - [ ] `/ship` → verify, commit (with approval), move to In Review, write summary
-  - [ ] `/refine T-xxx` → clarify acceptance criteria
+  - [x] `/task T-xxx` → pick up the task, move to In Progress, create branch
+  - [x] `/ship` → verify, commit (with approval), move to In Review, write summary
+  - [x] `/refine T-xxx` → clarify acceptance criteria
+- **Notes:** Commands live in `.claude/commands/` and are documented in `docs/process/workflow.md`.
+  `/task` stops after proposing a plan; `/ship` stops before merging; both keep the human checkpoints.
+  `/ship` also pushes and checks CI after approval, which the original criteria didn't include.
+  This task itself was shipped by following `/ship` manually (commands load in the next session).
 
 ---
 
