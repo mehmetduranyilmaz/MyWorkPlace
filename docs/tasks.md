@@ -147,3 +147,21 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 ## Sprint Notes
 
 Added at the end of each sprint: what we did, what's left, what we learned.
+
+### Sprint 0 — Foundation (closed)
+
+**Done:** T-001 … T-005. Architecture and process docs with 10 ADRs; public repository with bilingual README;
+.NET 10 solution skeleton (Aspire AppHost, ServiceDefaults, YARP gateway, sample Customers service);
+an integration test that starts the real system; CI on GitHub Actions; `/task`, `/ship`, `/refine` commands.
+
+**Left:** nothing from the sprint scope. T-022 (Dependabot) was added to the backlog.
+
+**Learned:**
+
+- *Decide before coding.* Writing ADRs first made later choices quick; questions were answered once, in writing.
+- *Tooling moves fast.* Aspire 13.5 needs the Aspire CLI bundle, and xUnit v3 on .NET 10 needs
+  Microsoft.Testing.Platform. Starting from official templates and reading error messages carefully solved both.
+- *Stale build output can lie.* A failed first build left stale generated metadata; a clean rebuild fixed it.
+- *CI catches what the local machine hides.* The dev-certificate step passed on Windows and failed on Linux.
+  The fix verifies the outcome instead of silencing the error.
+- *Rules enforced by the build are rules that stick.* Bilingual doc comments are checked by the compiler (CS1591).
