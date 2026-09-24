@@ -16,6 +16,7 @@ namespace MyWorkplace.IntegrationTests;
 ///     sistemi paylaşır ve Inventory'nin kapandığını görmemelidir.
 /// </summary>
 /// <param name="app">EN: A private copy of the system. TR: Sistemin özel bir kopyası.</param>
+[Collection(typeof(ServiceOutageCollection))]
 public sealed class ResilienceTests(IsolatedAppFixture app) : IClassFixture<IsolatedAppFixture>
 {
     /// <summary>EN: The service stopped in these tests. TR: Bu testlerde durdurulan servis.</summary>

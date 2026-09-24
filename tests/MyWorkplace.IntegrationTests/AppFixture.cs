@@ -72,3 +72,14 @@ public class AppFixture : IAsyncLifetime
 ///     çalıştırmalarında rastgele port ve konteyner adları seçer; böylece iki kopya birbirini etkilemeden yan yana çalışır.
 /// </summary>
 public sealed class IsolatedAppFixture : AppFixture;
+
+/// <summary>
+/// EN: Tests that take a service down run in this collection: on their own, after all parallel tests have finished.
+///     A second system starting and a service restarting compete for the CI machine; timing-sensitive tests running
+///     at the same moment could then miss their deadlines (T-043).
+/// TR: Bir servisi kapatan testler bu koleksiyonda çalışır: tek başlarına, tüm paralel testler bittikten sonra. İkinci bir sistemin
+///     başlaması ve bir servisin yeniden başlaması CI makinesi için yarışır; aynı anda çalışan zamana duyarlı testler süre sınırlarını
+///     kaçırabilirdi (T-043).
+/// </summary>
+[CollectionDefinition(DisableParallelization = true)]
+public sealed class ServiceOutageCollection;

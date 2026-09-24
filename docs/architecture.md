@@ -163,6 +163,10 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   - A Basic tenant cannot access a Pro module (403)
   - A tenant cannot see another tenant's data
   - Orders can be placed while Inventory is down
+- **Tests that break the system on purpose** (e.g. stop a service) use their own system copy
+  (`IsolatedAppFixture`) and the `ServiceOutageCollection`, so they run alone, after the parallel tests (T-043).
+- **CI failures are readable without signing in:** failed tests become annotations and a job summary; the TRX results
+  are kept as an artifact (T-043).
 - **Library tests** (e.g. BuildingBlocks) run against a real PostgreSQL started by **Testcontainers** — an in-memory
   database can't reproduce PostgreSQL behavior such as `xmin`.
 - **Tools:** xUnit v3 on Microsoft.Testing.Platform (the .NET 10 default direction; set in `global.json`),

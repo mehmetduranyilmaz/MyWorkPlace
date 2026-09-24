@@ -67,4 +67,23 @@ jobs:
         run: dotnet build MyWorkplace.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --solution MyWorkplace.slnx --no-build --configuration Release
+        run: >-
+          dotnet test --solution MyWorkplace.slnx --no-build --configuration Release
+          --report-xunit-trx --results-directory TestResults
+
+      # EN: Raw logs need a signed-in user; annotations and the job summary don't. So a failure names its tests
+      #     where anyone (and any tool) can read them (T-043).
+      # TR: Ham loglar giriş yapmış kullanıcı ister; uyarılar (annotation) ve iş özeti istemez. Böylece bir hata, testlerinin
+      #     adını herkesin (ve her aracın) okuyabileceği yerde söyler (T-043).
+      - name: Report failed tests
+        if: failure()
+        shell: pwsh
+        run: ./eng/ci/Report-FailedTests.ps1 -ResultsDirectory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore

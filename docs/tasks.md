@@ -491,6 +491,17 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     all three services (created, inspected, deleted — `migrations remove` needs a live database, so the files were
     removed by hand and the snapshots restored). 4 new BuildingBlocks tests for `SingleWithVersionAsync`; 91 in total.
     Services now reference only BuildingBlocks (ServiceDefaults comes through it). Code conventions updated.
+- **T-043** — CI failed after T-017; make failing tests readable without signing in (unplanned) — **In Review**
+  - Goal: `main` is green again, and the next failure names its test where anyone can see it.
+  - [x] Failing tests appear as GitHub annotations (test name + message) and the test results are kept as an artifact
+  - [x] Tests that break the system on purpose run on their own, after the parallel tests, so they don't compete
+        with them for the CI machine
+  - [ ] CI is green on `main` — checked after the merge
+  - Notes: the failing test of CI #27 couldn't be identified: raw logs need a signed-in user and only "exit code 2"
+    was readable. Most likely cause: the second system of T-017 starting while the other tests ran, on a smaller
+    machine. `eng/ci/Report-FailedTests.ps1` turns failed tests in the TRX files into annotations and a job summary
+    (tested here on a real and a deliberately failed TRX). `ResilienceTests` now runs in a non-parallel collection;
+    the TRX times show it starting after the last parallel test ended. Locally, run exactly as CI: 155 passed.
 - **T-027** — Module guide (`docs/process/adding-a-module.md`): step-by-step recipe, based on the reference module
 - **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes
 
