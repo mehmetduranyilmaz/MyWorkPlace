@@ -112,6 +112,19 @@ From the dashboard:
   The `customers` endpoint's `/scalar` page documents every status code.
 - **Browse the database:** open **PgWeb** next to `postgres` to see the `tenants`, `users` and `audit_log` tables.
 
+#### Try it yourself: a service goes down, the others keep working
+
+1. With a Pro company (`POST <gateway>/identity/tenant/upgrade`), create a stock item: `POST <gateway>/inventory/items`
+   with `{ "sku": "BOLT-1", "name": "Bolt", "baseUnit": "PCS" }`.
+2. In the dashboard, **stop** the `inventory` resource. `GET <gateway>/inventory/items` now fails within seconds.
+3. Create and place an order anyway: `POST <gateway>/orders` with a line for `BOLT-1`, then
+   `POST <gateway>/orders/{id}/place` with the `ETag` as `If-Match`. It succeeds — Orders doesn't need Inventory.
+4. Open the RabbitMQ management UI next to `messaging` (user `guest`, password in the dashboard's `messaging`
+   parameters): the queue `myworkplace.inventory.OrderPlaced` holds your order's event.
+5. **Start** `inventory` again. The queue empties and the item's `quantity` drops — nothing was lost.
+
+The integration test `ResilienceTests` does exactly this on every CI run.
+
 - **VS Code:** press **F5** (launch profile *MyWorkplace (Aspire AppHost)*).
 - **Visual Studio:** open `MyWorkplace.slnx`, set `MyWorkplace.AppHost` as the startup project, press **F5**.
 
@@ -141,7 +154,7 @@ implements, tests and explains.
 - [x] **Sprint 1 — MVP:** Identity, Gateway, Customers (Basic), Inventory (Pro), plan upgrade
 - [ ] **Sprint 2 — Plug-and-play core:** roles and permissions, messaging with outbox, a module guide —
       proven by adding Products without touching core code
-- [ ] Orders, event-driven stock updates, live resilience demo
+- [x] Orders, event-driven stock updates, live resilience demo
 - [ ] Reporting, per-plan rate limiting, refresh tokens
 - [ ] User interface
 

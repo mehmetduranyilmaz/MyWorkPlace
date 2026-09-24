@@ -21,7 +21,12 @@ builder.Services.AddProblemDetails();
 //     sabit port yerine Aspire servis bulma ile çözülür.
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))
-    .AddServiceDiscoveryDestinationResolver();
+    .AddServiceDiscoveryDestinationResolver()
+    // EN: A service inside our network connects in milliseconds; if it can't within 3 seconds it is down, and the
+    //     caller should get an error now instead of after YARP's default 15 seconds (found by the T-017 resilience test).
+    // TR: Ağımızdaki bir servis milisaniyeler içinde bağlanır; 3 saniyede bağlanamıyorsa kapalıdır ve çağıran, YARP'ın varsayılan
+    //     15 saniyesinden sonra değil hemen hata almalıdır (T-017 dayanıklılık testi buldu).
+    .ConfigureHttpClient((_, handler) => handler.ConnectTimeout = TimeSpan.FromSeconds(3));
 
 var app = builder.Build();
 

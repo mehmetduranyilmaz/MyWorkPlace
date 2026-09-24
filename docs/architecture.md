@@ -136,6 +136,9 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Why:** Orders can still be placed while Inventory is down; stock catches up when it comes back.
 - **Library:** decided in ADR-023 (T-015).
 - **Unavoidable synchronous calls** use timeout + retry + circuit breaker (Aspire ServiceDefaults).
+- **Proven (T-017):** an integration test stops Inventory for real, places orders, starts it again and sees the stock
+  catch up. It also showed the gateway waited 15 seconds (YARP's default connect timeout) before answering for a
+  stopped service; the gateway now gives up connecting after 3 seconds and answers with a `5xx`.
 
 ### ADR-008 — .NET 10 + .NET Aspire
 
@@ -404,6 +407,10 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   - The dispatcher runs the "already processed?" check, the handler and the "processed" mark in one explicit
     transaction (T-016), so a handler may also update rows directly (`ExecuteUpdateAsync`) and all of it commits or
     rolls back together.
+- **Known limit:** a consumer's queue is created when that consumer first starts. An event published before then has
+  no queue to wait in and is lost, and a service added later doesn't receive past events. Accepted: events announce
+  what happens now; they are not a history (that would be event sourcing, a separate decision). Once created, queues
+  are durable, so a consumer that is down only delays its events (T-017).
 
 ### ADR-024 — Orders model
 

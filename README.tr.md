@@ -112,6 +112,19 @@ Panelden:
   `customers` adresinin `/scalar` sayfası tüm durum kodlarını anlatır.
 - **Veritabanını inceleyin:** `postgres` yanındaki **PgWeb**'i açarak `tenants`, `users` ve `audit_log` tablolarını görün.
 
+#### Kendin dene: bir servis çöker, diğerleri çalışmaya devam eder
+
+1. Pro bir firmayla (`POST <gateway>/identity/tenant/upgrade`) bir stok kalemi oluşturun: `POST <gateway>/inventory/items`,
+   gövde `{ "sku": "BOLT-1", "name": "Bolt", "baseUnit": "PCS" }`.
+2. Panelde `inventory` kaynağını **durdurun**. `GET <gateway>/inventory/items` artık saniyeler içinde hata verir.
+3. Yine de bir sipariş oluşturup verin: `BOLT-1` satırıyla `POST <gateway>/orders`, ardından `ETag`'i `If-Match` olarak göndererek
+   `POST <gateway>/orders/{id}/place`. Başarılı olur — Orders'ın Inventory'ye ihtiyacı yoktur.
+4. `messaging` yanındaki RabbitMQ yönetim arayüzünü açın (kullanıcı `guest`, parola panelin `messaging` parametrelerinde):
+   `myworkplace.inventory.OrderPlaced` kuyruğu siparişinizin olayını tutuyor.
+5. `inventory`'yi yeniden **başlatın**. Kuyruk boşalır ve kalemin `quantity` değeri düşer — hiçbir şey kaybolmadı.
+
+`ResilienceTests` entegrasyon testi her CI çalışmasında tam olarak bunu yapar.
+
 - **VS Code:** **F5** tuşuna basın (*MyWorkplace (Aspire AppHost)* profili).
 - **Visual Studio:** `MyWorkplace.slnx` dosyasını açın, `MyWorkplace.AppHost` projesini başlangıç projesi yapın, **F5** tuşuna basın.
 
@@ -140,7 +153,7 @@ Her mimari kararı insan verir ve her merge'ü insan onaylar. Asistan seçenekle
 - [x] **Sprint 1 — MVP:** Identity, Gateway, Customers (Basic), Inventory (Pro), plan yükseltme
 - [ ] **Sprint 2 — Tak-çalıştır çekirdek:** roller ve izinler, outbox'lı mesajlaşma, modül rehberi —
       çekirdek koda dokunmadan Products eklenerek kanıtlanır
-- [ ] Orders, olay tabanlı stok güncelleme, canlı dayanıklılık demosu
+- [x] Orders, olay tabanlı stok güncelleme, canlı dayanıklılık demosu
 - [ ] Raporlama, plana göre rate limiting, refresh token
 - [ ] Kullanıcı arayüzü
 

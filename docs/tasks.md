@@ -23,7 +23,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Paging and search standard | Done | T-028 |
 | Roles and permissions: a module declares who may call which endpoint | Done | T-025, T-037 |
 | Tenant settings: business rules that vary per company are parameters with defaults, not code | Done | T-032 |
-| Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
+| Cross-service events (RabbitMQ + outbox) | Done | T-015, T-016, T-017 |
 | No module boilerplate: base entity, one-line service setup, shared mappings | Done | T-036 |
 | Module guide: step-by-step recipe for adding a module | Todo | T-027 |
 | **Proof: Products added via the guide with zero core changes** | Todo | T-013 |
@@ -463,7 +463,18 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     atomic update is what keeps the balance right. Items are issued in id order to rule out deadlocks. The Basic-company
     test waits for `processed_events` first, so "nothing changed" can't just mean "not processed yet". 5 new tests;
     154 in total.
-- **T-017** — Resilience demo: orders accepted while Inventory is down; stock catches up when it returns
+- **T-017** — Resilience: orders are accepted while Inventory is down; stock catches up when it returns (ADR-007) — **Done**
+  - Goal: prove, on every CI run, that one service being down doesn't stop the others.
+  - [x] Integration test with its own system instance (other tests share one and must not see Inventory go down):
+        stop Inventory → `/inventory` answers `5xx` through the gateway within seconds (no hang) → orders are still
+        created and placed (`200`) → start Inventory → every missed order decreases stock within 60 seconds
+  - [x] README (English and Turkish): "Try it yourself" steps to watch the same scenario in the Aspire dashboard
+  - [x] ADR-023 records the known limit: a queue exists only once its consumer has started
+  - Notes: the test stops and starts Inventory with Aspire's resource commands on an `IsolatedAppFixture` (a second
+    copy of the system; Aspire randomizes ports and container names, so both run side by side). Its first run failed
+    for a real reason: the gateway waited 15 seconds — YARP's default connect timeout — before answering for the
+    stopped service. The gateway now gives up connecting after 3 seconds (ADR-007). The whole suite takes about
+    40 seconds longer for the second system. 1 new test; 155 in total.
 - **T-036** — Module boilerplate into the core (ADR-021) — **Done**
   - Goal: a new module writes only its entities, rules, endpoints and tests; the recurring setup comes from BuildingBlocks.
   - [x] Base classes `AuditableEntity` → `TenantOwnedEntity` → `BusinessEntity` in BuildingBlocks; Tenant and SigningKey,

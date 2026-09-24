@@ -11,7 +11,7 @@ namespace MyWorkplace.IntegrationTests;
 /// TR: Tüm sistemi (PostgreSQL, servisler, gateway) bütün entegrasyon testleri için bir kez başlatır.
 ///     Testler kendi verilerini benzersiz e-postalarla oluşturur; bu yüzden çalışan sistemi paylaşabilir.
 /// </summary>
-public sealed class AppFixture : IAsyncLifetime
+public class AppFixture : IAsyncLifetime
 {
     /// <summary>
     /// EN: Generous: the first run may pull the PostgreSQL image and builds every service.
@@ -58,5 +58,17 @@ public sealed class AppFixture : IAsyncLifetime
     }
 
     /// <inheritdoc />
-    public ValueTask DisposeAsync() => App.DisposeAsync();
+    public async ValueTask DisposeAsync()
+    {
+        await App.DisposeAsync();
+        GC.SuppressFinalize(this);
+    }
 }
+
+/// <summary>
+/// EN: A second, private copy of the whole system for tests that break it on purpose (e.g. stop a service). Aspire
+///     picks random ports and container names for test runs, so both copies run side by side without interfering.
+/// TR: Sistemi bilerek bozan testler (ör. bir servisi durduran) için tüm sistemin ikinci, özel bir kopyası. Aspire test
+///     çalıştırmalarında rastgele port ve konteyner adları seçer; böylece iki kopya birbirini etkilemeden yan yana çalışır.
+/// </summary>
+public sealed class IsolatedAppFixture : AppFixture;
