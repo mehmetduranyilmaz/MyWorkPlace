@@ -99,7 +99,7 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Alternatives:** Keycloak / Duende / Entra ID — preferred in real projects, but they hide the mechanics.
   Rejected on purpose for learning.
 - **Token claims:** `sub` (user), `tenant_id`, `plan` (`basic` | `pro`); short lifetime (15 min);
-  `iss = myworkplace-identity`, `aud = myworkplace-api`. Claim names live in `BuildingBlocks.Identity.TokenClaims`.
+  `iss = myworkplace-identity`, `aud = myworkplace-api`. Claim names live in `Contracts.Identity.TokenClaims`.
 - **Discovery:** Identity publishes `/identity/.well-known/jwks.json` and a minimal
   `/identity/.well-known/openid-configuration`, so standard JWT middleware finds and refreshes the keys by itself.
 
@@ -109,6 +109,14 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Why:** Defense in depth — protection holds even if the gateway is misconfigured or a service is reached from the internal network.
 - **Known behavior on upgrade:** The plan lives in the token, so after an upgrade the old plan stays in effect
   **until a new token is issued**. The short token lifetime bounds this window. Accepted trade-off.
+- **Secure by default:** the gateway's fallback policy requires a valid token. Public routes (sign-up, sign-in,
+  `/.well-known/*`) are explicitly marked `anonymous`; Pro routes use the `pro-plan` policy. A route whose policy is
+  forgotten is closed, never open. Health endpoints are explicitly anonymous (Development only).
+- **Gateway authentication:** standard JwtBearer with the Identity discovery document, fetched through Aspire service
+  discovery (`https+http://identity`). `RequireHttpsMetadata` is off because that logical scheme is not literally
+  `https://`; service discovery still prefers HTTPS. A production deployment should point at a real `https://` address.
+- **Dependency rule:** the gateway references only `MyWorkplace.Contracts` (claim and policy names), never
+  BuildingBlocks — it has no business with databases.
 
 ### ADR-007 — Cross-service communication: events first (asynchronous)
 
@@ -212,7 +220,7 @@ src/
   MyWorkplace.ServiceDefaults/    # Shared: OpenTelemetry, health checks, resilience
   MyWorkplace.Gateway/            # YARP
   MyWorkplace.BuildingBlocks/     # Shared technical infrastructure (ADR-011) — no domain types
-  MyWorkplace.Contracts/          # Cross-service event definitions (data only)
+  MyWorkplace.Contracts/          # Cross-service contracts: token claims, policy names, events (no dependencies)
   Services/
     MyWorkplace.Identity/
     MyWorkplace.Customers/

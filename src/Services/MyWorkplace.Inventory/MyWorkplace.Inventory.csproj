@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\MyWorkplace.ServiceDefaults\MyWorkplace.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

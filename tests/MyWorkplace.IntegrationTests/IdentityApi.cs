@@ -47,6 +47,25 @@ internal static class IdentityApi
         client.PostAsJsonAsync("/identity/login", new { email, password }, ct);
 
     /// <summary>
+    /// EN: Registers a new (Basic) company, signs in and returns a client that sends its access token.
+    /// TR: Yeni bir (Basic) firma kaydeder, giriş yapar ve erişim token'ını gönderen bir istemci döner.
+    /// </summary>
+    /// <param name="app">EN: The running system. TR: Çalışan sistem.</param>
+    /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: An authenticated gateway client. TR: Kimliği doğrulanmış gateway istemcisi.</returns>
+    public static async Task<HttpClient> CreateSignedInClientAsync(AppFixture app, CancellationToken ct)
+    {
+        var client = app.CreateGatewayClient();
+        var email = UniqueEmail();
+        await RegisterNewTenantAsync(client, email, ct);
+        using var login = await LoginAsync(client, email, ValidPassword, ct);
+        login.EnsureSuccessStatusCode();
+        var token = (await login.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("accessToken").GetString();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
+    /// <summary>
     /// EN: Registers a new company and returns its ids.
     /// TR: Yeni bir firma kaydeder ve kimliklerini döner.
     /// </summary>

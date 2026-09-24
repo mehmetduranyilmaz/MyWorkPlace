@@ -1,0 +1,9 @@
+<!--
+  EN: Cross-service contracts: names and shapes services agree on. No dependencies on purpose, so anything
+      (even the gateway) can reference it without pulling in infrastructure.
+  TR: Servisler arası sözleşmeler: servislerin üzerinde anlaştığı adlar ve şekiller. Bilerek bağımlılıksız;
+      böylece her şey (gateway bile) altyapı yüklenmeden buna başvurabilir.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+</Project>

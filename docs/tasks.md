@@ -159,11 +159,23 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 
 ### T-007 — Gateway: routing, authentication and plan policy
 
-- **State:** Todo
+- **State:** Done
 - **Acceptance criteria:**
-  - [ ] YARP route `/inventory/*` (`/identity/*` and `/customers/*` exist from earlier tasks)
-  - [ ] JWT validated via JWKS
-  - [ ] `ProPlan` policy: Basic token on a Pro route → 403
+  - [x] YARP route `/inventory/*` (`/identity/*` and `/customers/*` exist from earlier tasks)
+  - [x] JWT validated via JWKS
+  - [x] `ProPlan` policy: Basic token on a Pro route → 403
+- **Notes:**
+  - Secure by default: fallback policy requires a valid token; sign-up, sign-in and `/.well-known/*` are explicit
+    `anonymous` YARP routes; `/inventory/*` uses `pro-plan`. 401/403 from the gateway are ProblemDetails.
+  - JwtBearer reads Identity's discovery document through service discovery and caches the keys;
+    `MapInboundClaims = false` keeps `sub`, `tenant_id`, `plan` as issued.
+  - New `MyWorkplace.Contracts` project (no dependencies): `TokenClaims` moved there from BuildingBlocks, plus
+    `PolicyNames`. The gateway references only Contracts — no database packages.
+  - Inventory skeleton service (`GET /inventory/info`) added so the Pro route is real; T-010 fills it.
+  - Health endpoints marked anonymous in ServiceDefaults, otherwise Aspire's probes would get 401.
+  - The whole IdentityModel package family pinned to one version (mixed versions fail only at runtime).
+  - Tests: no token → 401, tampered signature → 401, Basic on `/inventory` → 403, public routes stay open.
+    Pro → 200 needs a Pro tenant, so it comes with T-011/T-012.
 
 ### T-008 — Shared: tenant context and plan check (service side)
 

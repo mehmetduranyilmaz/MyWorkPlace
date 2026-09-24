@@ -1,4 +1,4 @@
-namespace MyWorkplace.BuildingBlocks.Identity;
+namespace MyWorkplace.Contracts.Identity;
 
 /// <summary>
 /// EN: Names and values of the claims in our access tokens (ADR-005). Issued by Identity, read by the gateway and

@@ -14,6 +14,7 @@
     <ProjectReference Include="..\MyWorkplace.Gateway\MyWorkplace.Gateway.csproj" />
     <ProjectReference Include="..\Services\MyWorkplace.Customers\MyWorkplace.Customers.csproj" />
     <ProjectReference Include="..\Services\MyWorkplace.Identity\MyWorkplace.Identity.csproj" />
+    <ProjectReference Include="..\Services\MyWorkplace.Inventory\MyWorkplace.Inventory.csproj" />
   </ItemGroup>
 
 </Project>

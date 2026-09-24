@@ -1,7 +1,7 @@
 using System.Buffers.Text;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.IdentityModel.Tokens;
-using MyWorkplace.BuildingBlocks.Identity;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Identity.Tokens;
 
 namespace MyWorkplace.Identity.Features.Discovery;

@@ -145,11 +145,13 @@ public static class Extensions
     {
         if (app.Environment.IsDevelopment())
         {
-            app.MapHealthChecks(HealthEndpointPath);
+            // EN: Explicitly anonymous: with secure-by-default authorization (T-007), probes would otherwise get 401.
+            // TR: Bilinçli olarak anonim: varsayılan olarak korumalı yetkilendirmede (T-007) yoklamalar aksi halde 401 alırdı.
+            app.MapHealthChecks(HealthEndpointPath).AllowAnonymous();
             app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
             {
                 Predicate = check => check.Tags.Contains("live")
-            });
+            }).AllowAnonymous();
         }
 
         return app;

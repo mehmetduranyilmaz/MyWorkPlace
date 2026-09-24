@@ -17,7 +17,16 @@
   </ItemGroup>
 
   <ItemGroup Label="Tokens">
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <!-- EN: The IdentityModel family is pinned as a whole: mixed versions fail at runtime, not at build time.
+         TR: IdentityModel ailesi bir bütün olarak sabitlenir: karışık sürümler derlemede değil, çalışırken hata verir. -->
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="8.23.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.Protocols" Version="8.23.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.23.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.Logging" Version="8.23.0" />
+    <PackageVersion Include="Microsoft.IdentityModel.Abstractions" Version="8.23.0" />
+    <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
   </ItemGroup>
 
   <ItemGroup Label="Web APIs">

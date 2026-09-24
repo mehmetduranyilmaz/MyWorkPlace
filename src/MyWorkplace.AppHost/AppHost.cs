@@ -31,13 +31,18 @@ var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
 var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
     .WithHttpHealthCheck("/health");
 
+var inventory = builder.AddProject<Projects.MyWorkplace_Inventory>("inventory")
+    .WithHttpHealthCheck("/health");
+
 // EN: Only the gateway is exposed externally; services are reached through it.
 // TR: Dışarıya sadece gateway açılır; servislere onun üzerinden ulaşılır.
 builder.AddProject<Projects.MyWorkplace_Gateway>("gateway")
     .WithReference(identity)
     .WithReference(customers)
+    .WithReference(inventory)
     .WaitFor(identity)
     .WaitFor(customers)
+    .WaitFor(inventory)
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health");
 
