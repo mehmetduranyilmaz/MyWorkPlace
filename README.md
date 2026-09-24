@@ -11,7 +11,7 @@ built on .NET 10 with an API gateway and independent services.
 > Every decision is written down with its reasons.
 
 [![CI](https://github.com/mehmetduranyilmaz/MyWorkPlace/actions/workflows/ci.yml/badge.svg)](https://github.com/mehmetduranyilmaz/MyWorkPlace/actions/workflows/ci.yml)
-![Status](https://img.shields.io/badge/status-sprint%201%20%E2%80%94%20MVP-orange)
+![Status](https://img.shields.io/badge/status-sprint%202%20%E2%80%94%20plug--and--play%20core-orange)
 ![.NET](https://img.shields.io/badge/.NET-10-512BD4)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -138,7 +138,7 @@ implements, tests and explains.
 ## Roadmap
 
 - [x] **Sprint 0 — Foundation:** repository, solution skeleton, CI
-- [ ] **Sprint 1 — MVP:** Identity, Gateway, Customers (Basic), Inventory (Pro), plan upgrade
+- [x] **Sprint 1 — MVP:** Identity, Gateway, Customers (Basic), Inventory (Pro), plan upgrade
 - [ ] **Sprint 2 — Plug-and-play core:** roles and permissions, messaging with outbox, a module guide —
       proven by adding Products without touching core code
 - [ ] Orders, event-driven stock updates, live resilience demo

@@ -341,11 +341,16 @@ Remaining order: **T-011 → T-010 → T-012**.
 
 ### T-012 — End-to-end integration tests
 
-- **State:** Todo
+- **State:** Done
+- **Goal:** Prove the Sprint 1 goal end to end, and keep it readable as living documentation.
 - **Acceptance criteria:**
-  - [ ] Basic → Inventory: 403
-  - [ ] Pro → Inventory: 200
-  - [ ] No token → 401
+  - [x] Basic → Inventory: 403 — already covered by `GatewayAuthorizationTests`, `DefenseInDepthTests`, `StockItemTests`
+  - [x] Pro → Inventory: 200 — already covered by `PlanUpgradeTests`, `StockItemTests`
+  - [x] No token → 401 — already covered by `GatewayAuthorizationTests`, `DefenseInDepthTests`
+  - [x] One scenario test tells the Sprint 1 story in order: sign up (Basic) → add a customer → Inventory refused →
+        upgrade → add a stock item → another company sees none of it
+- **Notes:** The three original criteria were met by earlier tasks; duplicating those tests would add upkeep without
+  value, so this task adds the story-level scenario instead.
 
 ---
 
@@ -421,3 +426,29 @@ an integration test that starts the real system; CI on GitHub Actions; `/task`, 
 - *CI catches what the local machine hides.* The dev-certificate step passed on Windows and failed on Linux.
   The fix verifies the outcome instead of silencing the error.
 - *Rules enforced by the build are rules that stick.* Bilingual doc comments are checked by the compiler (CS1591).
+
+### Sprint 1 — MVP: Basic / Pro end to end (closed)
+
+**Done:** T-024, T-006, T-023, T-007, T-026, T-008, T-009, T-028, T-011, T-010, T-012. Shared persistence conventions;
+Identity with sign-up, RS256 JWT, JWKS and plan upgrade; gateway and services that both validate tokens and plans;
+the reference module (Customers) with ETag concurrency and the paging standard; the first Pro module (stock items).
+87 tests, all against real PostgreSQL or the real running system.
+
+**Left:** nothing from the sprint goal. Inventory depth (units, barcodes, movements) moved to Sprint 3 on purpose;
+T-036 (module boilerplate) was discovered and added to Sprint 2.
+
+**Learned:**
+
+- *Refine before coding.* Every task written in Sprint 0 failed the Definition of Ready (T-006, T-009, T-010, T-011);
+  `/refine` turned each into testable criteria and ADRs before a line of code was written.
+- *Copy the template once, early.* Building the second module from the first produced a friction log that exposed
+  four core gaps (T-036) — found now, not during the milestone's proof.
+- *Attack your own system.* Tests that call services directly, bypassing the gateway, prove defense in depth instead
+  of assuming it.
+- *Pin package families, not packages.* An EF Core patch mismatch and the IdentityModel family were fixed at the root
+  with central transitive pinning.
+- *A red test asks "code or test?".* Three failures were test bugs (a static AsyncLocal, two wrong expected orders);
+  one test was reshaped to assert exactly one thing.
+- *Look at the running system.* A glance at Docker Desktop revealed that tests and development ran different
+  PostgreSQL versions (T-026).
+- *Know your shell.* Windows PowerShell 5.1 split a commit message at its quotes; commits now use `git commit -F`.
