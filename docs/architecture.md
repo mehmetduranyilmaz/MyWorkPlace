@@ -330,7 +330,7 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 ### ADR-022 — Roles and permissions
 
 - **Permissions** are a catalog **in code** (Contracts), named `module.action` — `customers.read`, `customers.write`,
-  `customers.delete`, `inventory.*`, `users.manage`, `settings.manage`, `plan.manage`. Modules and Identity share the
+  `customers.delete`, `inventory.*`, `orders.*`, `users.manage`, `settings.manage`, `plan.manage`. Modules and Identity share the
   names, so a typo is a compile error. Destructive actions (`*.delete`) are separate permissions.
 - **Default roles**, defined in code and available to every company:
 
@@ -390,6 +390,34 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   - Handler code is generated and compiled at startup (`WolverineFx.RuntimeCompilation`); pre-generating it would add
     a build step every module must remember.
   - The broker version is pinned in `eng/RabbitMqImage.cs` and shared by the AppHost and the tests (like PostgreSQL).
+
+### ADR-024 — Orders model
+
+- **Lines are self-contained:** each line carries SKU, name, quantity and unit price as entered; nothing is checked
+  against another service. Orders keeps working while Inventory or Products is down (ADR-007). Inventory matches
+  lines to its stock items by SKU when it receives `OrderPlaced` (T-016); a `ProductId` joins the line once Products
+  exists (T-013).
+- **Customer snapshot:** an order may reference a customer by `CustomerId` and keeps a copy of the customer's name
+  at the time of ordering — an order must show the name it was placed with, even if the customer is renamed later.
+  The id is not validated for now; a local customer replica fed by events will do it (T-039).
+- **Lifecycle:** `Draft` (editable, deletable, no number) → `Placed` via `POST /orders/{id}/place`. Placing gives the
+  order the next per-company sequential number, freezes its lines and publishes `OrderPlaced` through the outbox
+  (ADR-023). Cancelling a placed order, which must return stock, comes later (T-040).
+- **Money:** line totals and the order total are computed by the server and stored as `decimal(18,2)`; totals sent by
+  a client are ignored. Currency and VAT are out of scope for now (T-041).
+- **Permissions:** `orders.read` / `orders.write` / `orders.delete` follow the role matrix of ADR-022: Members create
+  and place orders, Viewers read, Admins and Owners also delete drafts.
+- **Implementation notes (T-014):**
+  - **Numbers:** one `order_number_sequences` row per company, incremented in the placement's transaction; its row
+    version makes one of two simultaneous placements fail, and that one retries in a fresh scope (new context and
+    outbox). Numbers never repeat and a failed placement leaves no gap.
+  - **Placing needs If-Match:** you place exactly the version you last saw.
+  - **Precision:** quantities have at most 3 decimals and prices 2; more is rejected (`400`) instead of being rounded
+    silently by the database, which would make a stored price disagree with its line total.
+  - **Lines** are owned by the order (`order_lines`). Soft-deleting an owner now keeps its owned parts — a core fix
+    found here, since EF marks owned parts deleted along with their owner.
+  - Events are published to an exchange named after the event type (`OrderPlaced`) — our rule (ADR-023), not the
+    library's default.
 
 ---
 

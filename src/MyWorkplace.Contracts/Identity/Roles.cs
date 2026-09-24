@@ -19,13 +19,13 @@ public static class Roles
     public const string Viewer = "Viewer";
 
     /// <summary>EN: Permissions every role above Viewer can use to read. TR: Okuma izinleri.</summary>
-    private static readonly string[] _read = [Permissions.Customers.Read, Permissions.Inventory.Read];
+    private static readonly string[] _read = [Permissions.Customers.Read, Permissions.Inventory.Read, Permissions.Orders.Read];
 
     /// <summary>EN: Create and edit permissions. TR: Oluşturma ve düzenleme izinleri.</summary>
-    private static readonly string[] _write = [Permissions.Customers.Write, Permissions.Inventory.Write];
+    private static readonly string[] _write = [Permissions.Customers.Write, Permissions.Inventory.Write, Permissions.Orders.Write];
 
     /// <summary>EN: Destructive permissions. TR: Geri alınması zor (silme) izinleri.</summary>
-    private static readonly string[] _delete = [Permissions.Customers.Delete, Permissions.Inventory.Delete];
+    private static readonly string[] _delete = [Permissions.Customers.Delete, Permissions.Inventory.Delete, Permissions.Orders.Delete];
 
     /// <summary>EN: Administration permissions. TR: Yönetim izinleri.</summary>
     private static readonly string[] _administration = [Permissions.UsersManage, Permissions.SettingsManage];

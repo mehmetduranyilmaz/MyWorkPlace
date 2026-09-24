@@ -57,6 +57,7 @@ public sealed class LoginTests(AppFixture app)
             [
                 "customers.delete", "customers.read", "customers.write",
                 "inventory.delete", "inventory.read", "inventory.write",
+                "orders.delete", "orders.read", "orders.write",
                 "plan.manage", "settings.manage", "users.manage",
             ],
             permissions);

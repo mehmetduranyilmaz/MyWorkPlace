@@ -58,8 +58,15 @@ Guidelines:
   `group.MapModuleSettings<XSettings>(Permissions.X.Read)` and read in code through `ITenantSettings<XSettings>`.
   Never a hard-coded `if` per company, never a new table for one value. Every service's database already has
   `tenant_settings`; adding a setting needs no migration.
-Block`), not numbers — configured once in `AddServiceModule`.
-"Block"`), not numbers — configured once in `AddServiceModule`.
+- **Enums** travel as names (`"Block"`), not numbers — configured once in `AddServiceModule`.
+- **Events (ADR-023):** a service that publishes or consumes events calls `builder.AddServiceMessaging<TContext>("x-db")`.
+  Events are records deriving from `IntegrationEvent` in `MyWorkplace.Contracts/Events`. To publish, add them with
+  `IEventOutbox.AddAsync` and save with `IEventOutbox.SaveChangesAsync` (never the context's own SaveChanges).
+  To consume, write a class implementing `IEventHandler<TEvent>` that changes the context **without saving**.
+  Never reference Wolverine types from a service.
+- **Nested collections in requests are `List<T>`, never arrays:** the validation source generator checks the elements
+  of a list but silently skips those of an array (T-014). Collections of plain values (`string[]`) are fine.
+- **Owned parts** (`OwnsMany`, e.g. order lines) are kept when their owner is soft-deleted.
 
 ## Endpoints
 

@@ -10,6 +10,7 @@
     <Project Path="src/Services/MyWorkplace.Customers/MyWorkplace.Customers.csproj" />
     <Project Path="src/Services/MyWorkplace.Identity/MyWorkplace.Identity.csproj" />
     <Project Path="src/Services/MyWorkplace.Inventory/MyWorkplace.Inventory.csproj" />
+    <Project Path="src/Services/MyWorkplace.Orders/MyWorkplace.Orders.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/MyWorkplace.BuildingBlocks.Tests/MyWorkplace.BuildingBlocks.Tests.csproj" />

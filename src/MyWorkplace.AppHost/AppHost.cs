@@ -24,9 +24,9 @@ if (!ephemeral)
 }
 
 // EN: Message broker for cross-service events (ADR-007, ADR-023). Services that publish or consume events reference it
-//     as "messaging"; the first one arrives with T-014.
+//     as "messaging".
 // TR: Servisler arası olaylar için mesaj aracı (ADR-007, ADR-023). Olay yayınlayan veya dinleyen servisler ona "messaging"
-//     adıyla bağlanır; ilki T-014 ile gelir.
+//     adıyla bağlanır.
 // EN: Version pinned in eng/RabbitMqImage.cs, shared with the tests.
 // TR: Sürüm eng/RabbitMqImage.cs içinde sabit, testlerle ortak.
 var messaging = builder.AddRabbitMQ("messaging").WithImageTag(MyWorkplace.RabbitMqImage.Tag);
@@ -40,6 +40,7 @@ if (!ephemeral)
 var identityDb = postgres.AddDatabase("identity-db");
 var customersDb = postgres.AddDatabase("customers-db");
 var inventoryDb = postgres.AddDatabase("inventory-db");
+var ordersDb = postgres.AddDatabase("orders-db");
 
 var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
     .WithReference(identityDb)
@@ -62,15 +63,28 @@ var inventory = builder.AddProject<Projects.MyWorkplace_Inventory>("inventory")
     .WaitFor(identity)
     .WithHttpHealthCheck("/health");
 
+// EN: Orders publishes events, so it also references the broker (ADR-023).
+// TR: Orders olay yayınlar; bu yüzden mesaj aracına da bağlanır (ADR-023).
+var orders = builder.AddProject<Projects.MyWorkplace_Orders>("orders")
+    .WithReference(ordersDb)
+    .WaitFor(ordersDb)
+    .WithReference(messaging)
+    .WaitFor(messaging)
+    .WithReference(identity)
+    .WaitFor(identity)
+    .WithHttpHealthCheck("/health");
+
 // EN: Only the gateway is exposed externally; services are reached through it.
 // TR: Dışarıya sadece gateway açılır; servislere onun üzerinden ulaşılır.
 builder.AddProject<Projects.MyWorkplace_Gateway>("gateway")
     .WithReference(identity)
     .WithReference(customers)
     .WithReference(inventory)
+    .WithReference(orders)
     .WaitFor(identity)
     .WaitFor(customers)
     .WaitFor(inventory)
+    .WaitFor(orders)
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health");
 

@@ -423,7 +423,27 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     so `IEventOutbox` collects events and hands them over inside the strategy (tested with retries on). The current
     user is now `ServiceCurrentUser`: the token's user in requests, the tenant's system actor while an event is
     processed. RabbitMQ is pinned in `eng/RabbitMqImage.cs`. 5 new tests (stable over three runs); 137 in total.
-- **T-014** — Orders service (Basic) — needed as the publisher of the first event
+- **T-014** — Orders service (Basic, ADR-024) — **Done**
+  - Goal: companies record orders, and placing one publishes the first real cross-service event.
+  - [x] New service with its own `orders-db`, in the AppHost and behind the gateway at `/orders` (Basic plan)
+  - [x] Permissions `orders.read` / `orders.write` / `orders.delete` in the catalog and the role matrix
+  - [x] Draft orders: create, list (paged, newest first), get with ETag, replace with `If-Match`, delete; lines carry
+        SKU, name, quantity (> 0), unit price (≥ 0); optional `CustomerId` + customer name snapshot; at least one line
+  - [x] Line totals and the order total are computed by the server
+  - [x] `POST /orders/{id}/place`: draft → `Placed` with the next per-company number (1001, 1002, …; never duplicated,
+        also when two orders are placed at once) and `OrderPlaced` (order id, number, lines) published through the outbox
+  - [x] A placed order can't be changed, deleted or placed again (`409`)
+  - [x] Tests: create / read / update / delete a draft, validation (`400`), stale ETag (`412`), tenant isolation (`404`),
+        role refusals (Viewer create → `403`, Member delete → `403`), placing (number, status, `409` afterwards),
+        concurrent placing gets distinct numbers, `OrderPlaced` is published with the order's lines
+  - Notes: two things the tests caught. The validation source generator silently skipped rules on the elements of an
+    array — line rules only work because `Lines` is a `List` (now a code convention). And soft-deleting an owner
+    physically deleted its owned parts (EF marks them deleted with the owner) — fixed in the core, with a test shown to
+    fail without the fix. Also: quantities / prices with more than 3 / 2 decimals are rejected instead of being rounded
+    silently; placing requires `If-Match`; the `OrderPlaced` test reads the event from RabbitMQ through its own queue;
+    exchanges are named after the event type. While documenting, `code-conventions.md` turned out to have been
+    corrupted by scripted edits in T-032 / T-015 (the "Events" rule had never landed) — repaired here. 12 new tests;
+    149 in total.
 - **T-016** — `OrderPlaced` event → Inventory decreases stock
 - **T-017** — Resilience demo: orders accepted while Inventory is down; stock catches up when it returns
 - **T-036** — Module boilerplate into the core (ADR-021) — **Done**
@@ -464,6 +484,9 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 
 ## Backlog
 
+- **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
+- **T-040** — Cancel a placed order: `OrderCancelled` and stock returned by Inventory (ADR-024)
+- **T-041** — Currency (a company setting) and VAT on orders (ADR-024)
 - **T-038** — Custom roles per company (named permission sets defined by the company)
 - **T-035** — Plan downgrade (Pro → Basic): what happens to Pro-module data must be decided first
 - **T-033** — Variable-weight items (e.g. cheese sold by piece and by kg with a different weight per piece)

@@ -36,6 +36,19 @@ public static class Permissions
         public const string Delete = "inventory.delete";
     }
 
+    /// <summary>EN: Orders module. TR: Orders modülü.</summary>
+    public static class Orders
+    {
+        /// <summary>EN: View orders. TR: Siparişleri görme.</summary>
+        public const string Read = "orders.read";
+
+        /// <summary>EN: Create, edit and place orders. TR: Sipariş oluşturma, düzenleme ve verme.</summary>
+        public const string Write = "orders.write";
+
+        /// <summary>EN: Delete draft orders. TR: Taslak siparişleri silme.</summary>
+        public const string Delete = "orders.delete";
+    }
+
     /// <summary>EN: Manage the company's users and their roles. TR: Firmanın kullanıcılarını ve rollerini yönetme.</summary>
     public const string UsersManage = "users.manage";
 
@@ -53,6 +66,7 @@ public static class Permissions
     {
         Customers.Read, Customers.Write, Customers.Delete,
         Inventory.Read, Inventory.Write, Inventory.Delete,
+        Orders.Read, Orders.Write, Orders.Delete,
         UsersManage, SettingsManage, PlanManage,
     };
 }

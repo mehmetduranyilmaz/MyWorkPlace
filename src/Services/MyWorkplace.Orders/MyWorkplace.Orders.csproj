@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <!-- EN: Needed only by `dotnet ef` at design time; never shipped. TR: Sadece tasarım zamanında `dotnet ef` için; uygulamayla dağıtılmaz. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\MyWorkplace.BuildingBlocks\MyWorkplace.BuildingBlocks.csproj" />
+  </ItemGroup>
+
+</Project>

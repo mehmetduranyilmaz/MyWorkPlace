@@ -86,11 +86,22 @@ public static class MessagingExtensions
                 .AutoProvision()
                 .UseConventionalRouting(routing => routing
                     .IncludeTypes(type => type.IsAssignableTo(typeof(IntegrationEvent)))
+                    .IdentifierForSender(ExchangeName)
                     .QueueNameForListener(type => $"{serviceName}.{type.Name}"));
         });
 
         return builder;
     }
+
+    /// <summary>
+    /// EN: The RabbitMQ exchange an event type is published to: its type name, e.g. "OrderPlaced". Our rule, not the
+    ///     library's default, so it stays stable if the library changes and tools can find it.
+    /// TR: Bir olay tipinin yayınlandığı RabbitMQ exchange'i: tip adı, ör. "OrderPlaced". Kütüphanenin varsayılanı değil bizim
+    ///     kuralımız; böylece kütüphane değişse de sabit kalır ve araçlar onu bulabilir.
+    /// </summary>
+    /// <param name="eventType">EN: The event type. TR: Olay tipi.</param>
+    /// <returns>EN: The exchange name. TR: Exchange adı.</returns>
+    public static string ExchangeName(Type eventType) => eventType.Name;
 
     /// <summary>
     /// EN: Every concrete <see cref="IEventHandler{TEvent}"/> in <paramref name="assembly"/>, with its event type.

@@ -95,7 +95,7 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
     {
         Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), Roles.EffectivePermissions([Roles.Owner], []));
         Assert.Equal(
-            [Permissions.Customers.Read, Permissions.Inventory.Read],
+            [Permissions.Customers.Read, Permissions.Inventory.Read, Permissions.Orders.Read],
             Roles.EffectivePermissions([Roles.Viewer], []));
         Assert.Contains(Permissions.Customers.Delete, Roles.EffectivePermissions([Roles.Member], [Permissions.Customers.Delete]));
         Assert.DoesNotContain("made.up", Roles.EffectivePermissions(["NoSuchRole"], ["made.up"]));

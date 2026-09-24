@@ -132,6 +132,35 @@ public sealed class AuditingInterceptor(ICurrentUser currentUser, TimeProvider t
         entry.State = EntityState.Modified;
         deletable.IsDeleted = true;
         deletable.DeletedAt = now;
+        KeepOwnedParts(entry);
         OnModified(entry, now);
+    }
+
+    /// <summary>
+    /// EN: Removing an owner also marks its owned parts (e.g. an order's lines) as deleted. A soft-deleted owner is
+    ///     kept, so its parts must be kept too — otherwise the history would lose them.
+    /// TR: Bir sahibi silmek sahip olunan parçalarını da (ör. bir siparişin satırları) silinmiş işaretler. Soft-delete edilen sahip
+    ///     korunduğuna göre parçaları da korunmalıdır — aksi halde geçmiş onları kaybederdi.
+    /// </summary>
+    /// <param name="owner">EN: The soft-deleted owner. TR: Soft-delete edilen sahip.</param>
+    private static void KeepOwnedParts(EntityEntry owner)
+    {
+        foreach (var navigation in owner.Navigations.Where(n => n.Metadata.TargetEntityType.IsOwned()))
+        {
+            IEnumerable<object> parts = navigation switch
+            {
+                CollectionEntry collection => collection.CurrentValue?.Cast<object>() ?? [],
+                _ => navigation.CurrentValue is { } part ? [part] : [],
+            };
+
+            foreach (var part in parts)
+            {
+                var partEntry = owner.Context.Entry(part);
+                if (partEntry.State == EntityState.Deleted)
+                {
+                    partEntry.State = EntityState.Unchanged;
+                }
+            }
+        }
     }
 }

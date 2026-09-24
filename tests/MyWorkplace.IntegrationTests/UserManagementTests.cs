@@ -37,7 +37,7 @@ public sealed class UserManagementTests(AppFixture app)
 
         using var member = await SignInAsync(app, email, Ct);
         Assert.Equal(
-            ["customers.read", "customers.write", "inventory.read", "inventory.write"],
+            ["customers.read", "customers.write", "inventory.read", "inventory.write", "orders.read", "orders.write"],
             PermissionsOf(member));
     }
 
@@ -109,7 +109,7 @@ public sealed class UserManagementTests(AppFixture app)
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var user = await SignInAsync(app, email, Ct);
-        Assert.Equal(["customers.delete", "customers.read", "inventory.read"], PermissionsOf(user));
+        Assert.Equal(["customers.delete", "customers.read", "inventory.read", "orders.read"], PermissionsOf(user));
     }
 
     [Fact]

@@ -92,6 +92,33 @@ public sealed class PersistenceConventionsTests(PostgreSqlFixture db)
         Assert.Equal(time.GetUtcNow(), kept.DeletedAt);
     }
 
+    [Fact]
+    public async Task Remove_SoftDeletableOwner_KeepsItsOwnedParts()
+    {
+        var owner = TestUser.OfNewTenant();
+        Guid noteId;
+        await using (var context = db.CreateContext(owner))
+        {
+            var note = new TestNote { Title = "with parts", Items = [new() { Text = "a" }, new() { Text = "b" }] };
+            context.Notes.Add(note);
+            await context.SaveChangesAsync(Ct);
+            noteId = note.Id;
+        }
+
+        await using (var context = db.CreateContext(owner))
+        {
+            context.Notes.Remove((await context.Notes.FindForUpdateAsync(noteId, Ct))!);
+            await context.SaveChangesAsync(Ct);
+        }
+
+        // EN: The note is kept and so are its parts — the history must not lose an order's lines.
+        // TR: Not korunur, parçaları da — geçmiş bir siparişin satırlarını kaybetmemelidir.
+        await using var check = db.CreateContext(owner);
+        var kept = await check.Notes.IgnoreQueryFilters([QueryFilters.SoftDelete]).SingleAsync(n => n.Id == noteId, Ct);
+        Assert.True(kept.IsDeleted);
+        Assert.Equal(["a", "b"], kept.Items.Select(i => i.Text).Order());
+    }
+
     // ---------------------------------------------------------------- Audit fields
 
     [Fact]

@@ -22,6 +22,9 @@ public sealed class TestNote : Entity, ITenantOwned, IAuditable, ISoftDeletable
     [AuditChanges]
     public string[] Tags { get; set; } = [];
 
+    /// <summary>EN: Owned parts (like an order's lines). TR: Sahip olunan parçalar (bir siparişin satırları gibi).</summary>
+    public List<TestNoteItem> Items { get; set; } = [];
+
     /// <inheritdoc />
     public Guid TenantId { get; set; }
 
@@ -45,6 +48,19 @@ public sealed class TestNote : Entity, ITenantOwned, IAuditable, ISoftDeletable
 }
 
 /// <summary>
+/// EN: An owned part of a <see cref="TestNote"/>.
+/// TR: Bir <see cref="TestNote"/>'un sahip olunan parçası.
+/// </summary>
+public sealed class TestNoteItem
+{
+    /// <summary>EN: Part id. TR: Parça kimliği.</summary>
+    public Guid Id { get; set; } = Guid.CreateVersion7();
+
+    /// <summary>EN: Text. TR: Metin.</summary>
+    public string Text { get; set; } = "";
+}
+
+/// <summary>
 /// EN: Minimal service context used to exercise the shared conventions.
 /// TR: Ortak kuralları denemek için kullanılan en küçük servis context'i.
 /// </summary>
@@ -62,6 +78,12 @@ public sealed class TestDbContext(DbContextOptions<TestDbContext> options, ICurr
         {
             note.Property(n => n.Title).HasMaxLength(200);
             note.Property(n => n.Body).HasMaxLength(2000);
+            note.OwnsMany(n => n.Items, item =>
+            {
+                item.ToTable("test_note_items");
+                item.HasKey(i => i.Id);
+                item.Property(i => i.Id).ValueGeneratedNever();
+            });
         });
 }
 
