@@ -200,7 +200,7 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 
 ### ADR-013 — Identity rules
 
-- **Email is unique across the whole system**; each user belongs to exactly one tenant, so login needs only email + password.
+- **Email is unique across the whole system** (among live users — a removed user's email can be reused, T-037); each user belongs to exactly one tenant, so login needs only email + password.
   Users working for several tenants are out of scope.
 - **Passwords** are hashed with ASP.NET Core's `PasswordHasher` (salted PBKDF2, 100k+ iterations);
   minimum length 8. Full ASP.NET Core Identity is not used — too heavy for our needs and it hides the mechanics.
@@ -340,7 +340,19 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   (ADR-005, ADR-007). Like the plan (ADR-006), a change takes effect with the next token — at most 15 minutes.
 - **Split of duties:** the gateway checks coarse rules (valid token, plan); services check permissions. The gateway never
   learns every module's permissions, which keeps modules plug-and-play.
-- **Ownership:** the first user of a company is Owner; a company must always keep at least one Owner (T-037).
+- **Ownership:** the first user of a company is Owner; a company must always keep at least one Owner — demoting or
+  removing the last one is refused with `409` (T-037).
+- **User management (T-037):** users with `users.manage` add users (initial password, default role Member), change
+  their roles and extra permissions (with `If-Match`, ADR-017) and remove them. Removal is a **soft delete**: the user
+  can't sign in, but the audit trail keeps pointing to them and their email can be used again.
+- **No privilege escalation:** only an Owner may change or remove an Owner or grant the Owner role, and nobody may grant
+  a permission they don't hold (`403`). Taking permissions away is always allowed. The rule uses the caller's roles as
+  stored now, not the possibly 15-minute-old token.
+- **Last-Owner race:** changes and removals run in a short transaction that first locks the company row
+  (`SELECT … FOR UPDATE`), so two Owners demoting each other at once can't leave the company without one. This is a
+  lock held for milliseconds inside one request, not the edit-time lock ADR-017 rejects.
+- **Known limit:** a demoted or removed user keeps their current token until it expires (at most 15 minutes).
+  Short-lived tokens with refresh (T-020) keep that window small.
 - **Rejected:** asking Identity per request (instant changes, but Identity going down would stop every service).
 
 ---

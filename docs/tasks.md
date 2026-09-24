@@ -21,7 +21,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | ProblemDetails errors, API docs (Scalar) | Done | T-024, T-006 |
 | Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Done | T-009 |
 | Paging and search standard | Done | T-028 |
-| Roles and permissions: a module declares who may call which endpoint | Todo | T-025, T-037 |
+| Roles and permissions: a module declares who may call which endpoint | Done | T-025, T-037 |
 | Tenant settings: business rules that vary per company are parameters with defaults, not code | Todo | T-032 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
 | No module boilerplate: base entity, one-line service setup, shared mappings | Done | T-036 |
@@ -376,9 +376,18 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     and could never catch it). `PermissionPolicyProvider` builds policies on demand and returns none for names outside
     the catalog, so a typo fails loudly. Change history now compares collections by content and logs them as
     "Admin, Member". Refused-by-role integration tests come with T-037 (a second user is needed). 8 new tests; 99 in total.
-- **T-037** — User management (ADR-022): add users to your company (`users.manage`) with an initial password and roles
-  (default Member), list users, change roles and extra permissions; the last Owner can't be removed or demoted (`409`);
-  integration tests for refused actions per role (e.g. Member delete → `403`, Viewer create → `403`, Admin upgrade → `403`)
+- **T-037** — User management (ADR-022) — **Done**
+  - Goal: a company can have more than one user, and the roles of T-025 visibly work.
+  - [x] `/identity/users` (all `users.manage`): add a user with an initial password and roles (default Member), list
+        (paged, email search), get with ETag, replace roles and extra permissions with `If-Match`, remove
+  - [x] Unknown role or permission names → `400`; email already registered → `409`; another company's user → `404`
+  - [x] The last Owner can't be demoted or removed (`409`); concurrent changes are serialized by a company-row lock
+  - [x] No privilege escalation: only an Owner touches Owners or grants Owner; nobody grants what they don't have (`403`)
+  - [x] Removal is a soft delete: the user can't sign in and the email can be reused
+  - [x] Integration tests for refused actions per role: Member delete → `403`, Viewer create → `403`,
+        Admin upgrade → `403`, Member user management → `403`, Viewer write on Pro inventory → `403`
+  - Notes: `User` is now a `BusinessEntity` (soft delete); the email index became a filtered unique index. The race test
+    (two Owners demoting each other at once) was checked to fail with the lock removed. 21 new tests; 120 in total.
 - **T-032** — Tenant settings (ADR-018): BuildingBlocks capability — typed per-module settings with code defaults,
   stored per tenant in the module's database; first user: `InventorySettings.NegativeStockPolicy`
   (`Block` default, `Allow`, `Warn`) via `GET` / `PUT /inventory/settings` with ETag and change history;

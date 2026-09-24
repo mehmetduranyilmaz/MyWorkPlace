@@ -38,9 +38,11 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
         {
             user.Property(u => u.Email).HasMaxLength(User.EmailMaxLength);
             user.Property(u => u.NormalizedEmail).HasMaxLength(User.EmailMaxLength);
-            // EN: The real guarantee of uniqueness — also against two sign-ups racing each other.
-            // TR: Benzersizliğin asıl garantisi — aynı anda yarışan iki kayda karşı da.
-            user.HasIndex(u => u.NormalizedEmail).IsUnique();
+            // EN: The real guarantee of uniqueness — also against two sign-ups racing each other. Only live users count,
+            //     so the email of a removed user can be used again.
+            // TR: Benzersizliğin asıl garantisi — aynı anda yarışan iki kayda karşı da. Sadece canlı kullanıcılar sayılır;
+            //     böylece kaldırılmış bir kullanıcının e-postası tekrar kullanılabilir.
+            user.HasIndex(u => u.NormalizedEmail).IsUnique().HasFilter("is_deleted = false");
             user.HasOne<Tenant>().WithMany().HasForeignKey(u => u.TenantId).OnDelete(DeleteBehavior.Restrict);
         });
 

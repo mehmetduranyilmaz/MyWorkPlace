@@ -1,13 +1,16 @@
 using MyWorkplace.BuildingBlocks.Domain;
+using MyWorkplace.Contracts.Identity;
 using RoleCatalog = MyWorkplace.Contracts.Identity.Roles;
 
 namespace MyWorkplace.Identity.Domain;
 
 /// <summary>
-/// EN: A person who signs in. Belongs to exactly one company; the email is unique across the system (ADR-013).
-/// TR: Giriş yapan kişi. Tam olarak bir firmaya aittir; e-posta tüm sistemde benzersizdir (ADR-013).
+/// EN: A person who signs in. Belongs to exactly one company; the email is unique among live users (ADR-013).
+///     Soft-deletable: a removed user can't sign in, but the audit trail still points to them (ADR-022).
+/// TR: Giriş yapan kişi. Tam olarak bir firmaya aittir; e-posta canlı kullanıcılar arasında benzersizdir (ADR-013).
+///     Soft-delete edilebilir: kaldırılan kullanıcı giriş yapamaz ama denetim kayıtları hâlâ onu gösterir (ADR-022).
 /// </summary>
-public sealed class User : TenantOwnedEntity
+public sealed class User : BusinessEntity
 {
     /// <summary>EN: Maximum email length (RFC 5321). TR: En fazla e-posta uzunluğu (RFC 5321).</summary>
     public const int EmailMaxLength = 320;
@@ -68,6 +71,64 @@ public sealed class User : TenantOwnedEntity
 
         Roles = assigned;
     }
+
+    /// <summary>
+    /// EN: Replaces the user's extra permissions; unknown permission names are rejected.
+    /// TR: Kullanıcının ek izinlerini değiştirir; bilinmeyen izin adları reddedilir.
+    /// </summary>
+    /// <param name="permissions">EN: Permission names. TR: İzin adları.</param>
+    public void GrantExtraPermissions(IEnumerable<string> permissions)
+    {
+        var granted = permissions.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        var unknown = granted.Where(permission => !Permissions.All.Contains(permission)).ToArray();
+        if (unknown.Length > 0)
+        {
+            throw new ArgumentException($"Unknown permission(s): {string.Join(", ", unknown)}.", nameof(permissions));
+        }
+
+        ExtraPermissions = granted;
+    }
+
+    /// <summary>
+    /// EN: Whether this user owns the company.
+    /// TR: Bu kullanıcının firmanın sahibi olup olmadığı.
+    /// </summary>
+    public bool IsOwner => Roles.Contains(RoleCatalog.Owner, StringComparer.Ordinal);
+
+    /// <summary>
+    /// EN: The anti-escalation rule (ADR-022), with this user as the one making the change: only an Owner may touch an
+    ///     Owner or hand out the Owner role, and nobody may grant a permission they don't hold themselves.
+    ///     Taking permissions away is always allowed (the last-Owner rule is checked separately).
+    /// TR: Yetki yükseltme kuralı (ADR-022); değişikliği yapan bu kullanıcıdır: bir Sahip'e dokunmayı veya Sahip rolünü
+    ///     vermeyi sadece bir Sahip yapabilir ve kimse kendinde olmayan bir izni veremez.
+    ///     İzin geri almak her zaman serbesttir (son Sahip kuralı ayrıca kontrol edilir).
+    /// </summary>
+    /// <param name="target">EN: The user being changed, or null for a new user. TR: Değiştirilen kullanıcı; yeni kullanıcı için null.</param>
+    /// <param name="roles">EN: The target's roles after the change. TR: Hedefin değişiklik sonrası rolleri.</param>
+    /// <param name="extraPermissions">EN: The target's extra permissions after the change. TR: Hedefin değişiklik sonrası ek izinleri.</param>
+    /// <returns>EN: True if the change is allowed. TR: Değişikliğe izin veriliyorsa true.</returns>
+    public bool MayAssignAccess(User? target, IEnumerable<string> roles, IEnumerable<string> extraPermissions)
+    {
+        var newRoles = roles.ToArray();
+        if (!IsOwner && (target?.IsOwner == true || newRoles.Contains(RoleCatalog.Owner, StringComparer.Ordinal)))
+        {
+            return false;
+        }
+
+        var before = target?.EffectivePermissions ?? [];
+        var own = EffectivePermissions;
+        return RoleCatalog.EffectivePermissions(newRoles, extraPermissions)
+            .Except(before, StringComparer.Ordinal)
+            .All(permission => own.Contains(permission, StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// EN: Whether this user may remove <paramref name="target"/>: only an Owner may remove an Owner (ADR-022).
+    /// TR: Bu kullanıcının <paramref name="target"/>'ı kaldırıp kaldıramayacağı: bir Sahip'i sadece bir Sahip kaldırabilir (ADR-022).
+    /// </summary>
+    /// <param name="target">EN: The user to remove. TR: Kaldırılacak kullanıcı.</param>
+    /// <returns>EN: True if allowed. TR: İzin veriliyorsa true.</returns>
+    public bool MayRemove(User target) => IsOwner || !target.IsOwner;
 
     /// <summary>
     /// EN: The single normalization rule for emails, used when saving and when searching.

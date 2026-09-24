@@ -13,6 +13,7 @@ using MyWorkplace.Identity.Features.Discovery;
 using MyWorkplace.Identity.Features.Login;
 using MyWorkplace.Identity.Features.Register;
 using MyWorkplace.Identity.Features.UpgradePlan;
+using MyWorkplace.Identity.Features.Users;
 using MyWorkplace.Identity.Persistence;
 using MyWorkplace.Identity.Tokens;
 
@@ -53,5 +54,14 @@ identity.MapRegisterTenant();
 identity.MapLogin();
 identity.MapDiscovery();
 identity.MapUpgradePlan();
+
+// EN: User management (ADR-022): every endpoint declares users.manage itself.
+// TR: Kullanıcı yönetimi (ADR-022): her uç nokta users.manage iznini kendisi bildirir.
+var users = identity.MapGroup("/users");
+users.MapListUsers();
+users.MapCreateUser();
+users.MapGetUser();
+users.MapUpdateUserAccess();
+users.MapDeleteUser();
 
 await app.RunAsync();
