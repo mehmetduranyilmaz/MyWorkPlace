@@ -218,6 +218,35 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Cost:** Startup migration is unsafe with multiple instances. Production must run migrations as a separate step
   (a migration job) before deploying.
 
+### ADR-016 — Resource API conventions
+
+Set by the reference module (Customers, T-009 / T-028) and copied by every later module.
+
+- **Create:** `POST /{resources}` → `201` with `Location` and `ETag`.
+- **Read:** `GET /{resources}/{id}` → `200` with `ETag`.
+- **Update:** `PUT /{resources}/{id}` is a **full** update and requires `If-Match` (ADR-017). `PATCH` is not used.
+- **Delete:** `DELETE /{resources}/{id}` → `204`; soft delete for business data.
+- **Another tenant's record → `404`, never `403`:** `403` would confirm the record exists. The tenant filter produces
+  the `404` by itself.
+- **Uniqueness per tenant ignores soft-deleted rows** (filtered unique index), so a deleted record's value can be reused.
+- **Lists:** `GET /{resources}?page=1&pageSize=20&search=...` → `{ items, page, pageSize, totalCount }`.
+  `page` ≥ 1, `pageSize` 1–100 (default 20); out-of-range → `400`. Sorting is stable (a business key, then `id`).
+- **Alternative (deferred):** keyset (cursor) paging — faster on very large tables, but no page numbers.
+  Revisit if a list grows beyond what offset paging handles well.
+
+### ADR-017 — Optimistic concurrency over HTTP (ETag / If-Match)
+
+- **Context:** Two users may edit the same record at the same time; without a check, the second save silently
+  overwrites the first (lost update).
+- **Decision:** Optimistic concurrency. The row version (`xmin`, ADR-011) is returned as a strong `ETag`. `PUT` must
+  send it back in `If-Match`: a stale version → `412 Precondition Failed`; no `If-Match` → `428 Precondition Required`.
+- **Rejected: pessimistic locking** ("this record is being edited by X", as in desktop ERPs). HTTP is stateless, so
+  a lock needs its own table with expiry, heartbeats and a force-unlock; abandoned locks (closed browser, lost
+  connection) block other users; readers can be blocked too. Optimistic control would still be needed underneath,
+  because locks can expire or be broken.
+- **Later:** an informational "X is editing this record" indicator (T-029), which warns without locking — the approach
+  of modern web apps. A real lock is added only for a record type where conflicts are proven costly, with its own ADR.
+
 ---
 
 ## 4. Solution layout (planned)

@@ -17,7 +17,8 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Token validation, secure by default, plan policies (gateway + service) | Done | T-007, T-008 |
 | Tenant isolation, audit fields, change history, soft delete, concurrency | Done | T-024, T-008 |
 | ProblemDetails errors, API docs (Scalar) | Done | T-024, T-006 |
-| Reference module to copy: CRUD, paging, validation, tenant isolation tests | Todo | T-009 |
+| Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Todo | T-009 |
+| Paging and search standard | Todo | T-028 |
 | Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
 | Module guide: step-by-step recipe for adding a module | Todo | T-027 |
@@ -230,13 +231,35 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
   - A test first failed because `HttpContextAccessor` keeps the request in a static AsyncLocal shared by all
     instances; the test now uses its own fixed accessor. Production behavior was correct.
 
-### T-009 — Customers service (Basic)
+### T-009 — Customers: data and CRUD (the reference module)
 
 - **State:** Todo
+- **Goal:** The first business module, built as the template every later module copies (ADR-016, ADR-017).
 - **Acceptance criteria:**
-  - [ ] Create / list / get / update customers
-  - [ ] Duplicate email within a tenant → 409
-  - [ ] Tenant A can't see tenant B's customers (test)
+  - [ ] `customers-db` in the AppHost; Customers uses BuildingBlocks; the temporary `/customers/info` is removed
+  - [ ] `Customer` (tenant-owned, auditable, soft-deletable): `Name` required ≤ 200; `Email` optional, valid, ≤ 320;
+        `Phone` optional ≤ 30; `TaxNumber` optional ≤ 20; `Notes` optional ≤ 2000. `[AuditChanges]` on Name, Email,
+        Phone, TaxNumber (not Notes). Initial migration committed
+  - [ ] `POST /customers` → `201` with `Location` and `ETag`; `400` field errors for the rules above
+  - [ ] `GET /customers/{id}` → `200` with `ETag`; unknown id or another tenant's customer → `404`
+  - [ ] `PUT /customers/{id}` (full update) with `If-Match` → `200` with the new `ETag`; stale version → `412`;
+        missing `If-Match` → `428`; another tenant's customer → `404`
+  - [ ] `DELETE /customers/{id}` → `204` (soft delete); a later `GET` → `404`
+  - [ ] Email unique within a tenant, case-insensitive, ignoring deleted customers → `409`; the same email in another
+        tenant is allowed; an email of a deleted customer can be reused
+  - [ ] Integration tests through the gateway cover every status above, tenant B's `404` on tenant A's customer for
+        get / update / delete, and a change-history row for an audited field
+
+### T-028 — Paging and search standard
+
+- **State:** Todo
+- **Goal:** One list format for every module, delivered by BuildingBlocks and applied to Customers first (ADR-016).
+- **Acceptance criteria:**
+  - [ ] BuildingBlocks: `PagedResult<T>` (`items`, `page`, `pageSize`, `totalCount`) and paging parameters:
+        `page` ≥ 1 (default 1), `pageSize` 1–100 (default 20); out-of-range values → `400`
+  - [ ] `GET /customers?page=&pageSize=&search=`: search in name, email and phone, case-insensitive;
+        sorted by name, then id (stable order across pages)
+  - [ ] Tests: page arithmetic and `totalCount`, bounds → `400`, search, only the caller's tenant is listed and counted
 
 ### T-010 — Inventory service (Pro) — minimal
 
@@ -284,6 +307,7 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
 - **T-020** — Refresh tokens
 - **T-021** — User interface (Blazor or React; to be decided)
 - **T-022** — Dependabot for NuGet packages and GitHub Actions
+- **T-029** — "Someone is editing this record" presence indicator — informational, never a lock (ADR-017); needs the UI (T-021)
 
 ---
 
