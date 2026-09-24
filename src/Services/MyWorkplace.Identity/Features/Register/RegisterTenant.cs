@@ -22,6 +22,8 @@ public static class RegisterTenant
     public static RouteHandlerBuilder MapRegisterTenant(this IEndpointRouteBuilder group) =>
         group.MapPost("/register", HandleAsync)
             .WithName("RegisterTenant")
+            // EN: Public on purpose: no token exists yet at this point. TR: Bilerek herkese açık: bu noktada henüz token yok.
+            .AllowAnonymous()
             .WithSummary("EN: Register a company | TR: Firma kaydı")
             .WithDescription(
                 "EN: Creates a company on the Basic plan and its first user. The email must not be registered yet " +

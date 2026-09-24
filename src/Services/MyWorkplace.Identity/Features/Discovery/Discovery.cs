@@ -24,6 +24,8 @@ public static class Discovery
     {
         group.MapGet("/.well-known/jwks.json", GetJwks)
             .WithName("GetJwks")
+            // EN: Public on purpose: no token exists yet at this point. TR: Bilerek herkese açık: bu noktada henüz token yok.
+            .AllowAnonymous()
             .WithSummary("EN: Public signing keys (JWKS) | TR: Açık imzalama anahtarları (JWKS)")
             .WithDescription(
                 "EN: Public keys that verify access tokens, matched by the token's kid. Contains no private key material. " +
@@ -31,6 +33,8 @@ public static class Discovery
 
         group.MapGet("/.well-known/openid-configuration", GetConfiguration)
             .WithName("GetOpenIdConfiguration")
+            // EN: Public on purpose: no token exists yet at this point. TR: Bilerek herkese açık: bu noktada henüz token yok.
+            .AllowAnonymous()
             .WithSummary("EN: Discovery document | TR: Keşif dokümanı")
             .WithDescription(
                 "EN: Tells token verifiers the issuer and where the public keys are. " +

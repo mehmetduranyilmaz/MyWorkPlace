@@ -306,10 +306,22 @@ Remaining order: **T-011 → T-010 → T-012**.
 
 ### T-011 — Plan upgrade
 
-- **State:** Todo
+- **State:** Done
+- **Goal:** A Basic company can move to Pro and use Pro modules right away (ADR-006).
 - **Acceptance criteria:**
-  - [ ] `POST /identity/tenant/upgrade` → plan = Pro
-  - [ ] Pro module accessible with a new token (integration test)
+  - [x] Identity validates its own tokens with the keys it holds in memory — no network call to itself; register,
+        login and `/.well-known/*` stay explicitly anonymous; everything else is secure by default
+  - [x] `POST /identity/tenant/upgrade` by a signed-in user → `200` with `{ plan: "pro", accessToken, expiresIn }`;
+        the new token carries `plan = pro`; the tenant is Pro in the database
+  - [x] Upgrading a company that is already Pro → the same `200` (idempotent), and no second change-history row
+  - [x] No token → `401`
+  - [x] The change is in the change history: `Plan` from `Basic` to `Pro`, with the upgrading user
+  - [x] Integration test through the gateway: the new token reaches a Pro route (`200`); the old Basic token still
+        gets `403` until it expires (ADR-006, accepted trade-off)
+- **Notes:** Downgrade (Pro → Basic) is out of scope (T-035). Until roles exist (T-025) any user of the company may upgrade.
+  The company comes from the validated token, never from the request. A concurrent upgrade (xmin conflict) is treated
+  as "already Pro". Public Identity endpoints now declare `AllowAnonymous()` themselves. `CreateProClientAsync()`
+  test helper added for Pro tests (T-010, T-012). 3 new integration tests; 75 in total.
 
 ### T-012 — End-to-end integration tests
 
@@ -357,6 +369,7 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 
 ## Backlog
 
+- **T-035** — Plan downgrade (Pro → Basic): what happens to Pro-module data must be decided first
 - **T-033** — Variable-weight items (e.g. cheese sold by piece and by kg with a different weight per piece)
 - **T-034** — Per-item override of the negative stock policy
 - **T-018** — Reporting service (Pro)

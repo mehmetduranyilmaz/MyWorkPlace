@@ -111,6 +111,9 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Why:** Defense in depth — protection holds even if the gateway is misconfigured or a service is reached from the internal network.
 - **Known behavior on upgrade:** The plan lives in the token, so after an upgrade the old plan stays in effect
   **until a new token is issued**. The short token lifetime bounds this window. Accepted trade-off.
+  The upgrade endpoint (T-011) therefore returns a fresh token carrying the new plan, so the caller doesn't wait.
+- **Identity validates its own tokens** with the keys it holds in memory (static JwtBearer configuration +
+  `IssuerSigningKeyResolver`), never by downloading its own discovery document — no network call to itself.
 - **Secure by default:** the gateway's fallback policy requires a valid token. Public routes (sign-up, sign-in,
   `/.well-known/*`) are explicitly marked `anonymous`; Pro routes use the `pro-plan` policy. A route whose policy is
   forgotten is closed, never open. Health endpoints are explicitly anonymous (Development only).

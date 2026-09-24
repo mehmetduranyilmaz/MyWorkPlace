@@ -78,6 +78,32 @@ internal static class IdentityApi
     }
 
     /// <summary>
+    /// EN: Upgrades the company of the token's user to Pro.
+    /// TR: Token sahibinin firmasını Pro'ya yükseltir.
+    /// </summary>
+    /// <param name="client">EN: Client sending the user's token. TR: Kullanıcının token'ını gönderen istemci.</param>
+    /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: The response. TR: Cevap.</returns>
+    public static Task<HttpResponseMessage> UpgradeAsync(HttpClient client, CancellationToken ct) =>
+        client.PostAsync("/identity/tenant/upgrade", content: null, ct);
+
+    /// <summary>
+    /// EN: Registers a new company, upgrades it to Pro and returns a gateway client carrying the Pro token.
+    /// TR: Yeni bir firma kaydeder, Pro'ya yükseltir ve Pro token'ı taşıyan bir gateway istemcisi döner.
+    /// </summary>
+    /// <param name="app">EN: The running system. TR: Çalışan sistem.</param>
+    /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: A signed-in Pro client. TR: Giriş yapmış Pro istemci.</returns>
+    public static async Task<HttpClient> CreateProClientAsync(AppFixture app, CancellationToken ct)
+    {
+        var client = await CreateSignedInClientAsync(app, ct);
+        using var upgrade = await UpgradeAsync(client, ct);
+        upgrade.EnsureSuccessStatusCode();
+        Authorize(client, (await upgrade.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("accessToken").GetString()!);
+        return client;
+    }
+
+    /// <summary>
     /// EN: Makes <paramref name="client"/> send <paramref name="token"/> as a Bearer token.
     /// TR: <paramref name="client"/>'ın <paramref name="token"/>'ı Bearer token olarak göndermesini sağlar.
     /// </summary>

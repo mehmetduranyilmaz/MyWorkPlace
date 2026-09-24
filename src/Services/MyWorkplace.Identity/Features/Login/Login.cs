@@ -48,6 +48,8 @@ public static class Login
     public static RouteHandlerBuilder MapLogin(this IEndpointRouteBuilder group) =>
         group.MapPost("/login", HandleAsync)
             .WithName("Login")
+            // EN: Public on purpose: no token exists yet at this point. TR: Bilerek herkese açık: bu noktada henüz token yok.
+            .AllowAnonymous()
             .WithSummary("EN: Sign in | TR: Giriş yap")
             .WithDescription(
                 "EN: Returns an RS256-signed access token valid for 15 minutes. A wrong email and a wrong password " +
