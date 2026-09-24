@@ -4,6 +4,27 @@ Conventions: [process/task-conventions.md](process/task-conventions.md)
 
 ---
 
+## Milestone — Plug-and-play core
+
+**Definition (agreed with the owner):** the core is complete when a new module can be added by writing **only**
+its entities, business rules, endpoints and tests — everything else comes from the core.
+
+**Proof:** a new module (Products, T-013) is added by following the module guide **without changing a single line
+of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If the core has to change, it is not done.
+
+| Capability a new module gets for free | Status | Task |
+| --- | --- | --- |
+| Token validation, secure by default, plan policies (gateway + service) | Done | T-007, T-008 |
+| Tenant isolation, audit fields, change history, soft delete, concurrency | Done | T-024, T-008 |
+| ProblemDetails errors, API docs (Scalar) | Done | T-024, T-006 |
+| Reference module to copy: CRUD, paging, validation, tenant isolation tests | Todo | T-009 |
+| Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
+| Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
+| Module guide: step-by-step recipe for adding a module | Todo | T-027 |
+| **Proof: Products added via the guide with zero core changes** | Todo | T-013 |
+
+---
+
 ## Sprint 0 — Foundation
 
 Goal: an empty but professional skeleton. Everything builds and starts with one command.
@@ -189,6 +210,7 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 - **Notes:** Found while reviewing Docker Desktop: Aspire ran `postgres:18.3`, tests ran `postgres:17-alpine`.
   Fixed with one linked source file, `eng/PostgresImage.cs` (tag `18.3`), compiled into the AppHost and both
   Testcontainers test projects — no new project dependency just for a constant.
+
 ### T-008 — Shared: tenant context and plan check (service side)
 
 - **State:** Done
@@ -240,20 +262,28 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 
 ---
 
-## Backlog
+## Sprint 2 — Plug-and-play core
 
-- **T-013** — Products service (Basic)
-- **T-014** — Orders service (Basic)
-- **T-015** — Messaging: library choice (ADR-007) + RabbitMQ + outbox
+Goal: reach the milestone above. Tasks are refined with `/refine` before they start.
+
+- **T-025** — Roles and permissions: permission-based policies, roles as permission sets, per-user extra
+  permissions (needs an ADR: storage, token claims, default roles)
+- **T-015** — Messaging: library choice (ADR-007) + RabbitMQ + transactional outbox, as a BuildingBlocks capability
+- **T-014** — Orders service (Basic) — needed as the publisher of the first event
 - **T-016** — `OrderPlaced` event → Inventory decreases stock
 - **T-017** — Resilience demo: orders accepted while Inventory is down; stock catches up when it returns
+- **T-027** — Module guide (`docs/process/adding-a-module.md`): step-by-step recipe, based on the reference module
+- **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes
+
+---
+
+## Backlog
+
 - **T-018** — Reporting service (Pro)
 - **T-019** — Per-plan rate limiting at the gateway (Basic: low, Pro: high)
 - **T-020** — Refresh tokens
 - **T-021** — User interface (Blazor or React; to be decided)
 - **T-022** — Dependabot for NuGet packages and GitHub Actions
-- **T-025** — Roles and permissions: permission-based policies, roles as permission sets, per-user extra
-  permissions (needs `/refine` and an ADR: storage, token claims, default roles)
 
 ---
 

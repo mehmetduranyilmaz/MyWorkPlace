@@ -136,7 +136,9 @@ implements, tests and explains.
 
 - [x] **Sprint 0 — Foundation:** repository, solution skeleton, CI
 - [ ] **Sprint 1 — MVP:** Identity, Gateway, Customers (Basic), Inventory (Pro), plan upgrade
-- [ ] Products & Orders, event-driven stock updates, live resilience demo
+- [ ] **Sprint 2 — Plug-and-play core:** roles and permissions, messaging with outbox, a module guide —
+      proven by adding Products without touching core code
+- [ ] Orders, event-driven stock updates, live resilience demo
 - [ ] Reporting, per-plan rate limiting, refresh tokens
 - [ ] User interface
 
