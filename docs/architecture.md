@@ -114,11 +114,16 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Secure by default:** the gateway's fallback policy requires a valid token. Public routes (sign-up, sign-in,
   `/.well-known/*`) are explicitly marked `anonymous`; Pro routes use the `pro-plan` policy. A route whose policy is
   forgotten is closed, never open. Health endpoints are explicitly anonymous (Development only).
-- **Gateway authentication:** standard JwtBearer with the Identity discovery document, fetched through Aspire service
-  discovery (`https+http://identity`). `RequireHttpsMetadata` is off because that logical scheme is not literally
-  `https://`; service discovery still prefers HTTPS. A production deployment should point at a real `https://` address.
-- **Dependency rule:** the gateway references only `MyWorkplace.Contracts` (claim and policy names), never
-  BuildingBlocks — it has no business with databases.
+- **Token validation (both layers):** `AddTokenAuthentication()` in ServiceDefaults — standard JwtBearer with the
+  Identity discovery document, fetched through Aspire service discovery (`https+http://identity`) — is used by the
+  gateway **and** every service, so both layers accept exactly the same tokens. `RequireHttpsMetadata` is off because
+  that logical scheme is not literally `https://`; service discovery still prefers HTTPS. A production deployment
+  should point at a real `https://` address.
+- **Services are secure by default too:** the same fallback policy applies inside each service; Pro services put their
+  endpoints in a group requiring `pro-plan`. A caller reaching a service directly, bypassing the gateway, still gets
+  `401`/`403` (zero trust inside the network).
+- **Dependency rule:** the gateway references ServiceDefaults (and through it Contracts), never BuildingBlocks —
+  it has no business with databases.
 
 ### ADR-007 — Cross-service communication: events first (asynchronous)
 
@@ -170,7 +175,9 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
     *who / when / entity / property / old value / new value* to an `audit_log` table **in the same transaction**
     for properties marked `[AuditChanges]`. Which properties are marked is decided per entity, in the task that creates it.
   - **Optimistic concurrency** via PostgreSQL `xmin`; a conflicting update returns `409`.
-  - `TimeProvider` for all timestamps (UTC, testable) and an `ICurrentUser` abstraction (filled from the JWT in T-008).
+  - `TimeProvider` for all timestamps (UTC, testable) and an `ICurrentUser` abstraction. Its default implementation,
+    `HttpCurrentUser`, reads `sub`, `tenant_id` and `plan` from the request's **validated** token; unauthenticated
+    principals, malformed claims and code running outside a request all read as anonymous.
   - PostgreSQL `snake_case` naming.
   - **Reads are not tracked:** `DbContext` defaults to `NoTracking`; queries project to DTOs with `Select`.
     Writes load entities explicitly with a `FindForUpdateAsync` helper that uses `AsTracking()`.

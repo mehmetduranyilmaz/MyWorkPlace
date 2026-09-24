@@ -3,13 +3,12 @@
   <ItemGroup>
     <PackageReference Include="Yarp.ReverseProxy" />
     <PackageReference Include="Microsoft.Extensions.ServiceDiscovery.Yarp" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- EN: ServiceDefaults brings token validation and Contracts. Never BuildingBlocks: the gateway has no business with databases.
+         TR: ServiceDefaults token doğrulamayı ve Contracts'ı getirir. Asla BuildingBlocks değil: gateway'in veritabanıyla işi yok. -->
     <ProjectReference Include="..\MyWorkplace.ServiceDefaults\MyWorkplace.ServiceDefaults.csproj" />
-    <!-- EN: Contracts only — the gateway has no business with databases. TR: Sadece Contracts — gateway'in veritabanıyla işi yok. -->
-    <ProjectReference Include="..\MyWorkplace.Contracts\MyWorkplace.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

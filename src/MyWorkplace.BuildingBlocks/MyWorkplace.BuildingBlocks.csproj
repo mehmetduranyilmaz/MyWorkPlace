@@ -10,4 +10,8 @@
     <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\MyWorkplace.Contracts\MyWorkplace.Contracts.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -191,10 +191,22 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
   Testcontainers test projects — no new project dependency just for a constant.
 ### T-008 — Shared: tenant context and plan check (service side)
 
-- **State:** Todo
+- **State:** Done
 - **Acceptance criteria:**
-  - [ ] `ICurrentUser` is filled from the validated JWT (`sub`, `tenant_id`, `plan`), activating the tenant filter from T-024
-  - [ ] In-service plan check (defense in depth)
+  - [x] `ICurrentUser` is filled from the validated JWT (`sub`, `tenant_id`, `plan`), activating the tenant filter from T-024
+  - [x] In-service plan check (defense in depth)
+- **Notes:**
+  - Token validation and policies moved from the gateway into ServiceDefaults (`AddTokenAuthentication()`), used by
+    the gateway, Customers and Inventory — one definition, so the two layers can't drift apart.
+  - `HttpCurrentUser` is now the default `ICurrentUser` in BuildingBlocks: every service with a `ServiceDbContext`
+    gets the signed-in user (and the tenant filter) without extra wiring. `ICurrentUser` gained `Plan`.
+  - Customers requires a signed-in user; Inventory's endpoint group requires `pro-plan`. Scalar/OpenAPI endpoints are
+    explicitly anonymous. Identity's own protected endpoints (and its authentication) come with T-011.
+  - Tests: services called **directly, bypassing the gateway** (Aspire test client): no token → 401 on both,
+    Basic token on Inventory → 403, valid token on Customers → 200. Claim reading and the tenant filter driven by a
+    real token principal are proven against PostgreSQL.
+  - A test first failed because `HttpContextAccessor` keeps the request in a static AsyncLocal shared by all
+    instances; the test now uses its own fixed accessor. Production behavior was correct.
 
 ### T-009 — Customers service (Basic)
 

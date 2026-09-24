@@ -30,10 +30,16 @@ var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
     .WaitFor(identityDb)
     .WithHttpHealthCheck("/health");
 
+// EN: Services reference Identity to fetch its public signing keys and validate tokens themselves (ADR-006).
+// TR: Servisler, açık imzalama anahtarlarını alıp token'ları kendileri doğrulamak için Identity'ye bağlanır (ADR-006).
 var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
+    .WithReference(identity)
+    .WaitFor(identity)
     .WithHttpHealthCheck("/health");
 
 var inventory = builder.AddProject<Projects.MyWorkplace_Inventory>("inventory")
+    .WithReference(identity)
+    .WaitFor(identity)
     .WithHttpHealthCheck("/health");
 
 // EN: Only the gateway is exposed externally; services are reached through it.

@@ -31,8 +31,11 @@ public static class ApiDocsExtensions
     {
         if (app.Environment.IsDevelopment())
         {
-            app.MapOpenApi();
-            app.MapScalarApiReference(options => options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient));
+            // EN: Explicitly anonymous: services are secure by default (T-008), but the docs must stay readable.
+            // TR: Bilinçli olarak anonim: servisler varsayılan olarak korumalı (T-008), ama dokümanlar okunabilir kalmalı.
+            app.MapOpenApi().AllowAnonymous();
+            app.MapScalarApiReference(options => options.WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient))
+                .AllowAnonymous();
         }
 
         return app;

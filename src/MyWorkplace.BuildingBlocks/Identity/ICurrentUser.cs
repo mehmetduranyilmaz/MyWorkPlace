@@ -1,8 +1,10 @@
 namespace MyWorkplace.BuildingBlocks.Identity;
 
 /// <summary>
-/// EN: The user making the current request. Filled from the validated JWT in T-008; empty for anonymous requests.
-/// TR: Mevcut isteği yapan kullanıcı. T-008'de doğrulanmış JWT'den doldurulur; anonim isteklerde boştur.
+/// EN: The user making the current request, read from the validated JWT (<see cref="HttpCurrentUser"/>);
+///     empty for anonymous requests and outside of requests (startup, background work).
+/// TR: Mevcut isteği yapan kullanıcı, doğrulanmış JWT'den okunur (<see cref="HttpCurrentUser"/>);
+///     anonim isteklerde ve istek dışında (açılış, arka plan işleri) boştur.
 /// </summary>
 public interface ICurrentUser
 {
@@ -17,4 +19,10 @@ public interface ICurrentUser
     /// TR: Kullanıcının firması veya null. Null iken firma filtreli sorgular hiçbir şey döndürmez (güvenli varsayılan).
     /// </summary>
     Guid? TenantId { get; }
+
+    /// <summary>
+    /// EN: Plan of the company as carried by the token ("basic" or "pro"), or null.
+    /// TR: Token'da taşındığı haliyle firmanın planı ("basic" veya "pro") ya da null.
+    /// </summary>
+    string? Plan { get; }
 }

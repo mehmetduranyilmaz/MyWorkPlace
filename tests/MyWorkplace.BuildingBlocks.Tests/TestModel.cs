@@ -67,7 +67,8 @@ public sealed class TestDbContext(DbContextOptions<TestDbContext> options, ICurr
 /// </summary>
 /// <param name="TenantId">EN: Tenant, or null. TR: Firma veya null.</param>
 /// <param name="UserId">EN: User, or null. TR: Kullanıcı veya null.</param>
-public sealed record TestUser(Guid? TenantId = null, Guid? UserId = null) : ICurrentUser
+/// <param name="Plan">EN: Plan, or null. TR: Plan veya null.</param>
+public sealed record TestUser(Guid? TenantId = null, Guid? UserId = null, string? Plan = null) : ICurrentUser
 {
     /// <summary>
     /// EN: A signed-in user of a brand-new tenant.

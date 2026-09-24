@@ -32,6 +32,14 @@ public sealed class AppFixture : IAsyncLifetime
     /// <returns>EN: A new client. TR: Yeni bir istemci.</returns>
     public HttpClient CreateGatewayClient() => App.CreateHttpClient("gateway");
 
+    /// <summary>
+    /// EN: HTTP client pointed directly at a service, <b>bypassing the gateway</b> — plays an attacker on the internal network.
+    /// TR: Doğrudan bir servise yönelik, <b>gateway'i atlayan</b> HTTP istemcisi — iç ağdaki bir saldırganı canlandırır.
+    /// </summary>
+    /// <param name="resourceName">EN: Aspire resource name, e.g. "inventory". TR: Aspire kaynak adı, ör. "inventory".</param>
+    /// <returns>EN: A new client. TR: Yeni bir istemci.</returns>
+    public HttpClient CreateDirectServiceClient(string resourceName) => App.CreateHttpClient(resourceName);
+
     /// <inheritdoc />
     public async ValueTask InitializeAsync()
     {

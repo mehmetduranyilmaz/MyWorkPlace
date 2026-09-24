@@ -2,49 +2,18 @@
 //     1. Authentication: validates the JWT locally with Identity's published keys (ADR-005).
 //     2. Authorization: secure by default; public routes are marked "anonymous", Pro routes need "pro-plan" (ADR-006).
 //     3. Routing: YARP forwards allowed requests; routes and their policies live in appsettings.json.
+//     Token rules come from ServiceDefaults, shared with the services — the second layer of ADR-006.
 // TR: API Gateway — tüm dış trafiğin tek giriş noktası (ADR-001, ADR-002).
 //     1. Kimlik doğrulama: JWT'yi Identity'nin yayınladığı anahtarlarla yerelde doğrular (ADR-005).
 //     2. Yetkilendirme: varsayılan olarak korumalı; açık rotalar "anonymous", Pro rotalar "pro-plan" ister (ADR-006).
 //     3. Yönlendirme: YARP izin verilen istekleri iletir; rotalar ve politikaları appsettings.json'dadır.
-
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using MyWorkplace.Contracts.Identity;
+//     Token kuralları, servislerle paylaşılan ServiceDefaults'tan gelir — ADR-006'nın ikinci katmanı.
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddTokenAuthentication();
 builder.Services.AddProblemDetails();
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
-builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-    .Configure<IHttpClientFactory>((options, httpClients) =>
-    {
-        // EN: The discovery document is fetched once and the keys are cached; an unknown "kid" triggers a refresh.
-        //     "https+http://identity" is resolved by Aspire service discovery, which prefers HTTPS.
-        // TR: Keşif dokümanı bir kez çekilir ve anahtarlar önbelleğe alınır; bilinmeyen bir "kid" yenilemeyi tetikler.
-        //     "https+http://identity" adresini, HTTPS'i tercih eden Aspire servis bulma çözer.
-        options.MetadataAddress = "https+http://identity/identity/.well-known/openid-configuration";
-        options.Backchannel = httpClients.CreateClient("identity-metadata");
-        // EN: Required because the logical "https+http" scheme is not literally "https://"; see ADR-006.
-        // TR: Mantıksal "https+http" şeması harfiyen "https://" olmadığı için gerekli; bkz. ADR-006.
-        options.RequireHttpsMetadata = false;
-
-        // EN: Keep claim names exactly as issued ("sub", "tenant_id", "plan") instead of .NET's long XML names.
-        // TR: Claim adlarını .NET'in uzun XML adları yerine üretildiği gibi ("sub", "tenant_id", "plan") tut.
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters.ValidIssuer = TokenClaims.Issuer;
-        options.TokenValidationParameters.ValidAudience = TokenClaims.Audience;
-        options.TokenValidationParameters.NameClaimType = TokenClaims.Subject;
-    });
-
-builder.Services.AddAuthorizationBuilder()
-    // EN: Secure by default: a route without a policy requires a valid token. Forgetting a policy closes a route, never opens it.
-    // TR: Varsayılan olarak korumalı: politikası olmayan rota geçerli token ister. Politikayı unutmak rotayı kapatır, asla açmaz.
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
-    .AddPolicy(PolicyNames.ProPlan, policy => policy
-        .RequireAuthenticatedUser()
-        .RequireClaim(TokenClaims.Plan, TokenClaims.ProPlan));
 
 // EN: YARP reads routes/clusters from configuration; cluster addresses like "https+http://customers"
 //     are resolved through Aspire service discovery instead of hard-coded ports.

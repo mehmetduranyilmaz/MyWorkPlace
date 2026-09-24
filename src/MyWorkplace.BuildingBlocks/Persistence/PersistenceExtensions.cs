@@ -62,15 +62,18 @@ public static class PersistenceExtensions
     }
 
     /// <summary>
-    /// EN: Registers the pieces the interceptors need. Defaults can be replaced (T-008 replaces the current user).
-    /// TR: Interceptor'ların ihtiyaç duyduğu parçaları kaydeder. Varsayılanlar değiştirilebilir (T-008 aktif kullanıcıyı değiştirir).
+    /// EN: Registers the pieces the interceptors need. The current user comes from the request's token (T-008);
+    ///     outside a request it is anonymous. Registrations made earlier win (TryAdd), so tests can substitute them.
+    /// TR: Interceptor'ların ihtiyaç duyduğu parçaları kaydeder. Aktif kullanıcı isteğin token'ından gelir (T-008);
+    ///     istek dışında anonimdir. Önceden yapılan kayıtlar önceliklidir (TryAdd); böylece testler bunları değiştirebilir.
     /// </summary>
     /// <param name="services">EN: Service collection. TR: Servis koleksiyonu.</param>
     /// <returns>EN: The same collection. TR: Aynı koleksiyon.</returns>
     public static IServiceCollection AddBuildingBlocksPersistence(this IServiceCollection services)
     {
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddScoped<ICurrentUser, AnonymousCurrentUser>();
+        services.AddHttpContextAccessor();
+        services.TryAddScoped<ICurrentUser, HttpCurrentUser>();
         services.TryAddScoped<AuditingInterceptor>();
         services.TryAddScoped<ChangeHistoryInterceptor>();
         return services;

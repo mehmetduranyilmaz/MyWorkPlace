@@ -1,8 +1,8 @@
 namespace MyWorkplace.BuildingBlocks.Identity;
 
 /// <summary>
-/// EN: Default current user until authentication is wired in (T-008): nobody is signed in.
-/// TR: Kimlik doğrulama bağlanana kadar (T-008) varsayılan kullanıcı: kimse giriş yapmamış.
+/// EN: Nobody is signed in. Used where there is no request at all, e.g. <c>dotnet ef</c> at design time.
+/// TR: Kimse giriş yapmamış. Hiç istek olmayan yerlerde kullanılır, ör. tasarım zamanında <c>dotnet ef</c>.
 /// </summary>
 public sealed class AnonymousCurrentUser : ICurrentUser
 {
@@ -11,4 +11,7 @@ public sealed class AnonymousCurrentUser : ICurrentUser
 
     /// <inheritdoc />
     public Guid? TenantId => null;
+
+    /// <inheritdoc />
+    public string? Plan => null;
 }

@@ -56,14 +56,35 @@ internal static class IdentityApi
     public static async Task<HttpClient> CreateSignedInClientAsync(AppFixture app, CancellationToken ct)
     {
         var client = app.CreateGatewayClient();
+        Authorize(client, await GetAccessTokenAsync(app, ct));
+        return client;
+    }
+
+    /// <summary>
+    /// EN: Registers a new (Basic) company, signs in through the gateway and returns the access token.
+    /// TR: Yeni bir (Basic) firma kaydeder, gateway üzerinden giriş yapar ve erişim token'ını döner.
+    /// </summary>
+    /// <param name="app">EN: The running system. TR: Çalışan sistem.</param>
+    /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: The access token. TR: Erişim token'ı.</returns>
+    public static async Task<string> GetAccessTokenAsync(AppFixture app, CancellationToken ct)
+    {
+        using var client = app.CreateGatewayClient();
         var email = UniqueEmail();
         await RegisterNewTenantAsync(client, email, ct);
         using var login = await LoginAsync(client, email, ValidPassword, ct);
         login.EnsureSuccessStatusCode();
-        var token = (await login.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("accessToken").GetString();
-        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        return client;
+        return (await login.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("accessToken").GetString()!;
     }
+
+    /// <summary>
+    /// EN: Makes <paramref name="client"/> send <paramref name="token"/> as a Bearer token.
+    /// TR: <paramref name="client"/>'ın <paramref name="token"/>'ı Bearer token olarak göndermesini sağlar.
+    /// </summary>
+    /// <param name="client">EN: Any client. TR: Herhangi bir istemci.</param>
+    /// <param name="token">EN: Access token. TR: Erişim token'ı.</param>
+    public static void Authorize(HttpClient client, string token) =>
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
     /// <summary>
     /// EN: Registers a new company and returns its ids.
