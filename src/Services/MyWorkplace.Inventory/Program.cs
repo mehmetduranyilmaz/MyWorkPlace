@@ -4,6 +4,7 @@
 //     Planı kendisi de kontrol eder (ADR-006): gateway'i atlayıp doğrudan ulaşan Basic firma yine 403 alır.
 
 using MyWorkplace.BuildingBlocks.Hosting;
+using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.BuildingBlocks.Settings;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Domain;
@@ -13,6 +14,10 @@ using MyWorkplace.Inventory.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceModule<InventoryDbContext>("inventory-db");
+// EN: Consumes OrderPlaced to decrease stock (T-016); the handler is found in this assembly (ADR-023).
+// TR: Stok düşmek için OrderPlaced'i dinler (T-016); handler bu derlemede bulunur (ADR-023).
+builder.AddServiceMessaging<InventoryDbContext>("inventory-db");
+builder.Services.AddScoped<StockLedger>();
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();

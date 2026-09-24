@@ -32,10 +32,12 @@ public interface IEventOutbox
 /// <summary>
 /// EN: Consumes one event type. A plain class in the service; the messaging library stays out of it (ADR-023).
 ///     Change the service's DbContext but don't save: the dispatcher saves once, together with the "processed" mark,
-///     so a failure leaves nothing half-done and a redelivery is processed again.
+///     so a failure leaves nothing half-done and a redelivery is processed again. The handler runs inside the
+///     dispatcher's transaction, so direct updates (<c>ExecuteUpdateAsync</c>) commit or roll back with the rest.
 /// TR: Tek bir olay tipini dinler. Serviste düz bir sınıftır; mesajlaşma kütüphanesi içine girmez (ADR-023).
 ///     Servisin DbContext'ini değiştirin ama kaydetmeyin: dağıtıcı "işlendi" işaretiyle birlikte bir kez kaydeder; böylece
-///     bir hata yarım iş bırakmaz ve tekrar teslim yeniden işlenir.
+///     bir hata yarım iş bırakmaz ve tekrar teslim yeniden işlenir. Handler dağıtıcının transaction'ı içinde çalışır; böylece
+///     doğrudan güncellemeler (<c>ExecuteUpdateAsync</c>) geri kalanla birlikte kaydedilir ya da geri alınır.
 /// </summary>
 /// <typeparam name="TEvent">EN: The event type. TR: Olay tipi.</typeparam>
 public interface IEventHandler<in TEvent>

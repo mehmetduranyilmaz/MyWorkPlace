@@ -40,29 +40,45 @@ public sealed class EventDispatcher<TEvent>(IServiceScopeFactory scopes, TimePro
         // TR: Veritabanına dokunan herhangi bir şeyden önce: firma filtresi olayın firmasını görmelidir.
         services.GetRequiredService<MessageActor>().ActFor(message.TenantId);
         var db = services.GetRequiredService<ServiceDbContext>();
+        var handler = services.GetRequiredService<IEventHandler<TEvent>>();
 
-        if (await db.ProcessedEvents.AnyAsync(e => e.EventId == message.EventId, cancellationToken))
-        {
-            return;
-        }
+        // EN: One explicit transaction around the whole unit: the handler may also change rows directly (e.g. an atomic
+        //     stock update), and those must commit or roll back together with its tracked changes and the "processed"
+        //     mark. Inside the execution strategy, so a transient failure re-runs the unit from a clean state.
+        // TR: Tüm birimin etrafında tek bir açık transaction: handler satırları doğrudan da değiştirebilir (ör. atomik bir stok
+        //     güncellemesi) ve bunlar, takip edilen değişiklikleri ve "işlendi" işaretiyle birlikte kaydedilmeli ya da geri
+        //     alınmalıdır. Execution strategy içindedir; geçici bir hata birimi temiz bir durumdan yeniden çalıştırır.
+        await db.Database.CreateExecutionStrategy().ExecuteAsync(
+            async ct =>
+            {
+                db.ChangeTracker.Clear();
+                await using var transaction = await db.Database.BeginTransactionAsync(ct);
 
-        await services.GetRequiredService<IEventHandler<TEvent>>().HandleAsync(message, cancellationToken);
-        db.ProcessedEvents.Add(new ProcessedEvent
-        {
-            EventId = message.EventId,
-            EventType = typeof(TEvent).Name,
-            TenantId = message.TenantId,
-            ProcessedAt = time.GetUtcNow(),
-        });
+                if (await db.ProcessedEvents.AnyAsync(e => e.EventId == message.EventId, ct))
+                {
+                    return;
+                }
 
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { ConstraintName: ProcessedEventKey })
-        {
-            // EN: The same event was processed in parallel and committed first; our changes were rolled back. Done.
-            // TR: Aynı olay paralel işlendi ve önce kaydedildi; bizim değişikliklerimiz geri alındı. Tamam.
-        }
+                await handler.HandleAsync(message, ct);
+                db.ProcessedEvents.Add(new ProcessedEvent
+                {
+                    EventId = message.EventId,
+                    EventType = typeof(TEvent).Name,
+                    TenantId = message.TenantId,
+                    ProcessedAt = time.GetUtcNow(),
+                });
+
+                try
+                {
+                    await db.SaveChangesAsync(ct);
+                    await transaction.CommitAsync(ct);
+                }
+                catch (DbUpdateException ex) when (ex.InnerException is PostgresException { ConstraintName: ProcessedEventKey })
+                {
+                    // EN: The same event was processed in parallel and committed first; ours rolls back. Done.
+                    // TR: Aynı olay paralel işlendi ve önce kaydedildi; bizimki geri alınır. Tamam.
+                }
+            },
+            cancellationToken);
     }
 }

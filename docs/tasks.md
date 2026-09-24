@@ -444,7 +444,25 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     exchanges are named after the event type. While documenting, `code-conventions.md` turned out to have been
     corrupted by scripted edits in T-032 / T-015 (the "Events" rule had never landed) — repaired here. 12 new tests;
     149 in total.
-- **T-016** — `OrderPlaced` event → Inventory decreases stock
+- **T-016** — `OrderPlaced` → Inventory decreases stock (ADR-020, ADR-023) — **Done**
+  - Goal: placing an order decreases stock in Inventory without any call between the two services.
+  - [x] Minimal movement model: append-only `StockMovement` (`Out`, quantity, reason `Order`, order id and number,
+        negative-stock flag); the balance changes only through a movement, in the same transaction
+  - [x] Inventory consumes `OrderPlaced`: each line's SKU is matched to a stock item of the event's company
+        (case-insensitive, like the SKU uniqueness rule); quantity is in the item's base unit
+  - [x] The `Out` is always applied, even below zero; a movement that takes the balance below zero is flagged
+  - [x] Lines with an unknown SKU are skipped with a warning log; the rest of the order is still applied
+  - [x] The same `OrderPlaced` delivered twice decreases stock once (building block, ADR-023)
+  - [x] Tests (through the gateway, end to end): a Pro company's item goes from 0 to −2.5 after an order of 2.5 and the
+        movement is flagged; another company's item with the same SKU is untouched; an unknown SKU is skipped while the
+        other line applies; a Basic company's order changes nothing
+  - Notes: `StockLedger` changes a balance with one atomic `UPDATE … SET quantity = quantity - @q`; the event dispatcher
+    now wraps the handler in one explicit transaction (core change), so that update, the movement and the "processed"
+    mark commit together. An extra test places five orders for one item at once: −5 with five movements. With a
+    read-then-write version swapped in, the same test ended at −1 — Inventory does process events in parallel, and the
+    atomic update is what keeps the balance right. Items are issued in id order to rule out deadlocks. The Basic-company
+    test waits for `processed_events` first, so "nothing changed" can't just mean "not processed yet". 5 new tests;
+    154 in total.
 - **T-017** — Resilience demo: orders accepted while Inventory is down; stock catches up when it returns
 - **T-036** — Module boilerplate into the core (ADR-021) — **Done**
   - Goal: a new module writes only its entities, rules, endpoints and tests; the recurring setup comes from BuildingBlocks.
@@ -478,12 +496,14 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 - **T-030** — Stock movements: `POST /inventory/items/{id}/movements` (`In` / `Out`, quantity > 0, optional unit
   converted to the base unit, note); movements are append-only history; the balance changes only through them;
   negative stock follows `NegativeStockPolicy` (`Block` → `409`, `Allow`, `Warn` → success with a warning);
-  concurrent `Out`s under `Block` can never go below zero; paged movement history, newest first
+  concurrent `Out`s under `Block` can never go below zero; paged movement history, newest first.
+  Builds on the minimal movement model of T-016
 
 ---
 
 ## Backlog
 
+- **T-042** — Review list of order lines Inventory could not match to a stock item (ADR-020)
 - **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
 - **T-040** — Cancel a placed order: `OrderCancelled` and stock returned by Inventory (ADR-024)
 - **T-041** — Currency (a company setting) and VAT on orders (ADR-024)

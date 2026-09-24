@@ -305,6 +305,17 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   - `Warn`: allowed, and the successful response carries a `warnings` list (e.g. `NegativeStock`) for the UI to show.
 - **Cost:** a database `CHECK (quantity >= 0)` is not possible because `Allow` / `Warn` are legitimate; under
   `Block` the guarantee comes from the conditional update.
+- **Movements caused by orders (T-016):** when `OrderPlaced` arrives the sale has already happened — the goods have
+  left, and Orders may not ask Inventory synchronously beforehand (ADR-007). So an order's `Out` is **always applied**,
+  even below zero, and a movement that takes the balance below zero is flagged as negative stock for review. The
+  policy above governs manual movements (T-030). Until units exist (T-031), an order quantity is in the item's base
+  unit. Order lines whose SKU matches no stock item are skipped with a warning log (e.g. services); a review list
+  follows (T-042). No plan check is needed: a Basic company can't have stock items, so nothing matches.
+- **Implementation (T-016):** `StockLedger` is the only code that changes a balance — one atomic
+  `UPDATE … SET quantity = quantity - @q` plus an append-only `StockMovement` (balance after, reason, order, negative
+  flag), in the same transaction. The row lock serializes concurrent orders for the same item; a test showed that a
+  read-then-write version loses updates (5 parallel orders left −1 instead of −5). Items of one order are issued in id
+  order, so two orders can't deadlock.
 
 ### ADR-021 — Module building blocks: no boilerplate in modules
 
@@ -390,6 +401,9 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   - Handler code is generated and compiled at startup (`WolverineFx.RuntimeCompilation`); pre-generating it would add
     a build step every module must remember.
   - The broker version is pinned in `eng/RabbitMqImage.cs` and shared by the AppHost and the tests (like PostgreSQL).
+  - The dispatcher runs the "already processed?" check, the handler and the "processed" mark in one explicit
+    transaction (T-016), so a handler may also update rows directly (`ExecuteUpdateAsync`) and all of it commits or
+    rolls back together.
 
 ### ADR-024 — Orders model
 

@@ -56,9 +56,13 @@ var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
     .WaitFor(identity)
     .WithHttpHealthCheck("/health");
 
+// EN: Inventory consumes OrderPlaced, so it references the broker too (T-016).
+// TR: Inventory OrderPlaced'i dinler; bu yüzden mesaj aracına da bağlanır (T-016).
 var inventory = builder.AddProject<Projects.MyWorkplace_Inventory>("inventory")
     .WithReference(inventoryDb)
     .WaitFor(inventoryDb)
+    .WithReference(messaging)
+    .WaitFor(messaging)
     .WithReference(identity)
     .WaitFor(identity)
     .WithHttpHealthCheck("/health");

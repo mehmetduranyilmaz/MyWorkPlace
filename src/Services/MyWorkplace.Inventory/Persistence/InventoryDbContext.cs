@@ -17,8 +17,25 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     /// <summary>EN: Stock items of the current tenant. TR: Aktif firmanın stok kalemleri.</summary>
     public DbSet<StockItem> StockItems => Set<StockItem>();
 
+    /// <summary>EN: Stock history of the current tenant. TR: Aktif firmanın stok geçmişi.</summary>
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+
     /// <inheritdoc />
-    protected override void ConfigureModel(ModelBuilder modelBuilder) =>
+    protected override void ConfigureModel(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<StockMovement>(movement =>
+        {
+            // EN: Stored as text so the history stays readable. TR: Geçmiş okunur kalsın diye metin olarak saklanır.
+            movement.Property(m => m.Type).HasConversion<string>().HasMaxLength(10);
+            movement.Property(m => m.Reason).HasConversion<string>().HasMaxLength(20);
+            movement.Property(m => m.Quantity).HasPrecision(18, 3);
+            movement.Property(m => m.BalanceAfter).HasPrecision(18, 3);
+            movement.HasOne<StockItem>().WithMany().HasForeignKey(m => m.StockItemId).OnDelete(DeleteBehavior.Restrict);
+
+            // EN: An item's history, newest first (T-030). TR: Bir kalemin geçmişi, en yeni önce (T-030).
+            movement.HasIndex(m => new { m.TenantId, m.StockItemId, m.CreatedAt });
+        });
+
         modelBuilder.Entity<StockItem>(item =>
         {
             item.Property(i => i.Sku).HasMaxLength(StockItem.SkuMaxLength);
@@ -39,4 +56,5 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
             // TR: Listeler firmaya göre filtrelenir ve SKU'ya göre sıralanır (ADR-016).
             item.HasIndex(i => new { i.TenantId, i.Sku });
         });
+    }
 }
