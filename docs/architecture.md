@@ -134,8 +134,7 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   synchronously over HTTP (e.g. `OrderPlaced` → Inventory decreases stock). Broker: **RabbitMQ**.
   A **transactional outbox** keeps the database write and the message publish consistent.
 - **Why:** Orders can still be placed while Inventory is down; stock catches up when it comes back.
-- **Open decision:** The .NET messaging library (Wolverine / MassTransit / plain RabbitMQ.Client) will be chosen
-  in the sprint that needs it, after checking licensing and maintenance status.
+- **Library:** decided in ADR-023 (T-015).
 - **Unavoidable synchronous calls** use timeout + retry + circuit breaker (Aspire ServiceDefaults).
 
 ### ADR-008 — .NET 10 + .NET Aspire
@@ -363,6 +362,34 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Known limit:** a demoted or removed user keeps their current token until it expires (at most 15 minutes).
   Short-lived tokens with refresh (T-020) keep that window small.
 - **Rejected:** asking Identity per request (instant changes, but Identity going down would stop every service).
+
+### ADR-023 — Messaging building block
+
+- **Library: Wolverine** (MIT) on RabbitMQ, with its EF Core / PostgreSQL transactional outbox. Checked on 2026-09-24
+  (T-015): WolverineFx 6.40.0 and its RabbitMQ, EF Core, PostgreSQL and runtime-compilation packages are MIT and were
+  released that day; MassTransit 9.x carries no open-source licence expression.
+- **Wolverine stays in BuildingBlocks:** services use `IEventOutbox` (publish with the business change) and plain
+  `IEventHandler<TEvent>` classes, joined with `builder.AddServiceMessaging<TContext>("x-db")`. Replacing the library
+  touches BuildingBlocks only.
+- **Rejected:** MassTransit — v9 is commercial and the free v8 line has a limited lifetime; plain RabbitMQ.Client with
+  our own outbox — retries, dead-lettering and duplicate handling are a lot of error-prone code that a mature free
+  library already provides.
+- **Outbox:** an event is stored in the same database transaction as the business change and sent afterwards.
+  A rolled-back change sends nothing; an event committed while RabbitMQ is down is sent when it comes back.
+- **At-least-once delivery, idempotent consumers:** every event has a unique id; a consumer that sees the same id
+  twice does not process it again (otherwise an order could decrease stock twice).
+- **Contracts:** events live in `MyWorkplace.Contracts` (`Events`), so services depend on the contract, never on each
+  other's code. Once published, an event only gains fields — none is removed or renamed.
+- **Tenant context:** every event carries its `TenantId`; a consumer runs as a system actor of that tenant, so the
+  global query filters (ADR-004) still apply. Switching filters off in consumers is not allowed.
+- **Implementation notes (T-015):**
+  - One exchange per event type and one queue per service and event type, so every interested service gets every event.
+    Events always go through the broker — in-memory hand-over to a handler in the same service is switched off.
+  - Wolverine keeps its outbox / inbox tables in a `wolverine` schema of each service's database and creates them
+    itself, outside our EF migrations. `processed_events` (our duplicate guard) is an EF table like `audit_log`.
+  - Handler code is generated and compiled at startup (`WolverineFx.RuntimeCompilation`); pre-generating it would add
+    a build step every module must remember.
+  - The broker version is pinned in `eng/RabbitMqImage.cs` and shared by the AppHost and the tests (like PostgreSQL).
 
 ---
 

@@ -10,6 +10,7 @@
 
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.RabbitMq" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
   </ItemGroup>
@@ -24,6 +25,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\eng\PostgresImage.cs" Link="Shared\PostgresImage.cs" />
+    <Compile Include="..\..\eng\RabbitMqImage.cs" Link="Shared\RabbitMqImage.cs" />
   </ItemGroup>
 
 </Project>

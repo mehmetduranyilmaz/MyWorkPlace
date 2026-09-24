@@ -407,7 +407,22 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     history. The `PUT` handler reads the body itself: a parameter typed by a generic argument crashes the ASP.NET route
     analyzer (AD0001), and reading it ourselves gives a field-level `400` for unknown values. Enums now travel as names
     in every service. 12 new tests; 132 in total.
-- **T-015** — Messaging: library choice (ADR-007) + RabbitMQ + transactional outbox, as a BuildingBlocks capability
+- **T-015** — Messaging building block (ADR-007, ADR-023) — **Done**
+  - Goal: services can publish and consume events reliably; the first real use comes with T-014 / T-016.
+  - [x] Licence and maintenance status of Wolverine re-checked and recorded in ADR-023
+  - [x] RabbitMQ in the AppHost; services opt in with one line in the standard setup
+  - [x] Publishing goes through the transactional outbox in the service's own database
+  - [x] Events live in `MyWorkplace.Contracts/Events` and carry an id and a `TenantId`
+  - [x] A consumer runs as a system actor of the event's tenant: the tenant filter shows only that tenant's rows
+  - [x] Tests (BuildingBlocks, real PostgreSQL + RabbitMQ containers): rolled-back change → no message;
+        committed change → delivered; committed while RabbitMQ is down → delivered after it returns;
+        the same event delivered twice → processed once; consumer sees only the event's tenant
+  - Notes: the broker-outage test first passed for the wrong reason — Wolverine handed events to a handler in the same
+    process in memory, so nothing went through RabbitMQ; local routing is now off and every test goes through the
+    broker. Wolverine opens its transaction when an event is published, which the retrying execution strategy refuses,
+    so `IEventOutbox` collects events and hands them over inside the strategy (tested with retries on). The current
+    user is now `ServiceCurrentUser`: the token's user in requests, the tenant's system actor while an event is
+    processed. RabbitMQ is pinned in `eng/RabbitMqImage.cs`. 5 new tests (stable over three runs); 137 in total.
 - **T-014** — Orders service (Basic) — needed as the publisher of the first event
 - **T-016** — `OrderPlaced` event → Inventory decreases stock
 - **T-017** — Resilience demo: orders accepted while Inventory is down; stock catches up when it returns

@@ -22,6 +22,32 @@ namespace MyWorkplace.Customers.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MyWorkplace.BuildingBlocks.Messaging.ProcessedEvent", b =>
+                {
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("event_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("event_type");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("processed_at");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("EventId")
+                        .HasName("pk_processed_events");
+
+                    b.ToTable("processed_events", (string)null);
+                });
+
             modelBuilder.Entity("MyWorkplace.BuildingBlocks.Persistence.AuditLogEntry", b =>
                 {
                     b.Property<Guid>("Id")

@@ -8,6 +8,12 @@
     <PackageReference Include="EFCore.NamingConventions" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="WolverineFx.RabbitMQ" />
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
+    <PackageReference Include="WolverineFx.Postgresql" />
+    <!-- EN: Compiles Wolverine's generated handler code at startup (no pre-generated code to keep in sync).
+         TR: Wolverine'in ürettiği handler kodunu açılışta derler (senkron tutulacak önceden üretilmiş kod yok). -->
+    <PackageReference Include="WolverineFx.RuntimeCompilation" />
   </ItemGroup>
 
   <ItemGroup>

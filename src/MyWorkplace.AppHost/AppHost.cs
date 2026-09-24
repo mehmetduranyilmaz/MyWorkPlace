@@ -23,6 +23,20 @@ if (!ephemeral)
     postgres.WithDataVolume().WithPgWeb();
 }
 
+// EN: Message broker for cross-service events (ADR-007, ADR-023). Services that publish or consume events reference it
+//     as "messaging"; the first one arrives with T-014.
+// TR: Servisler arası olaylar için mesaj aracı (ADR-007, ADR-023). Olay yayınlayan veya dinleyen servisler ona "messaging"
+//     adıyla bağlanır; ilki T-014 ile gelir.
+// EN: Version pinned in eng/RabbitMqImage.cs, shared with the tests.
+// TR: Sürüm eng/RabbitMqImage.cs içinde sabit, testlerle ortak.
+var messaging = builder.AddRabbitMQ("messaging").WithImageTag(MyWorkplace.RabbitMqImage.Tag);
+if (!ephemeral)
+{
+    // EN: Keep queued messages between runs, and add the management UI to watch queues from the dashboard.
+    // TR: Kuyruktaki mesajları çalıştırmalar arasında koru ve kuyrukları panelden izlemek için yönetim arayüzünü ekle.
+    messaging.WithDataVolume().WithManagementPlugin();
+}
+
 var identityDb = postgres.AddDatabase("identity-db");
 var customersDb = postgres.AddDatabase("customers-db");
 var inventoryDb = postgres.AddDatabase("inventory-db");

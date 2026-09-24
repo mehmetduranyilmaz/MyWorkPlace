@@ -68,10 +68,12 @@ public static class PersistenceExtensions
     }
 
     /// <summary>
-    /// EN: Registers the pieces the interceptors need. The current user comes from the request's token (T-008);
-    ///     outside a request it is anonymous. Registrations made earlier win (TryAdd), so tests can substitute them.
-    /// TR: Interceptor'ların ihtiyaç duyduğu parçaları kaydeder. Aktif kullanıcı isteğin token'ından gelir (T-008);
-    ///     istek dışında anonimdir. Önceden yapılan kayıtlar önceliklidir (TryAdd); böylece testler bunları değiştirebilir.
+    /// EN: Registers the pieces the interceptors need. The current user comes from the request's token (T-008), or is
+    ///     the system actor of an event's tenant while an event is processed (ADR-023); otherwise it is anonymous.
+    ///     Registrations made earlier win (TryAdd), so tests can substitute them.
+    /// TR: Interceptor'ların ihtiyaç duyduğu parçaları kaydeder. Aktif kullanıcı isteğin token'ından gelir (T-008) ya da bir olay
+    ///     işlenirken olayın firmasının sistem kullanıcısıdır (ADR-023); aksi halde anonimdir.
+    ///     Önceden yapılan kayıtlar önceliklidir (TryAdd); böylece testler bunları değiştirebilir.
     /// </summary>
     /// <param name="services">EN: Service collection. TR: Servis koleksiyonu.</param>
     /// <returns>EN: The same collection. TR: Aynı koleksiyon.</returns>
@@ -79,7 +81,9 @@ public static class PersistenceExtensions
     {
         services.TryAddSingleton(TimeProvider.System);
         services.AddHttpContextAccessor();
-        services.TryAddScoped<ICurrentUser, HttpCurrentUser>();
+        services.TryAddScoped<HttpCurrentUser>();
+        services.TryAddScoped<MessageActor>();
+        services.TryAddScoped<ICurrentUser, ServiceCurrentUser>();
         services.TryAddScoped<AuditingInterceptor>();
         services.TryAddScoped<ChangeHistoryInterceptor>();
         return services;

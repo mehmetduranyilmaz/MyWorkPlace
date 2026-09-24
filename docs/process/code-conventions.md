@@ -58,7 +58,8 @@ Guidelines:
   `group.MapModuleSettings<XSettings>(Permissions.X.Read)` and read in code through `ITenantSettings<XSettings>`.
   Never a hard-coded `if` per company, never a new table for one value. Every service's database already has
   `tenant_settings`; adding a setting needs no migration.
-- **Enums** travel as names (`"Block"`), not numbers — configured once in `AddServiceModule`.
+Block`), not numbers — configured once in `AddServiceModule`.
+"Block"`), not numbers — configured once in `AddServiceModule`.
 
 ## Endpoints
 

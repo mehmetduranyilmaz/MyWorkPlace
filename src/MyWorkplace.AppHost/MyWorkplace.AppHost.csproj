@@ -8,10 +8,12 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Include="..\..\eng\PostgresImage.cs" Link="Shared\PostgresImage.cs" />
+    <Compile Include="..\..\eng\RabbitMqImage.cs" Link="Shared\RabbitMqImage.cs" />
   </ItemGroup>
 
   <ItemGroup>

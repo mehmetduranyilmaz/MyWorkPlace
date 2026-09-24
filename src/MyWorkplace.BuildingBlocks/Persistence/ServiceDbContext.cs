@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Domain;
 using MyWorkplace.BuildingBlocks.Identity;
+using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.BuildingBlocks.Settings;
 
 namespace MyWorkplace.BuildingBlocks.Persistence;
@@ -52,6 +53,12 @@ public abstract class ServiceDbContext : DbContext
     public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
 
     /// <summary>
+    /// EN: Ids of the events this service has processed (idempotent consumers, ADR-023).
+    /// TR: Bu servisin işlediği olayların kimlikleri (idempotent dinleyiciler, ADR-023).
+    /// </summary>
+    public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
+
+    /// <summary>
     /// EN: Tenant of the current user. EF re-evaluates this member for every query because it belongs to the context.
     /// TR: Aktif kullanıcının firması. Context'e ait olduğu için EF bu üyeyi her sorguda yeniden değerlendirir.
     /// </summary>
@@ -69,6 +76,7 @@ public abstract class ServiceDbContext : DbContext
         ConfigureModel(modelBuilder);
         ConfigureAuditLog(modelBuilder);
         ConfigureTenantSettings(modelBuilder);
+        ConfigureProcessedEvents(modelBuilder);
         ApplyConventions(modelBuilder);
     }
 
@@ -110,6 +118,24 @@ public abstract class ServiceDbContext : DbContext
             entity.Property(e => e.Module).HasMaxLength(TenantSetting.ModuleMaxLength);
             entity.Property(e => e.Values).HasColumnType("jsonb");
             entity.HasIndex(e => new { e.TenantId, e.Module }).IsUnique();
+        });
+    }
+
+    /// <summary>
+    /// EN: Maps the processed-events table. Keyed by the event id, so a second insert of the same event fails — the last
+    ///     line of defence when a duplicate is processed in parallel. Not tenant-filtered: an id is unique system-wide.
+    /// TR: İşlenmiş olaylar tablosunu eşler. Anahtar olay kimliğidir; aynı olayın ikinci eklenmesi hata verir — bir tekrarın
+    ///     paralel işlendiği durumda son savunma hattı. Firma filtresi yoktur: kimlik tüm sistemde benzersizdir.
+    /// </summary>
+    /// <param name="modelBuilder">EN: The model builder. TR: Model builder.</param>
+    private static void ConfigureProcessedEvents(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProcessedEvent>(entity =>
+        {
+            entity.ToTable("processed_events");
+            entity.HasKey(e => e.EventId);
+            entity.Property(e => e.EventId).ValueGeneratedNever();
+            entity.Property(e => e.EventType).HasMaxLength(ProcessedEvent.EventTypeMaxLength);
         });
     }
 
