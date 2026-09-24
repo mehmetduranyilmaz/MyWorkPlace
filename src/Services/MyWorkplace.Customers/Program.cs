@@ -36,6 +36,7 @@ if (app.Environment.IsDevelopment())
 // EN: No policy on the group: the secure-by-default fallback requires a signed-in user of any plan.
 // TR: Grupta politika yok: varsayılan kural, herhangi bir plandaki giriş yapmış kullanıcıyı ister.
 var customers = app.MapGroup("/customers").WithTags("Customers");
+customers.MapListCustomers();
 customers.MapCreateCustomer();
 customers.MapGetCustomer();
 customers.MapUpdateCustomer();

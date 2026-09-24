@@ -12,13 +12,15 @@ its entities, business rules, endpoints and tests — everything else comes from
 **Proof:** a new module (Products, T-013) is added by following the module guide **without changing a single line
 of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If the core has to change, it is not done.
 
+**When every row below is Done, tell the owner explicitly that the core is complete** (the owner asked for this).
+
 | Capability a new module gets for free | Status | Task |
 | --- | --- | --- |
 | Token validation, secure by default, plan policies (gateway + service) | Done | T-007, T-008 |
 | Tenant isolation, audit fields, change history, soft delete, concurrency | Done | T-024, T-008 |
 | ProblemDetails errors, API docs (Scalar) | Done | T-024, T-006 |
 | Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Done | T-009 |
-| Paging and search standard | Todo | T-028 |
+| Paging and search standard | Done | T-028 |
 | Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
 | Module guide: step-by-step recipe for adding a module | Todo | T-027 |
@@ -264,14 +266,24 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 
 ### T-028 — Paging and search standard
 
-- **State:** Todo
+- **State:** Done
 - **Goal:** One list format for every module, delivered by BuildingBlocks and applied to Customers first (ADR-016).
 - **Acceptance criteria:**
-  - [ ] BuildingBlocks: `PagedResult<T>` (`items`, `page`, `pageSize`, `totalCount`) and paging parameters:
+  - [x] BuildingBlocks: `PagedResult<T>` (`items`, `page`, `pageSize`, `totalCount`) and paging parameters:
         `page` ≥ 1 (default 1), `pageSize` 1–100 (default 20); out-of-range values → `400`
-  - [ ] `GET /customers?page=&pageSize=&search=`: search in name, email and phone, case-insensitive;
+  - [x] `GET /customers?page=&pageSize=&search=`: search in name, email and phone, case-insensitive;
         sorted by name, then id (stable order across pages)
-  - [ ] Tests: page arithmetic and `totalCount`, bounds → `400`, search, only the caller's tenant is listed and counted
+  - [x] Tests: page arithmetic and `totalCount`, bounds → `400`, search, only the caller's tenant is listed and counted
+- **Notes:**
+  - BuildingBlocks: `PageQuery` (validated with `[Range]`/`[MaxLength]` → automatic 400), `PagedResult<T>`,
+    `ToPagedResultAsync` and `SearchPattern`.
+  - `ToPagedResultAsync` takes an `IOrderedQueryable`: paging an unordered query does not compile. Projection happens
+    after `Skip`/`Take`, so only one page of rows is materialized.
+  - A page beyond the end returns `200` with empty items (no offset overflow even for `page=int.MaxValue`).
+  - `%`, `_` and `\` in search text are escaped and matched literally.
+  - Tests: 7 new BuildingBlocks tests (page slices, stable order with equal sort values, overflow, literal wildcards)
+    and 6 new integration tests; 72 in total. A search test first failed twice because its expected order was wrong —
+    it now compares sets, since ordering has its own test.
 
 ### T-010 — Inventory service (Pro) — minimal
 

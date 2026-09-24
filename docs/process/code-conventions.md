@@ -59,6 +59,10 @@ group.MapPost("/register", RegisterTenant.HandleAsync)
 API documentation is wired with `AddServiceApiDocs()` / `MapServiceApiDocs()` from BuildingBlocks, never per service:
 every service gets the same OpenAPI document and Scalar UI (`/scalar`, Development only, C# samples by default).
 
+List endpoints bind `[AsParameters] PageQuery`, filter (search with `SearchPattern.Contains` + `EF.Functions.ILike`),
+order by a business key **then `Id`**, and finish with `ToPagedResultAsync(selector, page, ct)`. It only accepts an
+ordered query, so forgetting the order is a compile error (ADR-016).
+
 Authorization is declared with **named policies** (`RequireAuthorization("...")`), never with role checks inside handlers.
 
 ## Audit logging
