@@ -49,14 +49,6 @@ internal static class CustomersApi
     /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
     /// <returns>EN: The response. TR: Cevap.</returns>
     public static Task<HttpResponseMessage> UpdateAsync(
-        HttpClient client, Guid id, object body, string? ifMatch, CancellationToken ct)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/customers/{id}") { Content = JsonContent.Create(body) };
-        if (ifMatch is not null)
-        {
-            request.Headers.TryAddWithoutValidation("If-Match", ifMatch);
-        }
-
-        return client.SendAsync(request, ct);
-    }
+        HttpClient client, Guid id, object body, string? ifMatch, CancellationToken ct) =>
+        client.PutWithIfMatchAsync($"/customers/{id}", body, ifMatch, ct);
 }

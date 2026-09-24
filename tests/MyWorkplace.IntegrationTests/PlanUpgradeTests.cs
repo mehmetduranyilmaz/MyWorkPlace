@@ -88,6 +88,6 @@ public sealed class PlanUpgradeTests(AppFixture app)
     {
         using var client = app.CreateGatewayClient();
         Authorize(client, token);
-        return await client.GetAsync("/inventory/info", Ct);
+        return await client.GetAsync("/inventory/items", Ct);
     }
 }

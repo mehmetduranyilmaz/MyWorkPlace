@@ -25,6 +25,7 @@ if (!ephemeral)
 
 var identityDb = postgres.AddDatabase("identity-db");
 var customersDb = postgres.AddDatabase("customers-db");
+var inventoryDb = postgres.AddDatabase("inventory-db");
 
 var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
     .WithReference(identityDb)
@@ -41,6 +42,8 @@ var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
     .WithHttpHealthCheck("/health");
 
 var inventory = builder.AddProject<Projects.MyWorkplace_Inventory>("inventory")
+    .WithReference(inventoryDb)
+    .WaitFor(inventoryDb)
     .WithReference(identity)
     .WaitFor(identity)
     .WithHttpHealthCheck("/health");

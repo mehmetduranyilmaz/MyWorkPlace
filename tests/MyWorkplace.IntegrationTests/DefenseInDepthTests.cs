@@ -14,7 +14,7 @@ public sealed class DefenseInDepthTests(AppFixture app)
 
     [Theory]
     [InlineData("customers", "/customers/00000000-0000-0000-0000-000000000001")]
-    [InlineData("inventory", "/inventory/info")]
+    [InlineData("inventory", "/inventory/items")]
     public async Task ServiceCalledDirectly_WithoutToken_Returns401(string service, string path)
     {
         using var client = app.CreateDirectServiceClient(service);
@@ -32,7 +32,7 @@ public sealed class DefenseInDepthTests(AppFixture app)
         using var client = app.CreateDirectServiceClient("inventory");
         IdentityApi.Authorize(client, token);
 
-        using var response = await client.GetAsync("/inventory/info", Ct);
+        using var response = await client.GetAsync("/inventory/items", Ct);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

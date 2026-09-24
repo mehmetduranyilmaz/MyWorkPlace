@@ -47,7 +47,7 @@ public sealed class GatewayAuthorizationTests(AppFixture app)
     {
         using var client = await IdentityApi.CreateSignedInClientAsync(app, Ct);
 
-        using var response = await client.GetAsync("/inventory/info", Ct);
+        using var response = await client.GetAsync("/inventory/items", Ct);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);

@@ -24,6 +24,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
 | Tenant settings: business rules that vary per company are parameters with defaults, not code | Todo | T-032 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
+| No module boilerplate: base entity, one-line service setup, shared mappings | Todo | T-036 |
 | Module guide: step-by-step recipe for adding a module | Todo | T-027 |
 | **Proof: Products added via the guide with zero core changes** | Todo | T-013 |
 
@@ -289,20 +290,35 @@ Remaining order: **T-011 → T-010 → T-012**.
 
 ### T-010 — Inventory: stock items (the first Pro module)
 
-- **State:** Todo
+- **State:** Done
 - **Goal:** Stock items built from the reference module, standalone until Products exists (ADR-019).
   **Start after T-011**: the tests need a Pro tenant.
 - **Acceptance criteria:**
-  - [ ] `inventory-db` in the AppHost; Inventory uses BuildingBlocks; the temporary `/inventory/info` is removed
-  - [ ] `StockItem` (tenant-owned, auditable, soft-deletable): `Sku` required ≤ 50, unique per tenant, case-insensitive,
+  - [x] `inventory-db` in the AppHost; Inventory uses BuildingBlocks; the temporary `/inventory/info` is removed
+  - [x] `StockItem` (tenant-owned, auditable, soft-deletable): `Sku` required ≤ 50, unique per tenant, case-insensitive,
         ignoring deleted items (`409`); `Name` required ≤ 200; `BaseUnit` one of the default unit codes
         (`PCS`, `KG`, `L`, `M`, `BOX`, `PACK` — a catalog comes with T-031); `Quantity` decimal(18,3), starts at 0,
         read-only through this API (changed only by movements, T-030). `[AuditChanges]` on Sku, Name, BaseUnit
-  - [ ] `POST`, `GET`, `PUT` (If-Match), `DELETE`, and a paged list searching SKU and name, sorted by SKU then id —
+  - [x] `POST`, `GET`, `PUT` (If-Match), `DELETE`, and a paged list searching SKU and name, sorted by SKU then id —
         exactly as ADR-016 / ADR-017
-  - [ ] `DELETE` of an item whose quantity is not 0 → `409`
-  - [ ] Every endpoint requires the Pro plan: a Basic token → `403` through the gateway and directly
-  - [ ] Integration tests with a Pro tenant (upgraded via T-011) cover the statuses above and tenant isolation (`404`)
+  - [x] `DELETE` of an item whose quantity is not 0 → `409`
+  - [x] Every endpoint requires the Pro plan: a Basic token → `403` through the gateway and directly
+  - [x] Integration tests with a Pro tenant (upgraded via T-011) cover the statuses above and tenant isolation (`404`)
+- **Notes:**
+  - Routes: `/inventory/items` (Inventory will have several resources). The `/inventory` group keeps `pro-plan`.
+  - Base unit validated with `[AllowedValues]` until the catalog (T-031). Quantity is `numeric(18,3)` and read-only.
+  - **Friction log — copying the reference module** (input for the module guide T-027 and for T-036):
+    1. `Program.cs`: ~20 identical lines (defaults, auth, db, problems, validation, docs, middleware order,
+       migration) — easy to get the middleware order wrong. **Core gap.**
+    2. Every entity repeats 7 interface properties (TenantId, 4 audit, 2 soft-delete). **Core gap.**
+    3. Design-time factory is identical except for names. **Core gap.**
+    4. Entity → response mapping written three times (From, Get projection, List projection); they can drift. **Core gap.**
+    5. Create/Update "pre-check + catch unique violation" pattern repeated — acceptable, documented pattern.
+    6. Outside the core (fine, but the guide must list them): AppHost database + project + references; gateway route
+       when the module has a new prefix; `dotnet ef migrations add`.
+    7. Test helper `UpdateAsync` was tied to `/customers`; generalized to `PutWithIfMatchAsync` for every module.
+  - Items 1–4 mean a new module still needs boilerplate the core could provide → T-036 added to Sprint 2.
+  - 11 new integration tests; 86 in total.
 
 ### T-011 — Plan upgrade
 
@@ -347,6 +363,9 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
 - **T-014** — Orders service (Basic) — needed as the publisher of the first event
 - **T-016** — `OrderPlaced` event → Inventory decreases stock
 - **T-017** — Resilience demo: orders accepted while Inventory is down; stock catches up when it returns
+- **T-036** — Module boilerplate into the core (from the T-010 friction log): an auditable, tenant-owned, soft-deletable
+  base entity; one `AddServiceModule` / `UseServiceModule` pair for the standard `Program.cs` setup and middleware order;
+  a generic design-time factory; one mapping expression shared by responses and projections
 - **T-027** — Module guide (`docs/process/adding-a-module.md`): step-by-step recipe, based on the reference module
 - **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes
 
