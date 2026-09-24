@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+
 namespace MyWorkplace.IntegrationTests;
 
 /// <summary>
@@ -13,9 +15,8 @@ public sealed class GatewayRoutingTests(AppFixture app)
         var ct = TestContext.Current.CancellationToken;
         using var client = await IdentityApi.CreateSignedInClientAsync(app, ct);
 
-        using var response = await client.GetAsync("/customers/info", ct);
+        using var response = await client.PostAsJsonAsync("/customers", new { name = "Routed Ltd" }, ct);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("customers", await response.Content.ReadAsStringAsync(ct));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 }

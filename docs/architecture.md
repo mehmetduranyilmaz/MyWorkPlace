@@ -246,6 +246,10 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   because locks can expire or be broken.
 - **Later:** an informational "X is editing this record" indicator (T-029), which warns without locking — the approach
   of modern web apps. A real lock is added only for a record type where conflicts are proven costly, with its own ADR.
+- **Implementation:** BuildingBlocks `ETags` (format, `SetETag`, `TryReadIfMatch`, 412/428 answers) and
+  `ConcurrencyExtensions` (`GetVersion`, `ExpectVersion`). `ExpectVersion` makes the save conditional on the version
+  the client edited (`UPDATE ... WHERE xmin = @version`), closing the gap between the check and the save.
+  Untracked reads project the version with `EF.Property<uint>(e, "Version")`.
 
 ---
 

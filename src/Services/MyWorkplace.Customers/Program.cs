@@ -1,24 +1,44 @@
-// EN: Customers service (Basic plan). Skeleton only — business endpoints arrive in T-009.
-//     Validates tokens itself (ADR-006): reaching it directly, bypassing the gateway, still requires a valid token.
-// TR: Customers servisi (Basic plan). Şimdilik iskelet — iş uç noktaları T-009'da gelecek.
-//     Token'ları kendisi de doğrular (ADR-006): gateway atlanıp doğrudan ulaşılsa bile geçerli token gerekir.
+// EN: Customers service (Basic plan) — the reference module every later module copies (ADR-016, ADR-017).
+//     Owns customers-db. Validates tokens itself (ADR-006); the tenant filter follows the signed-in user (T-008).
+// TR: Customers servisi (Basic plan) — sonraki her modülün kopyaladığı referans modül (ADR-016, ADR-017).
+//     customers-db veritabanının sahibidir. Token'ları kendisi doğrular (ADR-006); firma filtresi giriş yapan kullanıcıyı izler (T-008).
+
+using MyWorkplace.BuildingBlocks.Http;
+using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Customers.Features;
+using MyWorkplace.Customers.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddTokenAuthentication();
-builder.Services.AddProblemDetails();
+builder.AddServiceDbContext<CustomersDbContext>("customers-db");
+
+builder.Services.AddServiceProblemDetails();
+builder.Services.AddValidation();
+builder.Services.AddServiceApiDocs();
 
 var app = builder.Build();
 
-app.UseStatusCodePages();
+app.UseServiceProblemDetails();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapDefaultEndpoints();
+app.MapServiceApiDocs();
 
-// EN: Temporary endpoint; no policy given, so the secure-by-default fallback requires a signed-in user.
-// TR: Geçici uç nokta; politika verilmedi, bu yüzden varsayılan kural giriş yapmış kullanıcı ister.
-app.MapGet("/customers/info", () => Results.Ok(new { Service = "customers", Plan = "basic" }));
+if (app.Environment.IsDevelopment())
+{
+    // EN: Development only (ADR-015). TR: Sadece geliştirme ortamında (ADR-015).
+    await app.MigrateDatabaseAsync<CustomersDbContext>();
+}
 
-app.Run();
+// EN: No policy on the group: the secure-by-default fallback requires a signed-in user of any plan.
+// TR: Grupta politika yok: varsayılan kural, herhangi bir plandaki giriş yapmış kullanıcıyı ister.
+var customers = app.MapGroup("/customers").WithTags("Customers");
+customers.MapCreateCustomer();
+customers.MapGetCustomer();
+customers.MapUpdateCustomer();
+customers.MapDeleteCustomer();
+
+await app.RunAsync();

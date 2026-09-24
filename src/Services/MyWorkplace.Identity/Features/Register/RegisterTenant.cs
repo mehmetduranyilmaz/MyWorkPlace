@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Persistence;
 using MyWorkplace.Identity.Domain;
 using MyWorkplace.Identity.Persistence;
-using Npgsql;
 
 namespace MyWorkplace.Identity.Features.Register;
 
@@ -80,7 +79,7 @@ public static class RegisterTenant
             // TR: Tek SaveChanges = tek transaction: ya iki satır da oluşur ya hiçbiri.
             await db.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+        catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
             // EN: Another sign-up with the same email won the race between our check and our insert.
             // TR: Aynı e-postayla yapılan başka bir kayıt, kontrolümüz ile eklememiz arasındaki yarışı kazandı.

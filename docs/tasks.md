@@ -17,7 +17,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Token validation, secure by default, plan policies (gateway + service) | Done | T-007, T-008 |
 | Tenant isolation, audit fields, change history, soft delete, concurrency | Done | T-024, T-008 |
 | ProblemDetails errors, API docs (Scalar) | Done | T-024, T-006 |
-| Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Todo | T-009 |
+| Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Done | T-009 |
 | Paging and search standard | Todo | T-028 |
 | Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
@@ -233,22 +233,34 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
 
 ### T-009 — Customers: data and CRUD (the reference module)
 
-- **State:** Todo
+- **State:** Done
 - **Goal:** The first business module, built as the template every later module copies (ADR-016, ADR-017).
 - **Acceptance criteria:**
-  - [ ] `customers-db` in the AppHost; Customers uses BuildingBlocks; the temporary `/customers/info` is removed
-  - [ ] `Customer` (tenant-owned, auditable, soft-deletable): `Name` required ≤ 200; `Email` optional, valid, ≤ 320;
+  - [x] `customers-db` in the AppHost; Customers uses BuildingBlocks; the temporary `/customers/info` is removed
+  - [x] `Customer` (tenant-owned, auditable, soft-deletable): `Name` required ≤ 200; `Email` optional, valid, ≤ 320;
         `Phone` optional ≤ 30; `TaxNumber` optional ≤ 20; `Notes` optional ≤ 2000. `[AuditChanges]` on Name, Email,
         Phone, TaxNumber (not Notes). Initial migration committed
-  - [ ] `POST /customers` → `201` with `Location` and `ETag`; `400` field errors for the rules above
-  - [ ] `GET /customers/{id}` → `200` with `ETag`; unknown id or another tenant's customer → `404`
-  - [ ] `PUT /customers/{id}` (full update) with `If-Match` → `200` with the new `ETag`; stale version → `412`;
+  - [x] `POST /customers` → `201` with `Location` and `ETag`; `400` field errors for the rules above
+  - [x] `GET /customers/{id}` → `200` with `ETag`; unknown id or another tenant's customer → `404`
+  - [x] `PUT /customers/{id}` (full update) with `If-Match` → `200` with the new `ETag`; stale version → `412`;
         missing `If-Match` → `428`; another tenant's customer → `404`
-  - [ ] `DELETE /customers/{id}` → `204` (soft delete); a later `GET` → `404`
-  - [ ] Email unique within a tenant, case-insensitive, ignoring deleted customers → `409`; the same email in another
+  - [x] `DELETE /customers/{id}` → `204` (soft delete); a later `GET` → `404`
+  - [x] Email unique within a tenant, case-insensitive, ignoring deleted customers → `409`; the same email in another
         tenant is allowed; an email of a deleted customer can be reused
-  - [ ] Integration tests through the gateway cover every status above, tenant B's `404` on tenant A's customer for
+  - [x] Integration tests through the gateway cover every status above, tenant B's `404` on tenant A's customer for
         get / update / delete, and a change-history row for an audited field
+- **Notes:**
+  - Layout to copy: `Domain/Customer.cs`, `Persistence/` (context, design-time factory, migrations),
+    `Features/` (one file per endpoint + `CustomerContracts.cs` with input, response DTO and shared problems), `Program.cs`.
+  - The entity guards its own consistency: setters are private and `Update(...)` trims values, turns blanks into null
+    and keeps `NormalizedEmail` in sync with `Email`.
+  - Reads are untracked and project the row version for the ETag; writes use `FindForUpdateAsync` + `ExpectVersion`,
+    so a concurrent change between the check and the save still ends in `412`.
+  - Added to BuildingBlocks for every module: `ETags` (ETag / If-Match / 412 / 428) and `ConcurrencyExtensions`;
+    `PostgresErrors.IsUniqueViolation()` — Identity now uses it too.
+  - Filtered unique index `(tenant_id, normalized_email) WHERE normalized_email IS NOT NULL AND is_deleted = false`.
+  - The temporary `/customers/info` is gone; routing, authorization and defense-in-depth tests now use real endpoints.
+  - 16 new integration tests; 58 tests in total.
 
 ### T-028 — Paging and search standard
 

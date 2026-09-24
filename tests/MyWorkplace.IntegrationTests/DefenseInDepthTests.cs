@@ -13,7 +13,7 @@ public sealed class DefenseInDepthTests(AppFixture app)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Theory]
-    [InlineData("customers", "/customers/info")]
+    [InlineData("customers", "/customers/00000000-0000-0000-0000-000000000001")]
     [InlineData("inventory", "/inventory/info")]
     public async Task ServiceCalledDirectly_WithoutToken_Returns401(string service, string path)
     {
@@ -38,16 +38,16 @@ public sealed class DefenseInDepthTests(AppFixture app)
     }
 
     [Fact]
-    public async Task BasicService_CalledDirectlyWithValidToken_Returns200()
+    public async Task BasicService_CalledDirectlyWithValidToken_AcceptsTheToken()
     {
-        // EN: The service accepts exactly what the gateway accepts: same issuer, audience and keys.
-        // TR: Servis, gateway'in kabul ettiğini birebir kabul eder: aynı üretici, hedef kitle ve anahtarlar.
+        // EN: 404 (not 401) proves the service accepted the token: same issuer, audience and keys as the gateway.
+        // TR: 404 (401 değil), servisin token'ı kabul ettiğini kanıtlar: gateway'le aynı üretici, hedef kitle ve anahtarlar.
         var token = await IdentityApi.GetAccessTokenAsync(app, Ct);
         using var client = app.CreateDirectServiceClient("customers");
         IdentityApi.Authorize(client, token);
 
-        using var response = await client.GetAsync("/customers/info", Ct);
+        using var response = await client.GetAsync($"/customers/{Guid.NewGuid()}", Ct);
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 }

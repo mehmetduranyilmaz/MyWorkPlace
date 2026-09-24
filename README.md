@@ -107,6 +107,9 @@ From the dashboard:
 - **Sign up and sign in:** open the `identity` endpoint and append `/scalar` — the API reference lets you call
   `POST /identity/register` and `POST /identity/login` from the browser. Paste the returned `accessToken` into
   [jwt.io](https://jwt.io) to see its claims. Through the gateway the URLs start with `<gateway>/identity/`.
+- **Manage customers:** with the token as `Authorization: Bearer <token>`, call `POST <gateway>/customers`, then
+  `GET`, `PUT` (send the `ETag` you read as `If-Match`) and `DELETE` on `<gateway>/customers/{id}`.
+  The `customers` endpoint's `/scalar` page documents every status code.
 - **Browse the database:** open **PgWeb** next to `postgres` to see the `tenants`, `users` and `audit_log` tables.
 
 - **VS Code:** press **F5** (launch profile *MyWorkplace (Aspire AppHost)*).

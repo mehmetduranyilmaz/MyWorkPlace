@@ -107,6 +107,9 @@ Panelden:
 - **Kayıt olun ve giriş yapın:** `identity` adresini açın ve sonuna `/scalar` ekleyin — API referansı,
   `POST /identity/register` ve `POST /identity/login` çağrılarını tarayıcıdan yapmanızı sağlar. Dönen `accessToken`'ı
   [jwt.io](https://jwt.io) sitesine yapıştırarak içindeki claim'leri görün. Gateway üzerinden adresler `<gateway>/identity/` ile başlar.
+- **Müşterileri yönetin:** token'ı `Authorization: Bearer <token>` olarak göndererek `POST <gateway>/customers` çağırın,
+  sonra `<gateway>/customers/{id}` üzerinde `GET`, `PUT` (okuduğunuz `ETag`'i `If-Match` olarak gönderin) ve `DELETE` deneyin.
+  `customers` adresinin `/scalar` sayfası tüm durum kodlarını anlatır.
 - **Veritabanını inceleyin:** `postgres` yanındaki **PgWeb**'i açarak `tenants`, `users` ve `audit_log` tablolarını görün.
 
 - **VS Code:** **F5** tuşuna basın (*MyWorkplace (Aspire AppHost)* profili).

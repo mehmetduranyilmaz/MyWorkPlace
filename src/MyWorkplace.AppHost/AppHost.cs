@@ -24,6 +24,7 @@ if (!ephemeral)
 }
 
 var identityDb = postgres.AddDatabase("identity-db");
+var customersDb = postgres.AddDatabase("customers-db");
 
 var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
     .WithReference(identityDb)
@@ -33,6 +34,8 @@ var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
 // EN: Services reference Identity to fetch its public signing keys and validate tokens themselves (ADR-006).
 // TR: Servisler, açık imzalama anahtarlarını alıp token'ları kendileri doğrulamak için Identity'ye bağlanır (ADR-006).
 var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
+    .WithReference(customersDb)
+    .WaitFor(customersDb)
     .WithReference(identity)
     .WaitFor(identity)
     .WithHttpHealthCheck("/health");

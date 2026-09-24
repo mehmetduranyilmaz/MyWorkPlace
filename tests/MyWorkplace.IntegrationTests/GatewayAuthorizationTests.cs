@@ -17,7 +17,7 @@ public sealed class GatewayAuthorizationTests(AppFixture app)
     {
         using var client = app.CreateGatewayClient();
 
-        using var response = await client.GetAsync("/customers/info", Ct);
+        using var response = await client.GetAsync($"/customers/{Guid.NewGuid()}", Ct);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -37,7 +37,7 @@ public sealed class GatewayAuthorizationTests(AppFixture app)
         var tampered = token[..index] + (token[index] == 'A' ? 'B' : 'A') + token[(index + 1)..];
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tampered);
 
-        using var response = await client.GetAsync("/customers/info", Ct);
+        using var response = await client.GetAsync($"/customers/{Guid.NewGuid()}", Ct);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
