@@ -177,6 +177,18 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
   - Tests: no token → 401, tampered signature → 401, Basic on `/inventory` → 403, public routes stay open.
     Pro → 200 needs a Pro tenant, so it comes with T-011/T-012.
 
+### T-026 — Pin the PostgreSQL version in one place
+
+- **State:** Done
+- **Goal:** Development and tests run the same PostgreSQL version, and an Aspire update can't change it silently.
+- **Acceptance criteria:**
+  - [x] The PostgreSQL image and tag are defined once and used by the AppHost and every Testcontainers fixture
+  - [x] The AppHost sets the tag explicitly (`WithImageTag`) instead of relying on Aspire's default
+  - [x] The wrong "same major version" comment in the BuildingBlocks test fixture is gone
+  - [x] All tests pass on the pinned version
+- **Notes:** Found while reviewing Docker Desktop: Aspire ran `postgres:18.3`, tests ran `postgres:17-alpine`.
+  Fixed with one linked source file, `eng/PostgresImage.cs` (tag `18.3`), compiled into the AppHost and both
+  Testcontainers test projects — no new project dependency just for a constant.
 ### T-008 — Shared: tenant context and plan check (service side)
 
 - **State:** Todo

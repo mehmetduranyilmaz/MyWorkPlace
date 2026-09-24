@@ -81,6 +81,8 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Why:** A shared database couples services — when it goes down, everything goes down.
 - **Cost:** No cross-service joins. Data needed elsewhere is copied via events (see ADR-007).
 - **Note:** One server is enough locally; in production services can be moved to separate servers.
+- **Version:** pinned once in `eng/PostgresImage.cs` and linked into the AppHost and every Testcontainers fixture,
+  so development and tests always run the same server version.
 
 ### ADR-004 — Multi-tenancy: shared database, `TenantId` column
 

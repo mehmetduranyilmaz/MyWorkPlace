@@ -17,10 +17,10 @@ namespace MyWorkplace.BuildingBlocks.Tests;
 public sealed class PostgreSqlFixture : IAsyncLifetime
 {
     /// <summary>
-    /// EN: The PostgreSQL container (same major version the AppHost uses).
-    /// TR: PostgreSQL konteyneri (AppHost'un kullandığı ana sürümle aynı).
+    /// EN: The PostgreSQL container, on exactly the version the AppHost runs (eng/PostgresImage.cs).
+    /// TR: PostgreSQL konteyneri; AppHost'un çalıştırdığı sürümün birebir aynısı (eng/PostgresImage.cs).
     /// </summary>
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage.Reference).Build();
 
     /// <summary>
     /// EN: Creates a context acting as <paramref name="user"/>, configured exactly like the services' contexts.

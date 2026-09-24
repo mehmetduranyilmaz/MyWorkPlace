@@ -13,8 +13,11 @@ namespace MyWorkplace.Identity.Tests;
 /// </summary>
 public sealed class SigningKeyProviderTests : IAsyncLifetime
 {
-    /// <summary>EN: Throw-away database. TR: Geçici veritabanı.</summary>
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    /// <summary>
+    /// EN: Throw-away database, on exactly the version the AppHost runs (eng/PostgresImage.cs).
+    /// TR: Geçici veritabanı; AppHost'un çalıştırdığı sürümün birebir aynısı (eng/PostgresImage.cs).
+    /// </summary>
+    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage.Reference).Build();
 
     /// <inheritdoc />
     public async ValueTask InitializeAsync()

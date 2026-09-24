@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\eng\PostgresImage.cs" Link="Shared\PostgresImage.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MyWorkplace.Gateway\MyWorkplace.Gateway.csproj" />
     <ProjectReference Include="..\Services\MyWorkplace.Customers\MyWorkplace.Customers.csproj" />
     <ProjectReference Include="..\Services\MyWorkplace.Identity\MyWorkplace.Identity.csproj" />

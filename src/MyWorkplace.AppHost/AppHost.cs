@@ -13,7 +13,9 @@ var ephemeral = builder.Configuration.GetValue<bool>("Storage:Ephemeral");
 
 // EN: One PostgreSQL server, one database per service (ADR-003).
 // TR: Tek PostgreSQL sunucusu, her servise ayrı veritabanı (ADR-003).
-var postgres = builder.AddPostgres("postgres");
+// EN: Version pinned in eng/PostgresImage.cs, shared with the tests.
+// TR: Sürüm eng/PostgresImage.cs içinde sabit, testlerle ortak.
+var postgres = builder.AddPostgres("postgres").WithImageTag(MyWorkplace.PostgresImage.Tag);
 if (!ephemeral)
 {
     // EN: Keep data between runs, and add PgWeb to browse tables from the dashboard.
