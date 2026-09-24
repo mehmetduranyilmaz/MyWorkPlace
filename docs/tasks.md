@@ -22,6 +22,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Done | T-009 |
 | Paging and search standard | Done | T-028 |
 | Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
+| Tenant settings: business rules that vary per company are parameters with defaults, not code | Todo | T-032 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
 | Module guide: step-by-step recipe for adding a module | Todo | T-027 |
 | **Proof: Products added via the guide with zero core changes** | Todo | T-013 |
@@ -96,6 +97,7 @@ Goal: an empty but professional skeleton. Everything builds and starts with one 
 ## Sprint 1 — MVP: Basic / Pro end to end
 
 Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against the real system.
+Remaining order: **T-011 → T-010 → T-012**.
 
 ### T-024 — Building blocks: shared persistence conventions
 
@@ -285,12 +287,22 @@ Goal: "A Basic tenant can't access Inventory, a Pro tenant can" works against th
     and 6 new integration tests; 72 in total. A search test first failed twice because its expected order was wrong —
     it now compares sets, since ordering has its own test.
 
-### T-010 — Inventory service (Pro) — minimal
+### T-010 — Inventory: stock items (the first Pro module)
 
 - **State:** Todo
+- **Goal:** Stock items built from the reference module, standalone until Products exists (ADR-019).
+  **Start after T-011**: the tests need a Pro tenant.
 - **Acceptance criteria:**
-  - [ ] Create / list stock items
-  - [ ] Stock can't go negative (unit test)
+  - [ ] `inventory-db` in the AppHost; Inventory uses BuildingBlocks; the temporary `/inventory/info` is removed
+  - [ ] `StockItem` (tenant-owned, auditable, soft-deletable): `Sku` required ≤ 50, unique per tenant, case-insensitive,
+        ignoring deleted items (`409`); `Name` required ≤ 200; `BaseUnit` one of the default unit codes
+        (`PCS`, `KG`, `L`, `M`, `BOX`, `PACK` — a catalog comes with T-031); `Quantity` decimal(18,3), starts at 0,
+        read-only through this API (changed only by movements, T-030). `[AuditChanges]` on Sku, Name, BaseUnit
+  - [ ] `POST`, `GET`, `PUT` (If-Match), `DELETE`, and a paged list searching SKU and name, sorted by SKU then id —
+        exactly as ADR-016 / ADR-017
+  - [ ] `DELETE` of an item whose quantity is not 0 → `409`
+  - [ ] Every endpoint requires the Pro plan: a Basic token → `403` through the gateway and directly
+  - [ ] Integration tests with a Pro tenant (upgraded via T-011) cover the statuses above and tenant isolation (`404`)
 
 ### T-011 — Plan upgrade
 
@@ -315,6 +327,10 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
 
 - **T-025** — Roles and permissions: permission-based policies, roles as permission sets, per-user extra
   permissions (needs an ADR: storage, token claims, default roles)
+- **T-032** — Tenant settings (ADR-018): BuildingBlocks capability — typed per-module settings with code defaults,
+  stored per tenant in the module's database; first user: `InventorySettings.NegativeStockPolicy`
+  (`Block` default, `Allow`, `Warn`) via `GET` / `PUT /inventory/settings` with ETag and change history;
+  tests for defaults, tenant isolation, update and stale ETag (`412`)
 - **T-015** — Messaging: library choice (ADR-007) + RabbitMQ + transactional outbox, as a BuildingBlocks capability
 - **T-014** — Orders service (Basic) — needed as the publisher of the first event
 - **T-016** — `OrderPlaced` event → Inventory decreases stock
@@ -324,8 +340,25 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
 
 ---
 
+## Sprint 3 — Inventory depth
+
+Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refined with `/refine` before starting.
+
+- **T-031** — Units and barcodes: a per-tenant unit catalog seeded with defaults (`PCS` 0 decimals, `KG` / `L` / `M`
+  3 decimals, `BOX` / `PACK` 0) that tenants can extend; per item alternative units with a conversion factor to the
+  base unit (e.g. 1 `BOX` = 24 `PCS`); barcodes per item unit, unique per tenant; `GET /inventory/barcodes/{code}`
+  returns item, unit and factor (`404` if unknown); quantities validated against the unit's precision
+- **T-030** — Stock movements: `POST /inventory/items/{id}/movements` (`In` / `Out`, quantity > 0, optional unit
+  converted to the base unit, note); movements are append-only history; the balance changes only through them;
+  negative stock follows `NegativeStockPolicy` (`Block` → `409`, `Allow`, `Warn` → success with a warning);
+  concurrent `Out`s under `Block` can never go below zero; paged movement history, newest first
+
+---
+
 ## Backlog
 
+- **T-033** — Variable-weight items (e.g. cheese sold by piece and by kg with a different weight per piece)
+- **T-034** — Per-item override of the negative stock policy
 - **T-018** — Reporting service (Pro)
 - **T-019** — Per-plan rate limiting at the gateway (Basic: low, Pro: high)
 - **T-020** — Refresh tokens

@@ -251,6 +251,50 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   the client edited (`UPDATE ... WHERE xmin = @version`), closing the gap between the check and the save.
   Untracked reads project the version with `EF.Property<uint>(e, "Version")`.
 
+### ADR-018 — Tenant settings: business rules that vary per company
+
+- **Context:** Some rules genuinely differ between businesses (a market lets the till go on when stock runs out,
+  a pharmacy never does). Hard-coding them forces one company's choice on every company.
+- **Rule of thumb:** a rule becomes a setting **only if companies legitimately differ on it** — e.g. negative stock
+  policy, default unit, price display with or without VAT, order number format. Correctness and security rules are
+  **never** settings (tenant isolation, password rules, ETag checks, "balance comes from movements"). Every setting
+  adds test combinations and support questions ("why does it behave like this?"), so configurability is earned.
+- **Decision:** A BuildingBlocks capability for **typed, per-module** settings. Each module declares a settings class
+  with defaults in code (e.g. `InventorySettings { NegativeStockPolicy = Block }`); a tenant stores only what it
+  changes, per tenant, in the module's own database (ADR-003). Exposed as `GET` / `PUT /{module}/settings` with
+  ETag (ADR-017) and change history.
+- **Rejected:** a global string key/value table — typos surface at runtime, values lose their types, and one
+  table would couple every module.
+- **Later:** who may change settings is decided by roles and permissions (T-025); per-item overrides (T-034).
+
+### ADR-019 — Inventory model: base unit, alternative units, barcodes
+
+- **Standalone first:** Inventory owns its stock items, identified by a per-tenant unique SKU. When Products and
+  messaging exist, Products publishes "product created" and Inventory links its item to the product — Inventory
+  **never calls Products synchronously** (ADR-003, ADR-007), so stock keeps working when Products is down.
+- **Base unit:** every item has exactly one base unit and the balance is **always stored in it**.
+- **Alternative units:** per item, a unit with a conversion factor to the base unit (1 `BOX` = 24 `PCS`). A movement
+  in any unit is converted once, at the edge, so the balance can never mix units.
+- **Unit catalog:** per tenant, seeded with defaults and extendable. Each unit has a decimal precision
+  (`PCS` 0 → 2.5 pieces is rejected; `KG` 3).
+- **Barcodes:** per item unit (the piece and the box have different barcodes), unique per tenant; a lookup returns
+  item, unit and factor.
+- **Out of scope:** variable-weight items, where each piece weighs differently (T-033).
+
+### ADR-020 — Stock movements and the negative stock policy
+
+- **Decision:** the stock balance is never edited directly. It changes only through **append-only movements**
+  (`In` / `Out`), each recording quantity, unit, factor, user and time — the answer to "why is stock 12?".
+  Movements need no ETag: "add 5" overwrites nobody's change.
+- **Negative stock** follows `InventorySettings.NegativeStockPolicy` (ADR-018):
+  - `Block` (default): an `Out` larger than the balance → `409`. Enforced by one atomic statement
+    (`UPDATE ... SET quantity = quantity - @q WHERE id = @id AND quantity >= @q`), so concurrent `Out`s cannot
+    together push the balance below zero.
+  - `Allow`: the balance may go negative.
+  - `Warn`: allowed, and the successful response carries a `warnings` list (e.g. `NegativeStock`) for the UI to show.
+- **Cost:** a database `CHECK (quantity >= 0)` is not possible because `Allow` / `Warn` are legitimate; under
+  `Block` the guarantee comes from the conditional update.
+
 ---
 
 ## 4. Solution layout (planned)
