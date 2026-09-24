@@ -22,7 +22,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Done | T-009 |
 | Paging and search standard | Done | T-028 |
 | Roles and permissions: a module declares who may call which endpoint | Done | T-025, T-037 |
-| Tenant settings: business rules that vary per company are parameters with defaults, not code | Todo | T-032 |
+| Tenant settings: business rules that vary per company are parameters with defaults, not code | Done | T-032 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
 | No module boilerplate: base entity, one-line service setup, shared mappings | Done | T-036 |
 | Module guide: step-by-step recipe for adding a module | Todo | T-027 |
@@ -388,10 +388,25 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
         Admin upgrade → `403`, Member user management → `403`, Viewer write on Pro inventory → `403`
   - Notes: `User` is now a `BusinessEntity` (soft delete); the email index became a filtered unique index. The race test
     (two Owners demoting each other at once) was checked to fail with the lock removed. 21 new tests; 120 in total.
-- **T-032** — Tenant settings (ADR-018): BuildingBlocks capability — typed per-module settings with code defaults,
-  stored per tenant in the module's database; first user: `InventorySettings.NegativeStockPolicy`
-  (`Block` default, `Allow`, `Warn`) via `GET` / `PUT /inventory/settings` with ETag and change history;
-  tests for defaults, tenant isolation, update and stale ETag (`412`)
+- **T-032** — Tenant settings (ADR-018) — **Done**
+  - Goal: business rules that vary per company are parameters a permitted user changes, with defaults in code.
+  - [x] BuildingBlocks capability: a module declares a settings class with defaults and exposes it with one line;
+        code reads the current tenant's values through one service (used by T-030)
+  - [x] Stored per tenant and module as one `jsonb` row in the module's database; adding a setting needs no migration;
+        no row → code defaults; a stored document missing a property → that property's default
+  - [x] First setting: `InventorySettings.NegativeStockPolicy` — `Block` (default), `Allow`, `Warn`
+  - [x] `GET /inventory/settings` (`inventory.read`) returns the values with an ETag; `PUT` (`settings.manage`)
+        replaces them with `If-Match`: `428` without it, `412` if stale — also when two first saves race;
+        an invalid value → `400`
+  - [x] Changes are recorded in the change history (old and new values)
+  - [x] Tests: defaults for a new company, update visible on the next read, tenant isolation, `428` / `412` / `400`,
+        Member `PUT` → `403`, Viewer `GET` → `200`, Basic plan → `403`, missing property → default
+  - Notes: `tenant_settings` lives in every service's database like `audit_log` (one empty-table migration each for
+    Identity and Customers). A never-saved company has ETag `"0"`; the unique (tenant, module) index settles racing
+    first saves. PostgreSQL reformats `jsonb`, so values are compared by meaning — saving the same values writes no
+    history. The `PUT` handler reads the body itself: a parameter typed by a generic argument crashes the ASP.NET route
+    analyzer (AD0001), and reading it ourselves gives a field-level `400` for unknown values. Enums now travel as names
+    in every service. 12 new tests; 132 in total.
 - **T-015** — Messaging: library choice (ADR-007) + RabbitMQ + transactional outbox, as a BuildingBlocks capability
 - **T-014** — Orders service (Basic) — needed as the publisher of the first event
 - **T-016** — `OrderPlaced` event → Inventory decreases stock

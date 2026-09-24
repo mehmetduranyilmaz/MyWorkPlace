@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using MyWorkplace.BuildingBlocks.Identity;
+using MyWorkplace.BuildingBlocks.Settings;
 
 namespace MyWorkplace.BuildingBlocks.Persistence;
 
@@ -41,6 +42,11 @@ public static class PersistenceExtensions
                 services.GetRequiredService<ChangeHistoryInterceptor>()));
 
         builder.EnrichNpgsqlDbContext<TContext>();
+
+        // EN: Shared capabilities receive the service's context through its base type (e.g. tenant settings, ADR-018).
+        // TR: Ortak yetenekler servisin context'ini temel tipi üzerinden alır (ör. firma ayarları, ADR-018).
+        builder.Services.AddScoped<ServiceDbContext>(services => services.GetRequiredService<TContext>());
+        builder.Services.AddScoped(typeof(ITenantSettings<>), typeof(TenantSettings<>));
         return builder;
     }
 

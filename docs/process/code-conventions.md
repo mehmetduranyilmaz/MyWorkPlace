@@ -53,6 +53,12 @@ Guidelines:
 - **`Program.cs`** calls `AddServiceModule<TContext>("x-db")`, `builder.Services.AddValidation()` (it must stay in the
   service) and `await app.UseServiceModuleAsync<TContext>()`, then maps the module's endpoints.
 - **Design-time factory:** one line — `internal sealed class XDbContextDesignTimeFactory : ServiceDbContextDesignTimeFactory<XDbContext>;`
+- **Settings (ADR-018):** a rule companies legitimately differ on is a property with a default in the module's settings
+  class (`sealed class XSettings : IModuleSettings`, `static string Module => "x"`), exposed with
+  `group.MapModuleSettings<XSettings>(Permissions.X.Read)` and read in code through `ITenantSettings<XSettings>`.
+  Never a hard-coded `if` per company, never a new table for one value. Every service's database already has
+  `tenant_settings`; adding a setting needs no migration.
+- **Enums** travel as names (`"Block"`), not numbers — configured once in `AddServiceModule`.
 
 ## Endpoints
 

@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Domain;
 using MyWorkplace.BuildingBlocks.Identity;
+using MyWorkplace.BuildingBlocks.Settings;
 
 namespace MyWorkplace.BuildingBlocks.Persistence;
 
@@ -45,6 +46,12 @@ public abstract class ServiceDbContext : DbContext
     public DbSet<AuditLogEntry> AuditLog => Set<AuditLogEntry>();
 
     /// <summary>
+    /// EN: Per-company module settings (ADR-018); read through <see cref="ITenantSettings{TSettings}"/>.
+    /// TR: Firma bazında modül ayarları (ADR-018); <see cref="ITenantSettings{TSettings}"/> üzerinden okunur.
+    /// </summary>
+    public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
+
+    /// <summary>
     /// EN: Tenant of the current user. EF re-evaluates this member for every query because it belongs to the context.
     /// TR: Aktif kullanıcının firması. Context'e ait olduğu için EF bu üyeyi her sorguda yeniden değerlendirir.
     /// </summary>
@@ -61,6 +68,7 @@ public abstract class ServiceDbContext : DbContext
     {
         ConfigureModel(modelBuilder);
         ConfigureAuditLog(modelBuilder);
+        ConfigureTenantSettings(modelBuilder);
         ApplyConventions(modelBuilder);
     }
 
@@ -84,6 +92,24 @@ public abstract class ServiceDbContext : DbContext
             entity.Property(e => e.EntityType).HasMaxLength(200);
             entity.Property(e => e.Property).HasMaxLength(200);
             entity.HasIndex(e => new { e.EntityType, e.EntityId });
+        });
+    }
+
+    /// <summary>
+    /// EN: Maps the settings table: one row per company and module, values as <c>jsonb</c>. The tenant filter and
+    ///     <c>xmin</c> version come from the conventions below, like for any tenant-owned entity.
+    /// TR: Ayar tablosunu eşler: firma ve modül başına bir satır, değerler <c>jsonb</c>. Firma filtresi ve <c>xmin</c> sürümü,
+    ///     firmaya ait her entity'de olduğu gibi aşağıdaki kurallardan gelir.
+    /// </summary>
+    /// <param name="modelBuilder">EN: The model builder. TR: Model builder.</param>
+    private static void ConfigureTenantSettings(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<TenantSetting>(entity =>
+        {
+            entity.ToTable("tenant_settings");
+            entity.Property(e => e.Module).HasMaxLength(TenantSetting.ModuleMaxLength);
+            entity.Property(e => e.Values).HasColumnType("jsonb");
+            entity.HasIndex(e => new { e.TenantId, e.Module }).IsUnique();
         });
     }
 

@@ -4,7 +4,9 @@
 //     Planı kendisi de kontrol eder (ADR-006): gateway'i atlayıp doğrudan ulaşan Basic firma yine 403 alır.
 
 using MyWorkplace.BuildingBlocks.Hosting;
+using MyWorkplace.BuildingBlocks.Settings;
 using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Features;
 using MyWorkplace.Inventory.Persistence;
 
@@ -29,5 +31,8 @@ items.MapCreateStockItem();
 items.MapGetStockItem();
 items.MapUpdateStockItem();
 items.MapDeleteStockItem();
+
+// EN: GET / PUT /inventory/settings (ADR-018). TR: GET / PUT /inventory/settings (ADR-018).
+inventory.MapModuleSettings<InventorySettings>(Permissions.Inventory.Read);
 
 await app.RunAsync();

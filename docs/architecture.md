@@ -268,7 +268,16 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   ETag (ADR-017) and change history.
 - **Rejected:** a global string key/value table — typos surface at runtime, values lose their types, and one
   table would couple every module.
-- **Later:** who may change settings is decided by roles and permissions (T-025); per-item overrides (T-034).
+- **Later:** per-item overrides (T-034).
+- **Refined (T-032):**
+  - **Storage:** one row per tenant and module holding the values as a `jsonb` document, read into the module's typed
+    class. Adding a setting means adding a property with a default — no migration. Invalid values are rejected with
+    `400` on save, so types are still enforced.
+  - **Defaults:** a tenant that never saved gets the code defaults; a stored document missing a newer property gets
+    that property's default. `PUT` replaces all values.
+  - **Access:** reading needs the module's read permission (the UI must know e.g. `Warn`); changing needs
+    `settings.manage` (Owner, Admin by default). The module's plan rule still applies.
+  - **No cache for now:** one indexed row per read, so a change applies immediately. Caching can come with events (T-015).
 
 ### ADR-019 — Inventory model: base unit, alternative units, barcodes
 

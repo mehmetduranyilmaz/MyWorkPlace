@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
@@ -33,6 +35,11 @@ public static class ServiceModuleExtensions
         builder.AddServiceDbContext<TContext>(connectionName);
         builder.Services.AddServiceProblemDetails();
         builder.Services.AddServiceApiDocs();
+
+        // EN: Enums travel as names ("Block"), not numbers: readable, and reordering an enum can't change the API.
+        // TR: Enum'lar sayı değil ad olarak taşınır ("Block"): okunur ve enum sırasının değişmesi API'yi değiştiremez.
+        builder.Services.ConfigureHttpJsonOptions(options =>
+            options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
         return builder;
     }
 
