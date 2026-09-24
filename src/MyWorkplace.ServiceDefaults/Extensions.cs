@@ -45,6 +45,14 @@ public static class Extensions
         builder.AddDefaultHealthChecks();
         builder.Services.AddServiceDiscovery();
 
+        // EN: When asked to stop (SIGTERM on Linux), a service finishes in-flight work for at most 10 seconds and then
+        //     exits. Orchestrators (Aspire, Kubernetes) expect a quick exit; pending events are safe in the outbox and
+        //     the broker's queues (ADR-023). Found by the T-017 outage test on Linux (T-043).
+        // TR: Durması istendiğinde (Linux'ta SIGTERM) bir servis devam eden işini en fazla 10 saniye içinde bitirir ve çıkar.
+        //     Orkestratörler (Aspire, Kubernetes) hızlı çıkış bekler; bekleyen olaylar outbox'ta ve mesaj aracının kuyruklarında
+        //     güvendedir (ADR-023). Linux'ta T-017'nin kesinti testi buldu (T-043).
+        builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(10));
+
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
             // EN: Retry, timeout and circuit breaker for every outgoing HTTP call (ADR-007).

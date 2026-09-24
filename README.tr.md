@@ -123,7 +123,8 @@ Panelden:
    `myworkplace.inventory.OrderPlaced` kuyruğu siparişinizin olayını tutuyor.
 5. `inventory`'yi yeniden **başlatın**. Kuyruk boşalır ve kalemin `quantity` değeri düşer — hiçbir şey kaybolmadı.
 
-`ResilienceTests` entegrasyon testi her CI çalışmasında tam olarak bunu yapar.
+`ResilienceTests` entegrasyon testi tam olarak bunu yapar. Windows'ta çalışır; Linux'ta (dolayısıyla CI'da) şimdilik karantinadadır,
+çünkü Aspire orada bir kaynağı durduramıyor — görev panosunda T-044'e bakın.
 
 - **VS Code:** **F5** tuşuna basın (*MyWorkplace (Aspire AppHost)* profili).
 - **Visual Studio:** `MyWorkplace.slnx` dosyasını açın, `MyWorkplace.AppHost` projesini başlangıç projesi yapın, **F5** tuşuna basın.

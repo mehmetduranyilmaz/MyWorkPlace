@@ -123,7 +123,8 @@ From the dashboard:
    parameters): the queue `myworkplace.inventory.OrderPlaced` holds your order's event.
 5. **Start** `inventory` again. The queue empties and the item's `quantity` drops — nothing was lost.
 
-The integration test `ResilienceTests` does exactly this on every CI run.
+The integration test `ResilienceTests` does exactly this. It runs on Windows; on Linux (and so in CI) it is
+quarantined for now, because Aspire can't stop a resource there — see T-044 on the task board.
 
 - **VS Code:** press **F5** (launch profile *MyWorkplace (Aspire AppHost)*).
 - **Visual Studio:** open `MyWorkplace.slnx`, set `MyWorkplace.AppHost` as the startup project, press **F5**.

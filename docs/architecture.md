@@ -138,7 +138,9 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Unavoidable synchronous calls** use timeout + retry + circuit breaker (Aspire ServiceDefaults).
 - **Proven (T-017):** an integration test stops Inventory for real, places orders, starts it again and sees the stock
   catch up. It also showed the gateway waited 15 seconds (YARP's default connect timeout) before answering for a
-  stopped service; the gateway now gives up connecting after 3 seconds and answers with a `5xx`.
+  stopped service; the gateway now gives up connecting after 3 seconds and answers with a `5xx`. The test runs on
+  Windows; on Linux CI it is quarantined until T-044 (Aspire can't stop the resource there). Every service also shuts
+  down within 10 seconds when asked (T-043).
 
 ### ADR-008 — .NET 10 + .NET Aspire
 
@@ -167,6 +169,9 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
   (`IsolatedAppFixture`) and the `ServiceOutageCollection`, so they run alone, after the parallel tests (T-043).
 - **CI failures are readable without signing in:** failed tests become annotations and a job summary; the TRX results
   are kept as an artifact (T-043).
+- **Quarantine, never silent skips:** a test that fails for an environment reason outside our code may be skipped only
+  conditionally (`SkipWhen`), with the reason in the skip message and a task on the board. Currently: the outage test
+  on Linux (T-044).
 - **Library tests** (e.g. BuildingBlocks) run against a real PostgreSQL started by **Testcontainers** — an in-memory
   database can't reproduce PostgreSQL behavior such as `xmin`.
 - **Tools:** xUnit v3 on Microsoft.Testing.Platform (the .NET 10 default direction; set in `global.json`),

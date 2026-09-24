@@ -1,10 +1,12 @@
-# EN: Builds the solution and runs all tests on every push to main and every pull request.
-# TR: Her main push'unda ve her pull request'te çözümü derler ve tüm testleri çalıştırır.
+# EN: Builds the solution and runs all tests on every push (task branches included, so a change is proven before it is
+#     merged — T-043) and every pull request.
+# TR: Her push'ta (task branch'leri dahil; böylece bir değişiklik merge edilmeden önce kanıtlanır — T-043) ve her pull request'te
+#     çözümü derler ve tüm testleri çalıştırır.
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 

@@ -491,17 +491,22 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     all three services (created, inspected, deleted — `migrations remove` needs a live database, so the files were
     removed by hand and the snapshots restored). 4 new BuildingBlocks tests for `SingleWithVersionAsync`; 91 in total.
     Services now reference only BuildingBlocks (ServiceDefaults comes through it). Code conventions updated.
-- **T-043** — CI failed after T-017; make failing tests readable without signing in (unplanned) — **In Review**
+- **T-043** — CI failed after T-017; make failing tests readable without signing in (unplanned) — **Done**
   - Goal: `main` is green again, and the next failure names its test where anyone can see it.
   - [x] Failing tests appear as GitHub annotations (test name + message) and the test results are kept as an artifact
   - [x] Tests that break the system on purpose run on their own, after the parallel tests, so they don't compete
         with them for the CI machine
-  - [ ] CI is green on `main` — checked after the merge
+  - [x] CI is green on the task branch (CI #30), then on `main`
+  - [x] CI runs on every branch push, so a fix is proven before it is merged
   - Notes: the failing test of CI #27 couldn't be identified: raw logs need a signed-in user and only "exit code 2"
-    was readable. Most likely cause: the second system of T-017 starting while the other tests ran, on a smaller
-    machine. `eng/ci/Report-FailedTests.ps1` turns failed tests in the TRX files into annotations and a job summary
-    (tested here on a real and a deliberately failed TRX). `ResilienceTests` now runs in a non-parallel collection;
-    the TRX times show it starting after the last parallel test ended. Locally, run exactly as CI: 155 passed.
+    was readable. `eng/ci/Report-FailedTests.ps1` now turns failed tests in the TRX files into annotations and a job
+    summary (tested here on a real and a deliberately failed TRX). My first guess — load from T-017's second system —
+    was wrong: CI #28 named the test and the cause, Aspire's stop command failing on Linux. The second guess — a slow
+    graceful shutdown — was wrong too: CI #29 (on the task branch, now possible) showed Aspire losing track of the
+    resource (state "Unknown"). With the owner's agreement the outage test is quarantined on Linux (`SkipWhen`, visible
+    reason) and the cause moves to T-044; it still runs and passes on Windows. Kept from the attempts: the outage test
+    runs alone after the parallel tests, reports the stop result and state, and every service shuts down within
+    10 seconds.
 - **T-027** — Module guide (`docs/process/adding-a-module.md`): step-by-step recipe, based on the reference module
 - **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes
 
@@ -525,6 +530,8 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 
 ## Backlog
 
+- **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
+  "Unknown", CI #28 / #29) — e.g. kill the process by its PID (closer to a real crash), check Aspire's known issues
 - **T-042** — Review list of order lines Inventory could not match to a stock item (ADR-020)
 - **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
 - **T-040** — Cancel a placed order: `OrderCancelled` and stock returned by Inventory (ADR-024)
