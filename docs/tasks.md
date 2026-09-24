@@ -24,7 +24,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
 | Tenant settings: business rules that vary per company are parameters with defaults, not code | Todo | T-032 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
-| No module boilerplate: base entity, one-line service setup, shared mappings | Todo | T-036 |
+| No module boilerplate: base entity, one-line service setup, shared mappings | Done | T-036 |
 | Module guide: step-by-step recipe for adding a module | Todo | T-027 |
 | **Proof: Products added via the guide with zero core changes** | Todo | T-013 |
 
@@ -368,9 +368,22 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
 - **T-014** — Orders service (Basic) — needed as the publisher of the first event
 - **T-016** — `OrderPlaced` event → Inventory decreases stock
 - **T-017** — Resilience demo: orders accepted while Inventory is down; stock catches up when it returns
-- **T-036** — Module boilerplate into the core (from the T-010 friction log): an auditable, tenant-owned, soft-deletable
-  base entity; one `AddServiceModule` / `UseServiceModule` pair for the standard `Program.cs` setup and middleware order;
-  a generic design-time factory; one mapping expression shared by responses and projections
+- **T-036** — Module boilerplate into the core (ADR-021) — **Done**
+  - Goal: a new module writes only its entities, rules, endpoints and tests; the recurring setup comes from BuildingBlocks.
+  - [x] Base classes `AuditableEntity` → `TenantOwnedEntity` → `BusinessEntity` in BuildingBlocks; Tenant and SigningKey,
+        User, Customer and StockItem use them (the interfaces stay: filters and interceptors rely on them)
+  - [x] `AddServiceModule<TContext>(connection)` and `UseServiceModuleAsync<TContext>()` own the standard setup and the middleware
+        order; Identity, Customers and Inventory use them. `AddValidation()` stays in each service (source generator, ADR-021)
+  - [x] Generic `ServiceDbContextDesignTimeFactory<TContext>`; each service keeps a one-line subclass
+  - [x] Each response has one `Projection` expression used by lists, single reads (`SingleWithVersionAsync`) and `From`;
+        BuildingBlocks tests cover `SingleWithVersionAsync` (value + version, not found, other tenant)
+  - [x] **Behavior preserved:** all 87 existing tests pass unchanged, and `dotnet ef migrations add` produces an empty
+        migration for every service (removed after the check)
+  - Notes: services lost 169 lines net (247 removed, 78 added); each `Program.cs` is 12 lines shorter. Proof of a pure
+    refactoring: the 87 existing tests pass with zero changes under `tests/`, and a schema-check migration was empty for
+    all three services (created, inspected, deleted — `migrations remove` needs a live database, so the files were
+    removed by hand and the snapshots restored). 4 new BuildingBlocks tests for `SingleWithVersionAsync`; 91 in total.
+    Services now reference only BuildingBlocks (ServiceDefaults comes through it). Code conventions updated.
 - **T-027** — Module guide (`docs/process/adding-a-module.md`): step-by-step recipe, based on the reference module
 - **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes
 

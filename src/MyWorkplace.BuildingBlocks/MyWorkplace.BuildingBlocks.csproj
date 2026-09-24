@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MyWorkplace.Contracts\MyWorkplace.Contracts.csproj" />
+    <!-- EN: For AddServiceModule (ADR-021). TR: AddServiceModule için (ADR-021). -->
+    <ProjectReference Include="..\MyWorkplace.ServiceDefaults\MyWorkplace.ServiceDefaults.csproj" />
   </ItemGroup>
 
 </Project>

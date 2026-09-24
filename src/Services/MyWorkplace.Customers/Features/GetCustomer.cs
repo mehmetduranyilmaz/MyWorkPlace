@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
 using MyWorkplace.Customers.Persistence;
@@ -45,21 +44,13 @@ public static class GetCustomer
     {
         // EN: The tenant and soft-delete filters apply, so another company's or a deleted customer is simply not found.
         // TR: Firma ve soft-delete filtreleri uygulanır; başka firmanın veya silinmiş bir müşteri kısaca bulunamaz.
-        var row = await db.Customers
-            .Where(c => c.Id == id)
-            .Select(c => new
-            {
-                Customer = new CustomerResponse(c.Id, c.Name, c.Email, c.Phone, c.TaxNumber, c.Notes, c.CreatedAt, c.UpdatedAt),
-                Version = EF.Property<uint>(c, ServiceDbContext.ConcurrencyTokenProperty),
-            })
-            .SingleOrDefaultAsync(cancellationToken);
-
+        var row = await db.Customers.SingleWithVersionAsync(id, CustomerResponse.Projection, cancellationToken);
         if (row is null)
         {
             return TypedResults.NotFound();
         }
 
         http.Response.SetETag(row.Version);
-        return TypedResults.Ok(row.Customer);
+        return TypedResults.Ok(row.Value);
     }
 }

@@ -298,6 +298,27 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Cost:** a database `CHECK (quantity >= 0)` is not possible because `Allow` / `Warn` are legitimate; under
   `Block` the guarantee comes from the conditional update.
 
+### ADR-021 — Module building blocks: no boilerplate in modules
+
+- **Context:** Copying the reference module into Inventory (T-010) logged four kinds of repetition: the standard
+  `Program.cs`, the same seven interface properties on every entity, identical design-time factories, and each
+  entity-to-response mapping written three times. Repetition drifts; a module should contain only its own logic.
+- **Decision:**
+  - Entity base classes: `Entity` → `AuditableEntity` → `TenantOwnedEntity` → `BusinessEntity` (+ soft delete).
+    The interfaces stay, because filters and interceptors are defined on them.
+  - `AddServiceModule<TContext>(connection)` / `UseServiceModuleAsync<TContext>()` own the standard setup and the
+    **middleware order**, so it is defined once.
+  - `ServiceDbContextDesignTimeFactory<TContext>`: `dotnet ef` looks for a factory in the service's own assembly,
+    so each service keeps a one-line subclass.
+  - One mapping per response, as an expression (`Projection`): used by lists, by single reads through
+    `SingleWithVersionAsync` (value + ETag version in one query, built by combining expression trees), and compiled
+    once for `From`.
+- **Exception:** `AddValidation()` stays in each service. The .NET 10 validation source generator inspects the
+  project where it is called; called inside BuildingBlocks it would not see the service's request types and
+  validation would silently stop.
+- **Guarantee:** behavior-preserving refactoring — the existing tests pass unchanged and the schema is unchanged
+  (empty migrations).
+
 ---
 
 ## 4. Solution layout (planned)

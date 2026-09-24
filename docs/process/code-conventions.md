@@ -44,6 +44,16 @@ Guidelines:
 - `Program.cs` top-level statements are documented with regular `//` comments in both languages.
 - Test methods are exempt: their names (`Method_Scenario_ExpectedResult`) are their documentation.
 
+## Module building blocks (ADR-021)
+
+- **Entities** inherit the smallest base that fits: `BusinessEntity` for business data (tenant-owned, audited,
+  soft-deletable), `TenantOwnedEntity`, `AuditableEntity` or plain `Entity` otherwise. Don't repeat interface properties.
+- **Responses** define one `static readonly Expression<Func<TEntity, TResponse>> Projection`, used by lists
+  (`ToPagedResultAsync`), single reads (`SingleWithVersionAsync`) and `From` (compiled once). Never write the mapping twice.
+- **`Program.cs`** calls `AddServiceModule<TContext>("x-db")`, `builder.Services.AddValidation()` (it must stay in the
+  service) and `await app.UseServiceModuleAsync<TContext>()`, then maps the module's endpoints.
+- **Design-time factory:** one line — `internal sealed class XDbContextDesignTimeFactory : ServiceDbContextDesignTimeFactory<XDbContext>;`
+
 ## Endpoints
 
 Every Minimal API endpoint has a bilingual summary and description; they appear in the OpenAPI document and Scalar.

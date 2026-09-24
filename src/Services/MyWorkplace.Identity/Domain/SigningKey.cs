@@ -8,7 +8,7 @@ namespace MyWorkplace.Identity.Domain;
 /// TR: Erişim token'larını imzalayan bir RSA anahtar çifti (ADR-012). Açık yarısı JWKS ile yayınlanır; özel yarısı
 ///     bu servisten asla çıkmaz. Şifresiz saklanır — üretimde bunun yerine key vault veya HSM kullanılmalıdır.
 /// </summary>
-public sealed class SigningKey : Entity, IAuditable
+public sealed class SigningKey : AuditableEntity
 {
     /// <summary>
     /// EN: Key id (<c>kid</c>) written into every token header, so verifiers know which public key to use.
@@ -27,16 +27,4 @@ public sealed class SigningKey : Entity, IAuditable
     /// TR: PKCS#8 formatında özel anahtar. Hassas: asla denetim günlüğüne yazılmaz, hiçbir uç noktadan dönmez.
     /// </summary>
     public required byte[] PrivateKey { get; init; }
-
-    /// <inheritdoc />
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? CreatedBy { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset? UpdatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? UpdatedBy { get; set; }
 }

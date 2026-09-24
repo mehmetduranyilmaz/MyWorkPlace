@@ -55,10 +55,7 @@ public static class ListStockItems
         var result = await items
             .OrderBy(i => i.Sku)
             .ThenBy(i => i.Id)
-            .ToPagedResultAsync(
-                i => new StockItemResponse(i.Id, i.Sku, i.Name, i.BaseUnit, i.Quantity, i.CreatedAt, i.UpdatedAt),
-                page,
-                cancellationToken);
+            .ToPagedResultAsync(StockItemResponse.Projection, page, cancellationToken);
 
         return TypedResults.Ok(result);
     }

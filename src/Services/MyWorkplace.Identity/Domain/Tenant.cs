@@ -6,7 +6,7 @@ namespace MyWorkplace.Identity.Domain;
 /// EN: A company using the system. Not <c>ITenantOwned</c>: it <i>is</i> the tenant.
 /// TR: Sistemi kullanan bir firma. <c>ITenantOwned</c> değildir: kendisi firmadır.
 /// </summary>
-public sealed class Tenant : Entity, IAuditable
+public sealed class Tenant : AuditableEntity
 {
     /// <summary>EN: Maximum length of <see cref="Name"/>. TR: <see cref="Name"/> için en fazla uzunluk.</summary>
     public const int NameMaxLength = 200;
@@ -24,16 +24,4 @@ public sealed class Tenant : Entity, IAuditable
     /// </summary>
     [AuditChanges]
     public Plan Plan { get; set; } = Plan.Basic;
-
-    /// <inheritdoc />
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? CreatedBy { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset? UpdatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? UpdatedBy { get; set; }
 }

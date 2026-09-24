@@ -6,7 +6,7 @@ namespace MyWorkplace.Identity.Domain;
 /// EN: A person who signs in. Belongs to exactly one company; the email is unique across the system (ADR-013).
 /// TR: Giriş yapan kişi. Tam olarak bir firmaya aittir; e-posta tüm sistemde benzersizdir (ADR-013).
 /// </summary>
-public sealed class User : Entity, ITenantOwned, IAuditable
+public sealed class User : TenantOwnedEntity
 {
     /// <summary>EN: Maximum email length (RFC 5321). TR: En fazla e-posta uzunluğu (RFC 5321).</summary>
     public const int EmailMaxLength = 320;
@@ -29,21 +29,6 @@ public sealed class User : Entity, ITenantOwned, IAuditable
     /// TR: <c>PasswordHasher</c>'ın ürettiği tuzlu PBKDF2 hash'i. Asla parolanın kendisi değildir; asla denetim günlüğüne yazılmaz.
     /// </summary>
     public string PasswordHash { get; set; } = "";
-
-    /// <inheritdoc />
-    public Guid TenantId { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? CreatedBy { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset? UpdatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? UpdatedBy { get; set; }
 
     /// <summary>
     /// EN: The single normalization rule for emails, used when saving and when searching.

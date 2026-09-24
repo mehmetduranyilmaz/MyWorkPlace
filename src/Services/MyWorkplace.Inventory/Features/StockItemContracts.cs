@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http.HttpResults;
 using MyWorkplace.Inventory.Domain;
 
@@ -49,13 +50,22 @@ public sealed record StockItemResponse(
     DateTimeOffset? UpdatedAt)
 {
     /// <summary>
-    /// EN: Maps a stock item to its API shape.
-    /// TR: Bir stok kalemini API biçimine çevirir.
+    /// EN: The one mapping from entity to API shape (ADR-021), used by lists, single reads and <see cref="From"/>.
+    /// TR: Entity'den API biçimine tek eşleme (ADR-021); listeler, tekil okumalar ve <see cref="From"/> kullanır.
+    /// </summary>
+    public static readonly Expression<Func<StockItem, StockItemResponse>> Projection = i =>
+        new StockItemResponse(i.Id, i.Sku, i.Name, i.BaseUnit, i.Quantity, i.CreatedAt, i.UpdatedAt);
+
+    /// <summary>EN: <see cref="Projection"/>, compiled once. TR: Bir kez derlenmiş <see cref="Projection"/>.</summary>
+    private static readonly Func<StockItem, StockItemResponse> _map = Projection.Compile();
+
+    /// <summary>
+    /// EN: Maps an entity already in memory (after create or update).
+    /// TR: Bellekteki bir entity'yi eşler (oluşturma veya güncellemeden sonra).
     /// </summary>
     /// <param name="item">EN: The item. TR: Kalem.</param>
     /// <returns>EN: The response. TR: Cevap.</returns>
-    public static StockItemResponse From(StockItem item) =>
-        new(item.Id, item.Sku, item.Name, item.BaseUnit, item.Quantity, item.CreatedAt, item.UpdatedAt);
+    public static StockItemResponse From(StockItem item) => _map(item);
 }
 
 /// <summary>

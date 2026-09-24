@@ -9,7 +9,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\MyWorkplace.ServiceDefaults\MyWorkplace.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\MyWorkplace.BuildingBlocks\MyWorkplace.BuildingBlocks.csproj" />
   </ItemGroup>
 

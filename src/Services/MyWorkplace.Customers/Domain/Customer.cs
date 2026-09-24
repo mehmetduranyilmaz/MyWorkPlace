@@ -6,7 +6,7 @@ namespace MyWorkplace.Customers.Domain;
 /// EN: A customer of a company. Tenant-owned (isolated per company), audited and soft-deletable (ADR-011, ADR-016).
 /// TR: Bir firmanın müşterisi. Firmaya ait (firma bazında izole), denetlenen ve soft-delete edilebilen (ADR-011, ADR-016).
 /// </summary>
-public sealed class Customer : Entity, ITenantOwned, IAuditable, ISoftDeletable
+public sealed class Customer : BusinessEntity
 {
     /// <summary>EN: Max length of <see cref="Name"/>. TR: <see cref="Name"/> için en fazla uzunluk.</summary>
     public const int NameMaxLength = 200;
@@ -47,27 +47,6 @@ public sealed class Customer : Entity, ITenantOwned, IAuditable, ISoftDeletable
 
     /// <summary>EN: Free-text notes; not audited to keep the log readable. TR: Serbest not; günlük okunaklı kalsın diye denetlenmez.</summary>
     public string? Notes { get; private set; }
-
-    /// <inheritdoc />
-    public Guid TenantId { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? CreatedBy { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset? UpdatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? UpdatedBy { get; set; }
-
-    /// <inheritdoc />
-    public bool IsDeleted { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset? DeletedAt { get; set; }
 
     /// <summary>
     /// EN: Sets every editable field at once (full update, ADR-016). Values are trimmed and blanks become null,

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Linq.Expressions;
 using MyWorkplace.Customers.Domain;
 
 namespace MyWorkplace.Customers.Features;
@@ -57,14 +58,24 @@ public sealed record CustomerResponse(
     DateTimeOffset? UpdatedAt)
 {
     /// <summary>
-    /// EN: Maps a customer to its API shape.
-    /// TR: Bir müşteriyi API biçimine çevirir.
+    /// EN: The one mapping from entity to API shape (ADR-021). EF translates it inside list and single-read queries;
+    ///     <see cref="From"/> uses the compiled form. Add a field here and every read returns it.
+    /// TR: Entity'den API biçimine tek eşleme (ADR-021). EF bunu liste ve tekil okuma sorgularının içinde çevirir;
+    ///     <see cref="From"/> derlenmiş halini kullanır. Buraya bir alan eklenince her okuma onu döner.
+    /// </summary>
+    public static readonly Expression<Func<Customer, CustomerResponse>> Projection = c =>
+        new CustomerResponse(c.Id, c.Name, c.Email, c.Phone, c.TaxNumber, c.Notes, c.CreatedAt, c.UpdatedAt);
+
+    /// <summary>EN: <see cref="Projection"/>, compiled once. TR: Bir kez derlenmiş <see cref="Projection"/>.</summary>
+    private static readonly Func<Customer, CustomerResponse> _map = Projection.Compile();
+
+    /// <summary>
+    /// EN: Maps an entity already in memory (after create or update).
+    /// TR: Bellekteki bir entity'yi eşler (oluşturma veya güncellemeden sonra).
     /// </summary>
     /// <param name="customer">EN: The customer. TR: Müşteri.</param>
     /// <returns>EN: The response. TR: Cevap.</returns>
-    public static CustomerResponse From(Customer customer) =>
-        new(customer.Id, customer.Name, customer.Email, customer.Phone, customer.TaxNumber, customer.Notes,
-            customer.CreatedAt, customer.UpdatedAt);
+    public static CustomerResponse From(Customer customer) => _map(customer);
 }
 
 /// <summary>

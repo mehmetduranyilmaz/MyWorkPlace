@@ -1,38 +1,23 @@
-// EN: Inventory service (Pro plan). Owns inventory-db. Built from the reference module (Customers, ADR-016 / ADR-017).
+// EN: Inventory service (Pro plan). Owns inventory-db. Built from the reference module (ADR-016, ADR-017, ADR-021).
 //     Checks the plan itself (ADR-006): a Basic company reaching it directly, bypassing the gateway, still gets 403.
-// TR: Inventory servisi (Pro plan). inventory-db veritabanının sahibidir. Referans modülden üretildi (Customers, ADR-016 / ADR-017).
+// TR: Inventory servisi (Pro plan). inventory-db veritabanının sahibidir. Referans modülden üretildi (ADR-016, ADR-017, ADR-021).
 //     Planı kendisi de kontrol eder (ADR-006): gateway'i atlayıp doğrudan ulaşan Basic firma yine 403 alır.
 
-using MyWorkplace.BuildingBlocks.Http;
-using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.BuildingBlocks.Hosting;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Features;
 using MyWorkplace.Inventory.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults();
-builder.AddTokenAuthentication();
-builder.AddServiceDbContext<InventoryDbContext>("inventory-db");
-
-builder.Services.AddServiceProblemDetails();
+builder.AddServiceModule<InventoryDbContext>("inventory-db");
+// EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
+// TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();
-builder.Services.AddServiceApiDocs();
 
 var app = builder.Build();
 
-app.UseServiceProblemDetails();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapDefaultEndpoints();
-app.MapServiceApiDocs();
-
-if (app.Environment.IsDevelopment())
-{
-    // EN: Development only (ADR-015). TR: Sadece geliştirme ortamında (ADR-015).
-    await app.MigrateDatabaseAsync<InventoryDbContext>();
-}
+await app.UseServiceModuleAsync<InventoryDbContext>();
 
 // EN: Every inventory endpoint lives under this group and inherits the Pro-plan policy.
 // TR: Her stok uç noktası bu grubun altında yer alır ve Pro plan politikasını devralır.

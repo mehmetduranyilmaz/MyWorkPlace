@@ -56,10 +56,7 @@ public static class ListCustomers
         var result = await customers
             .OrderBy(c => c.Name)
             .ThenBy(c => c.Id)
-            .ToPagedResultAsync(
-                c => new CustomerResponse(c.Id, c.Name, c.Email, c.Phone, c.TaxNumber, c.Notes, c.CreatedAt, c.UpdatedAt),
-                page,
-                cancellationToken);
+            .ToPagedResultAsync(CustomerResponse.Projection, page, cancellationToken);
 
         return TypedResults.Ok(result);
     }

@@ -8,7 +8,7 @@ namespace MyWorkplace.Inventory.Domain;
 /// TR: Bir firmanın, SKU'suyla tanımlanan stok kalemi (ADR-019). Bakiye temel birimde tutulur ve sadece stok
 ///     hareketleriyle değişir (T-030, ADR-020) — asla bu entity'nin güncellemesiyle değil.
 /// </summary>
-public sealed class StockItem : Entity, ITenantOwned, IAuditable, ISoftDeletable
+public sealed class StockItem : BusinessEntity
 {
     /// <summary>EN: Max length of <see cref="Sku"/>. TR: <see cref="Sku"/> için en fazla uzunluk.</summary>
     public const int SkuMaxLength = 50;
@@ -39,27 +39,6 @@ public sealed class StockItem : Entity, ITenantOwned, IAuditable, ISoftDeletable
     /// TR: Temel birimdeki bakiye. 0'dan başlar; sadece stok hareketleri değiştirir (ADR-020).
     /// </summary>
     public decimal Quantity { get; private set; }
-
-    /// <inheritdoc />
-    public Guid TenantId { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset CreatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? CreatedBy { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset? UpdatedAt { get; set; }
-
-    /// <inheritdoc />
-    public Guid? UpdatedBy { get; set; }
-
-    /// <inheritdoc />
-    public bool IsDeleted { get; set; }
-
-    /// <inheritdoc />
-    public DateTimeOffset? DeletedAt { get; set; }
 
     /// <summary>
     /// EN: True while the item still holds stock; such an item can't be deleted.

@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
 using MyWorkplace.Inventory.Persistence;
@@ -43,21 +42,13 @@ public static class GetStockItem
         HttpContext http,
         CancellationToken cancellationToken)
     {
-        var row = await db.StockItems
-            .Where(i => i.Id == id)
-            .Select(i => new
-            {
-                Item = new StockItemResponse(i.Id, i.Sku, i.Name, i.BaseUnit, i.Quantity, i.CreatedAt, i.UpdatedAt),
-                Version = EF.Property<uint>(i, ServiceDbContext.ConcurrencyTokenProperty),
-            })
-            .SingleOrDefaultAsync(cancellationToken);
-
+        var row = await db.StockItems.SingleWithVersionAsync(id, StockItemResponse.Projection, cancellationToken);
         if (row is null)
         {
             return TypedResults.NotFound();
         }
 
         http.Response.SetETag(row.Version);
-        return TypedResults.Ok(row.Item);
+        return TypedResults.Ok(row.Value);
     }
 }

@@ -1,11 +1,12 @@
 // EN: Identity service — companies, users, plans and access tokens. Owns the identity-db database.
+//     The standard setup comes from BuildingBlocks (ADR-021); only the token-key difference is configured here.
 // TR: Identity servisi — firmalar, kullanıcılar, planlar ve erişim token'ları. identity-db veritabanının sahibidir.
+//     Standart kurulum BuildingBlocks'tan gelir (ADR-021); burada sadece token anahtarı farkı ayarlanır.
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using MyWorkplace.BuildingBlocks.Http;
-using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.BuildingBlocks.Hosting;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Identity.Domain;
 using MyWorkplace.Identity.Features.Discovery;
@@ -17,14 +18,15 @@ using MyWorkplace.Identity.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults();
-builder.AddServiceDbContext<IdentityDbContext>("identity-db");
+builder.AddServiceModule<IdentityDbContext>("identity-db");
+// EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
+// TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
+builder.Services.AddValidation();
 
-// EN: Same token rules as every service (ADR-006), with one difference: Identity holds the keys itself, so it
-//     validates with them directly instead of downloading its own discovery document over the network.
-// TR: Her servisle aynı token kuralları (ADR-006), tek farkla: anahtarlar Identity'nin kendisinde olduğu için,
-//     kendi keşif dokümanını ağdan indirmek yerine doğrudan onlarla doğrular.
-builder.AddTokenAuthentication();
+// EN: Identity holds the signing keys itself, so it validates with them directly instead of downloading its own
+//     discovery document. Registered after AddServiceModule, so it overrides the shared JwtBearer settings (ADR-006).
+// TR: İmzalama anahtarları Identity'nin kendisinde olduğu için, kendi keşif dokümanını indirmek yerine doğrudan onlarla doğrular.
+//     AddServiceModule'den sonra kaydedildiği için ortak JwtBearer ayarlarının üzerine yazar (ADR-006).
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<SigningKeyProvider>((options, keys) =>
     {
@@ -32,29 +34,13 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
         options.TokenValidationParameters.IssuerSigningKeyResolver = (_, _, _, _) => keys.All;
     });
 
-builder.Services.AddServiceProblemDetails();
-// EN: .NET 10 built-in validation: DataAnnotations on request types, automatic 400 ProblemDetails.
-// TR: .NET 10 yerleşik doğrulaması: istek tiplerinde DataAnnotations, otomatik 400 ProblemDetails.
-builder.Services.AddValidation();
-builder.Services.AddServiceApiDocs();
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddSingleton<SigningKeyProvider>();
 builder.Services.AddSingleton<TokenIssuer>();
 
 var app = builder.Build();
 
-app.UseServiceProblemDetails();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapDefaultEndpoints();
-app.MapServiceApiDocs();
-
-if (app.Environment.IsDevelopment())
-{
-    // EN: Development only (ADR-015). TR: Sadece geliştirme ortamında (ADR-015).
-    await app.MigrateDatabaseAsync<IdentityDbContext>();
-}
+await app.UseServiceModuleAsync<IdentityDbContext>();
 
 // EN: Load (or create on first start) the signing keys before accepting any request.
 // TR: Herhangi bir isteği kabul etmeden önce imzalama anahtarlarını yükle (ilk açılışta oluştur).
