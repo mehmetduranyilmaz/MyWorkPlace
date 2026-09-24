@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Persistence;
 
 namespace MyWorkplace.Inventory.Features;
@@ -23,6 +24,7 @@ public static class UpdateStockItem
     public static RouteHandlerBuilder MapUpdateStockItem(this IEndpointRouteBuilder group) =>
         group.MapPut("/{id:guid}", HandleAsync)
             .WithName("UpdateStockItem")
+            .RequireAuthorization(Permissions.Inventory.Write)
             .WithSummary("EN: Update a stock item | TR: Stok kalemini güncelle")
             .WithDescription(
                 "EN: Replaces SKU, name and base unit; the balance is not changed. Requires If-Match with the ETag you " +

@@ -25,14 +25,16 @@ public sealed record UpgradePlanResponse(string Plan, string AccessToken, int Ex
 public static class UpgradePlan
 {
     /// <summary>
-    /// EN: Maps the endpoint on the /identity group. No policy: the secure-by-default fallback requires a signed-in user.
-    /// TR: Uç noktayı /identity grubunda tanımlar. Politika yok: varsayılan kural giriş yapmış kullanıcı ister.
+    /// EN: Maps the endpoint on the /identity group; requires the plan.manage permission.
+    /// TR: Uç noktayı /identity grubunda tanımlar; plan.manage izni ister.
     /// </summary>
     /// <param name="group">EN: The /identity group. TR: /identity grubu.</param>
     /// <returns>EN: The endpoint builder. TR: Uç nokta builder'ı.</returns>
     public static RouteHandlerBuilder MapUpgradePlan(this IEndpointRouteBuilder group) =>
         group.MapPost("/tenant/upgrade", HandleAsync)
             .WithName("UpgradePlan")
+            // EN: Only Owners may change the plan (ADR-022). TR: Planı sadece Sahip'ler değiştirebilir (ADR-022).
+            .RequireAuthorization(Permissions.PlanManage)
             .WithSummary("EN: Upgrade to Pro | TR: Pro'ya yükselt")
             .WithDescription(
                 "EN: Moves your company to the Pro plan and returns a new token that carries it; your previous token " +

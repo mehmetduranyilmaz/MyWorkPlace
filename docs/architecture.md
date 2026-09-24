@@ -319,6 +319,30 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Guarantee:** behavior-preserving refactoring — the existing tests pass unchanged and the schema is unchanged
   (empty migrations).
 
+### ADR-022 — Roles and permissions
+
+- **Permissions** are a catalog **in code** (Contracts), named `module.action` — `customers.read`, `customers.write`,
+  `customers.delete`, `inventory.*`, `users.manage`, `settings.manage`, `plan.manage`. Modules and Identity share the
+  names, so a typo is a compile error. Destructive actions (`*.delete`) are separate permissions.
+- **Default roles**, defined in code and available to every company:
+
+  | Permission | Owner | Admin | Member | Viewer |
+  | --- | :---: | :---: | :---: | :---: |
+  | `*.read` | ✓ | ✓ | ✓ | ✓ |
+  | `*.write` | ✓ | ✓ | ✓ | |
+  | `*.delete` | ✓ | ✓ | | |
+  | `users.manage`, `settings.manage` | ✓ | ✓ | | |
+  | `plan.manage` | ✓ | | | |
+
+- **Per-user extra permissions** can be granted on top of roles. **Grant only, no deny:** "why may this user do X?" must
+  always be answerable by listing grants. Company-defined roles come later (T-038).
+- **Effective permissions travel in the token** (`perm` claims): services check them locally, with no call to Identity
+  (ADR-005, ADR-007). Like the plan (ADR-006), a change takes effect with the next token — at most 15 minutes.
+- **Split of duties:** the gateway checks coarse rules (valid token, plan); services check permissions. The gateway never
+  learns every module's permissions, which keeps modules plug-and-play.
+- **Ownership:** the first user of a company is Owner; a company must always keep at least one Owner (T-037).
+- **Rejected:** asking Identity per request (instant changes, but Identity going down would stop every service).
+
 ---
 
 ## 4. Solution layout (planned)

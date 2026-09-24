@@ -21,7 +21,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | ProblemDetails errors, API docs (Scalar) | Done | T-024, T-006 |
 | Reference module to copy: CRUD, ETag concurrency, validation, tenant isolation tests | Done | T-009 |
 | Paging and search standard | Done | T-028 |
-| Roles and permissions: a module declares who may call which endpoint | Todo | T-025 |
+| Roles and permissions: a module declares who may call which endpoint | Todo | T-025, T-037 |
 | Tenant settings: business rules that vary per company are parameters with defaults, not code | Todo | T-032 |
 | Cross-service events (RabbitMQ + outbox) | Todo | T-015, T-016, T-017 |
 | No module boilerplate: base entity, one-line service setup, shared mappings | Done | T-036 |
@@ -358,8 +358,27 @@ Remaining order: **T-011 → T-010 → T-012**.
 
 Goal: reach the milestone above. Tasks are refined with `/refine` before they start.
 
-- **T-025** — Roles and permissions: permission-based policies, roles as permission sets, per-user extra
-  permissions (needs an ADR: storage, token claims, default roles)
+- **T-025** — Roles and permissions: infrastructure and enforcement (ADR-022) — **Done**
+  - Goal: every endpoint declares which permission it needs; the token carries what the user may do.
+  - [x] Permission catalog in Contracts (`customers.read|write|delete`, `inventory.read|write|delete`, `users.manage`,
+        `settings.manage`, `plan.manage`) and the default roles Owner, Admin, Member, Viewer with the agreed matrix, in code
+  - [x] Identity stores user roles and per-user extra permissions (grant only); the first user of a new company is Owner;
+        existing users are backfilled as Owner by the migration
+  - [x] Login and upgrade tokens carry the user's effective permissions (roles ∪ extras) as `perm` claims
+  - [x] `RequireAuthorization(Permissions.X)` works for every permission without registering each policy
+        (a policy provider in ServiceDefaults)
+  - [x] Applied: Customers and Inventory reads → `*.read`, create/update → `*.write`, delete → `*.delete`;
+        plan upgrade → `plan.manage`. The gateway keeps only token + plan checks
+  - [x] Tests: the first user's token carries every permission; policy tests prove a principal with / without a permission
+        is allowed / refused (`403`); all existing integration tests stay green
+  - Notes: roles and extra permissions are `text[]` columns on `users`. The migration's data step makes pre-existing
+    users Owner — proven by a test that upgrades a database from the previous migration (integration tests start empty
+    and could never catch it). `PermissionPolicyProvider` builds policies on demand and returns none for names outside
+    the catalog, so a typo fails loudly. Change history now compares collections by content and logs them as
+    "Admin, Member". Refused-by-role integration tests come with T-037 (a second user is needed). 8 new tests; 99 in total.
+- **T-037** — User management (ADR-022): add users to your company (`users.manage`) with an initial password and roles
+  (default Member), list users, change roles and extra permissions; the last Owner can't be removed or demoted (`409`);
+  integration tests for refused actions per role (e.g. Member delete → `403`, Viewer create → `403`, Admin upgrade → `403`)
 - **T-032** — Tenant settings (ADR-018): BuildingBlocks capability — typed per-module settings with code defaults,
   stored per tenant in the module's database; first user: `InventorySettings.NegativeStockPolicy`
   (`Block` default, `Allow`, `Warn`) via `GET` / `PUT /inventory/settings` with ETag and change history;
@@ -406,6 +425,7 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 
 ## Backlog
 
+- **T-038** — Custom roles per company (named permission sets defined by the company)
 - **T-035** — Plan downgrade (Pro → Basic): what happens to Pro-module data must be decided first
 - **T-033** — Variable-weight items (e.g. cheese sold by piece and by kg with a different weight per piece)
 - **T-034** — Per-item override of the negative stock policy

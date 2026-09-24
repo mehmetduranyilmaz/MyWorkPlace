@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Persistence;
 
 namespace MyWorkplace.Customers.Features;
@@ -19,6 +20,7 @@ public static class DeleteCustomer
     public static RouteHandlerBuilder MapDeleteCustomer(this IEndpointRouteBuilder group) =>
         group.MapDelete("/{id:guid}", HandleAsync)
             .WithName("DeleteCustomer")
+            .RequireAuthorization(Permissions.Customers.Delete)
             .WithSummary("EN: Delete a customer | TR: Müşteriyi sil")
             .WithDescription(
                 "EN: Deletes the customer. The record is kept for history but no longer appears anywhere, and its " +

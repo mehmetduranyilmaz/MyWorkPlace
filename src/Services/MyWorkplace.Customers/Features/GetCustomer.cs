@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Persistence;
 
 namespace MyWorkplace.Customers.Features;
@@ -20,6 +21,7 @@ public static class GetCustomer
     public static RouteHandlerBuilder MapGetCustomer(this IEndpointRouteBuilder group) =>
         group.MapGet("/{id:guid}", HandleAsync)
             .WithName("GetCustomer")
+            .RequireAuthorization(Permissions.Customers.Read)
             .WithSummary("EN: Get a customer | TR: Müşteriyi getir")
             .WithDescription(
                 "EN: Returns the customer and its version in ETag; send that ETag in If-Match when updating. " +

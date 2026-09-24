@@ -42,6 +42,27 @@ public sealed class LoginTests(AppFixture app)
     }
 
     [Fact]
+    public async Task Login_FirstUserOfACompany_IsOwner_WithEveryPermissionInTheToken()
+    {
+        using var client = app.CreateGatewayClient();
+        var email = UniqueEmail();
+        await RegisterNewTenantAsync(client, email, Ct);
+
+        using var response = await LoginAsync(client, email, ValidPassword, Ct);
+
+        var token = new JsonWebTokenHandler().ReadJsonWebToken(
+            (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("accessToken").GetString());
+        var permissions = token.Claims.Where(c => c.Type == "perm").Select(c => c.Value).Order(StringComparer.Ordinal);
+        Assert.Equal(
+            [
+                "customers.delete", "customers.read", "customers.write",
+                "inventory.delete", "inventory.read", "inventory.write",
+                "plan.manage", "settings.manage", "users.manage",
+            ],
+            permissions);
+    }
+
+    [Fact]
     public async Task Login_WrongPasswordAndUnknownEmail_ReturnIdenticalResponses()
     {
         using var client = app.CreateGatewayClient();

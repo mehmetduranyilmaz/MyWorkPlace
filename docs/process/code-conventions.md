@@ -74,6 +74,9 @@ order by a business key **then `Id`**, and finish with `ToPagedResultAsync(selec
 ordered query, so forgetting the order is a compile error (ADR-016).
 
 Authorization is declared with **named policies** (`RequireAuthorization("...")`), never with role checks inside handlers.
+Every business endpoint declares its **permission** from the catalog (ADR-022) — reads `Permissions.X.Read`,
+create/update `Permissions.X.Write`, delete `Permissions.X.Delete`. A new module adds its permissions to
+`Contracts.Identity.Permissions` (and to `All`) and to the role matrix in `Roles`.
 
 ## Audit logging
 

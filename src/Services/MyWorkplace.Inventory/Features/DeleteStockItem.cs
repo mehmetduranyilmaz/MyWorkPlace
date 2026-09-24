@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Persistence;
 
 namespace MyWorkplace.Inventory.Features;
@@ -19,6 +20,7 @@ public static class DeleteStockItem
     public static RouteHandlerBuilder MapDeleteStockItem(this IEndpointRouteBuilder group) =>
         group.MapDelete("/{id:guid}", HandleAsync)
             .WithName("DeleteStockItem")
+            .RequireAuthorization(Permissions.Inventory.Delete)
             .WithSummary("EN: Delete a stock item | TR: Stok kalemini sil")
             .WithDescription(
                 "EN: Deletes an item whose balance is zero (409 otherwise). The record is kept for history and its " +

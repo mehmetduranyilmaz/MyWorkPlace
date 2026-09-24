@@ -58,9 +58,11 @@ public sealed class ChangeHistoryInterceptor(ICurrentUser currentUser, TimeProvi
 
             foreach (var property in entry.Properties)
             {
+                // EN: EF's own value comparer compares by content, so a new array with the same items is "unchanged".
+                // TR: EF'in kendi değer karşılaştırıcısı içeriğe göre karşılaştırır; aynı öğeli yeni bir dizi "değişmemiş" sayılır.
                 if (!property.IsModified
                     || property.Metadata.PropertyInfo?.GetCustomAttribute<AuditChangesAttribute>() is null
-                    || Equals(property.OriginalValue, property.CurrentValue))
+                    || property.Metadata.GetValueComparer().Equals(property.OriginalValue, property.CurrentValue))
                 {
                     continue;
                 }
@@ -91,8 +93,12 @@ public sealed class ChangeHistoryInterceptor(ICurrentUser currentUser, TimeProvi
     private static string? Format(object? value) => value switch
     {
         null => null,
+        string s => s,
         DateTimeOffset d => d.ToString("O", CultureInfo.InvariantCulture),
         IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
+        // EN: Collections (e.g. roles) read as "Admin, Member" instead of "System.String[]".
+        // TR: Koleksiyonlar (ör. roller) "System.String[]" yerine "Admin, Member" olarak okunur.
+        System.Collections.IEnumerable items => string.Join(", ", items.Cast<object?>().Select(Format)),
         _ => value.ToString(),
     };
 }

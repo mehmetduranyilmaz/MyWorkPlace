@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Persistence;
 
@@ -22,6 +23,7 @@ public static class CreateStockItem
     public static RouteHandlerBuilder MapCreateStockItem(this IEndpointRouteBuilder group) =>
         group.MapPost("", HandleAsync)
             .WithName("CreateStockItem")
+            .RequireAuthorization(Permissions.Inventory.Write)
             .WithSummary("EN: Create a stock item | TR: Stok kalemi oluştur")
             .WithDescription(
                 "EN: Creates a stock item with a zero balance. The SKU must be unique within your company. " +

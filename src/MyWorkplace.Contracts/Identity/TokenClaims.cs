@@ -17,6 +17,9 @@ public static class TokenClaims
     /// <summary>EN: Plan of the company: <see cref="BasicPlan"/> or <see cref="ProPlan"/>. TR: Firmanın planı.</summary>
     public const string Plan = "plan";
 
+    /// <summary>EN: One claim per effective permission (ADR-022). TR: Her etkin izin için bir claim (ADR-022).</summary>
+    public const string Permission = "perm";
+
     /// <summary>EN: Value of <see cref="Plan"/> for Basic companies. TR: Basic firmalar için <see cref="Plan"/> değeri.</summary>
     public const string BasicPlan = "basic";
 

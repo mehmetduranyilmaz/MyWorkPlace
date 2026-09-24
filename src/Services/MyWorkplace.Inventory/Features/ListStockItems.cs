@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Persistence;
 
 namespace MyWorkplace.Inventory.Features;
@@ -21,6 +22,7 @@ public static class ListStockItems
     public static RouteHandlerBuilder MapListStockItems(this IEndpointRouteBuilder group) =>
         group.MapGet("", HandleAsync)
             .WithName("ListStockItems")
+            .RequireAuthorization(Permissions.Inventory.Read)
             .WithSummary("EN: List stock items | TR: Stok kalemlerini listele")
             .WithDescription(
                 "EN: Returns one page of your stock items, sorted by SKU. search matches SKU or name, case-insensitive. " +

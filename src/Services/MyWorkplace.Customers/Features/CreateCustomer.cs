@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Domain;
 using MyWorkplace.Customers.Persistence;
 
@@ -22,6 +23,7 @@ public static class CreateCustomer
     public static RouteHandlerBuilder MapCreateCustomer(this IEndpointRouteBuilder group) =>
         group.MapPost("", HandleAsync)
             .WithName("CreateCustomer")
+            .RequireAuthorization(Permissions.Customers.Write)
             .WithSummary("EN: Create a customer | TR: Müşteri oluştur")
             .WithDescription(
                 "EN: Creates a customer for your company. Returns its address in Location and its version in ETag. " +

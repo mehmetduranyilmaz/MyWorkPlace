@@ -145,6 +145,31 @@ public sealed class PersistenceConventionsTests(PostgreSqlFixture db)
         Assert.Equal(owner.TenantId, entry.TenantId);
     }
 
+    [Fact]
+    public async Task Update_AuditedCollection_IsLoggedByContent()
+    {
+        var owner = TestUser.OfNewTenant();
+        var noteId = await AddNoteAsync(owner);
+
+        // EN: 1) same content in a new array → no row; 2) real change → one readable row.
+        // TR: 1) yeni dizide aynı içerik → satır yok; 2) gerçek değişiklik → okunur tek satır.
+        await using (var context = db.CreateContext(owner))
+        {
+            var note = await context.Notes.FindForUpdateAsync(noteId, Ct);
+            note!.Tags = [];
+            await context.SaveChangesAsync(Ct);
+            note.Tags = ["Admin", "Member"];
+            await context.SaveChangesAsync(Ct);
+        }
+
+        await using var check = db.CreateContext(owner);
+        var entry = Assert.Single(await check.AuditLog
+            .Where(e => e.EntityId == noteId && e.Property == nameof(TestNote.Tags))
+            .ToListAsync(Ct));
+        Assert.Equal("", entry.OldValue);
+        Assert.Equal("Admin, Member", entry.NewValue);
+    }
+
     // ---------------------------------------------------------------- Concurrency
 
     [Fact]

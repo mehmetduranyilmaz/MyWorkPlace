@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Persistence;
 
 namespace MyWorkplace.Customers.Features;
@@ -21,6 +22,7 @@ public static class ListCustomers
     public static RouteHandlerBuilder MapListCustomers(this IEndpointRouteBuilder group) =>
         group.MapGet("", HandleAsync)
             .WithName("ListCustomers")
+            .RequireAuthorization(Permissions.Customers.Read)
             .WithSummary("EN: List customers | TR: Müşterileri listele")
             .WithDescription(
                 "EN: Returns one page of your customers, sorted by name. page ≥ 1 (default 1), pageSize 1–100 " +

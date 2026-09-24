@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Persistence;
 
 namespace MyWorkplace.Customers.Features;
@@ -21,6 +22,7 @@ public static class UpdateCustomer
     public static RouteHandlerBuilder MapUpdateCustomer(this IEndpointRouteBuilder group) =>
         group.MapPut("/{id:guid}", HandleAsync)
             .WithName("UpdateCustomer")
+            .RequireAuthorization(Permissions.Customers.Write)
             .WithSummary("EN: Update a customer | TR: Müşteriyi güncelle")
             .WithDescription(
                 "EN: Replaces all fields. Requires If-Match with the ETag you read: 428 without it, 412 if someone " +

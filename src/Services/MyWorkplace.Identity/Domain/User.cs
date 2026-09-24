@@ -1,4 +1,5 @@
 using MyWorkplace.BuildingBlocks.Domain;
+using RoleCatalog = MyWorkplace.Contracts.Identity.Roles;
 
 namespace MyWorkplace.Identity.Domain;
 
@@ -29,6 +30,44 @@ public sealed class User : TenantOwnedEntity
     /// TR: <c>PasswordHasher</c>'ın ürettiği tuzlu PBKDF2 hash'i. Asla parolanın kendisi değildir; asla denetim günlüğüne yazılmaz.
     /// </summary>
     public string PasswordHash { get; set; } = "";
+
+    /// <summary>
+    /// EN: Assigned roles (ADR-022). Audited: a role change is a security event.
+    /// TR: Atanmış roller (ADR-022). Denetlenir: rol değişikliği bir güvenlik olayıdır.
+    /// </summary>
+    [AuditChanges]
+    public string[] Roles { get; private set; } = [];
+
+    /// <summary>
+    /// EN: Permissions granted on top of the roles (grant only, no deny). Audited.
+    /// TR: Rollerin üzerine verilen izinler (sadece verme, yasak yok). Denetlenir.
+    /// </summary>
+    [AuditChanges]
+    public string[] ExtraPermissions { get; private set; } = [];
+
+    /// <summary>
+    /// EN: What this user may do: the union of the roles' permissions and the extra grants.
+    /// TR: Bu kullanıcının neler yapabileceği: rollerin izinleri ile ek izinlerin birleşimi.
+    /// </summary>
+    public IReadOnlyList<string> EffectivePermissions =>
+        RoleCatalog.EffectivePermissions(Roles, ExtraPermissions);
+
+    /// <summary>
+    /// EN: Replaces the user's roles; unknown role names are rejected so typos can't be stored.
+    /// TR: Kullanıcının rollerini değiştirir; bilinmeyen rol adları reddedilir, böylece yazım hataları saklanamaz.
+    /// </summary>
+    /// <param name="roles">EN: Role names. TR: Rol adları.</param>
+    public void AssignRoles(IEnumerable<string> roles)
+    {
+        var assigned = roles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        var unknown = assigned.Where(role => !RoleCatalog.All.Contains(role)).ToArray();
+        if (unknown.Length > 0)
+        {
+            throw new ArgumentException($"Unknown role(s): {string.Join(", ", unknown)}.", nameof(roles));
+        }
+
+        Roles = assigned;
+    }
 
     /// <summary>
     /// EN: The single normalization rule for emails, used when saving and when searching.

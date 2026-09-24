@@ -61,6 +61,10 @@ public static class AuthenticationExtensions
                 .RequireAuthenticatedUser()
                 .RequireClaim(TokenClaims.Plan, TokenClaims.ProPlan));
 
+        // EN: Every catalog permission becomes a usable policy name (ADR-022).
+        // TR: Katalogdaki her izin kullanılabilir bir politika adı olur (ADR-022).
+        builder.Services.AddPermissionPolicies();
+
         return builder;
     }
 }

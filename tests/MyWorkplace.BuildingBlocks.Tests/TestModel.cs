@@ -18,6 +18,10 @@ public sealed class TestNote : Entity, ITenantOwned, IAuditable, ISoftDeletable
     /// <summary>EN: Unaudited property. TR: Denetlenmeyen alan.</summary>
     public string Body { get; set; } = "";
 
+    /// <summary>EN: Audited collection (like a user's roles). TR: Denetlenen koleksiyon (bir kullanıcının rolleri gibi).</summary>
+    [AuditChanges]
+    public string[] Tags { get; set; } = [];
+
     /// <inheritdoc />
     public Guid TenantId { get; set; }
 

@@ -46,6 +46,9 @@ public sealed class TokenIssuer(SigningKeyProvider keys, TimeProvider timeProvid
                 [TokenClaims.Subject] = user.Id.ToString(),
                 [TokenClaims.TenantId] = user.TenantId.ToString(),
                 [TokenClaims.Plan] = plan == Plan.Pro ? TokenClaims.ProPlan : TokenClaims.BasicPlan,
+                // EN: One "perm" claim per effective permission; services check them locally (ADR-022).
+                // TR: Her etkin izin için bir "perm" claim'i; servisler bunları yerelde kontrol eder (ADR-022).
+                [TokenClaims.Permission] = user.EffectivePermissions.ToArray(),
             },
             SigningCredentials = new SigningCredentials(keys.Current, SecurityAlgorithms.RsaSha256),
         };

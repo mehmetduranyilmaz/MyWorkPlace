@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Persistence;
 
 namespace MyWorkplace.Inventory.Features;
@@ -20,6 +21,7 @@ public static class GetStockItem
     public static RouteHandlerBuilder MapGetStockItem(this IEndpointRouteBuilder group) =>
         group.MapGet("/{id:guid}", HandleAsync)
             .WithName("GetStockItem")
+            .RequireAuthorization(Permissions.Inventory.Read)
             .WithSummary("EN: Get a stock item | TR: Stok kalemini getir")
             .WithDescription(
                 "EN: Returns the item with its balance and its version in ETag; send that ETag in If-Match when " +
