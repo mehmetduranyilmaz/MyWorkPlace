@@ -10,7 +10,12 @@ Conventions: [process/task-conventions.md](process/task-conventions.md)
 its entities, business rules, endpoints and tests — everything else comes from the core.
 
 **Proof:** a new module (Products, T-013) is added by following the module guide **without changing a single line
-of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If the core has to change, it is not done.
+of core code** (BuildingBlocks, ServiceDefaults, Gateway code, and the logic in Contracts). If the core has to change,
+it is not done.
+
+**Allowed registration points** (declarations, not core changes — ADR-025): the new project and its line in the
+solution, its AppHost registration, its route in the gateway's `appsettings.json`, and **additions** to Contracts —
+the module's permission class and its events. No existing line in Contracts changes.
 
 **When every row below is Done, tell the owner explicitly that the core is complete** (the owner asked for this).
 
@@ -25,7 +30,7 @@ of core code** (BuildingBlocks, ServiceDefaults, Contracts, Gateway code). If th
 | Tenant settings: business rules that vary per company are parameters with defaults, not code | Done | T-032 |
 | Cross-service events (RabbitMQ + outbox) | Done | T-015, T-016, T-017 |
 | No module boilerplate: base entity, one-line service setup, shared mappings | Done | T-036 |
-| Module guide: step-by-step recipe for adding a module | Todo | T-027 |
+| Module guide: step-by-step recipe for adding a module | Done | T-027 |
 | **Proof: Products added via the guide with zero core changes** | Todo | T-013 |
 
 ---
@@ -507,8 +512,30 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     reason) and the cause moves to T-044; it still runs and passes on Windows. Kept from the attempts: the outage test
     runs alone after the parallel tests, reports the stop result and state, and every service shuts down within
     10 seconds.
-- **T-027** — Module guide (`docs/process/adding-a-module.md`): step-by-step recipe, based on the reference module
+- **T-027** — Module guide and the last core change before the proof (ADR-025) — **Done**
+  - Goal: a developer adds a module by reading one document, touching only the allowed registration points.
+  - [x] Roles follow permission suffixes (`read` / `write` / `delete`) and `Permissions.All` is collected from the
+        declared classes; administrative permissions stay explicit. Adding a module's permission class is the only
+        Contracts change a module needs; tests prove the matrix is unchanged for the existing modules
+  - [x] `docs/process/adding-a-module.md` (and its `tr/` mirror): a checklist from an empty folder to a green test run —
+        project, solution, entity, context and migration, contracts with one projection, endpoints with permissions,
+        `Program.cs`, AppHost, gateway route, permission class, integration tests (tenant isolation, `404`, `412`,
+        role refusals) — each step linking to the reference module (Customers)
+  - [x] Optional sections: Pro-only module, tenant settings, publishing and consuming events, owned lines
+  - [x] "Common mistakes" section with what earlier tasks found: arrays in request types, `SaveChanges` in an event
+        handler, saving through the context instead of `IEventOutbox`, forgetting `If-Match`
+  - [x] Linked from `CLAUDE.md` and the code conventions
+  - Notes: `Roles.Grants(role, permission)` is the whole convention in one tested function; a suffix other than
+    read / write / delete goes to Owner and Admin only (least privilege, agreed with the owner). `RoleMatrixTests` pins
+    the exact matrix of ADR-022 and the convention for an undeclared `products.*` permission. Every link in both guides
+    was checked to point at an existing file. The code conventions still told modules to edit `All` and `Roles` —
+    corrected. 7 new tests; 162 in total. The guide's real test is T-013.
 - **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes
+  - [ ] Products (a Basic catalog: SKU, name, price) is added using only the guide and the allowed registration points
+  - [ ] A friction log records every step the guide didn't cover; the guide (or, if unavoidable, the core — and then
+        the proof starts over) is fixed before the proof counts
+  - [ ] `git diff` of the task shows no change in BuildingBlocks, ServiceDefaults, Gateway code or existing Contracts lines
+  - [ ] Products has the same test coverage as the reference module
 
 ---
 
@@ -530,6 +557,15 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 
 ## Backlog
 
+- **T-046** — Test pyramid: fast unit tests for domain rules now covered only through the API (order totals and
+  rounding, last-Owner and anti-escalation, stock ledger rules), so most rules fail in milliseconds, not minutes
+- **T-047** — Shared integration-test helpers: one place for "create a stock item", "read a balance", "wait until",
+  now duplicated across test classes
+- **T-048** — Row lock without a hand-written table name: the company lock in user management uses
+  `SELECT … FROM tenants FOR UPDATE`; take the table name from the EF model so a naming change can't break it silently
+- **T-049** — Retry-in-a-fresh-scope as a building block: `PlaceOrder` runs its own retry loop and creates DI scopes;
+  move the pattern to BuildingBlocks so endpoints only express the business step
+- **T-045** — `dotnet new` template for a module, generated from the guide (T-027) once the guide has been proven
 - **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
   "Unknown", CI #28 / #29) — e.g. kill the process by its PID (closer to a real crash), check Aspire's known issues
 - **T-042** — Review list of order lines Inventory could not match to a stock item (ADR-020)

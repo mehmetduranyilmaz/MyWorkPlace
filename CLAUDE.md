@@ -20,6 +20,7 @@ The repository is **public**. Code quality, documentation and commit history are
 | Task board & conventions | [docs/tasks.md](docs/tasks.md), [docs/process/task-conventions.md](docs/process/task-conventions.md) |
 | Branches & commits | [docs/process/git-conventions.md](docs/process/git-conventions.md) |
 | Code conventions (naming, bilingual comments) | [docs/process/code-conventions.md](docs/process/code-conventions.md) |
+| Adding a module (step-by-step recipe) | [docs/process/adding-a-module.md](docs/process/adding-a-module.md) |
 
 ## Non-negotiable rules
 

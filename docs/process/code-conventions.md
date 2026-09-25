@@ -46,6 +46,8 @@ Guidelines:
 
 ## Module building blocks (ADR-021)
 
+Adding a whole module step by step: [adding-a-module.md](adding-a-module.md). The rules below are its building blocks.
+
 - **Entities** inherit the smallest base that fits: `BusinessEntity` for business data (tenant-owned, audited,
   soft-deletable), `TenantOwnedEntity`, `AuditableEntity` or plain `Entity` otherwise. Don't repeat interface properties.
 - **Responses** define one `static readonly Expression<Func<TEntity, TResponse>> Projection`, used by lists
@@ -89,8 +91,9 @@ ordered query, so forgetting the order is a compile error (ADR-016).
 
 Authorization is declared with **named policies** (`RequireAuthorization("...")`), never with role checks inside handlers.
 Every business endpoint declares its **permission** from the catalog (ADR-022) — reads `Permissions.X.Read`,
-create/update `Permissions.X.Write`, delete `Permissions.X.Delete`. A new module adds its permissions to
-`Contracts.Identity.Permissions` (and to `All`) and to the role matrix in `Roles`.
+create/update `Permissions.X.Write`, delete `Permissions.X.Delete`. A new module only **adds** its nested class to
+`Contracts.Identity.Permissions`; the catalog and the role matrix follow the suffix by themselves (ADR-025) — never
+edit `Roles`.
 
 ## Audit logging
 

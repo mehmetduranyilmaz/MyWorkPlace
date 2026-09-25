@@ -355,7 +355,8 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Permissions** are a catalog **in code** (Contracts), named `module.action` — `customers.read`, `customers.write`,
   `customers.delete`, `inventory.*`, `orders.*`, `users.manage`, `settings.manage`, `plan.manage`. Modules and Identity share the
   names, so a typo is a compile error. Destructive actions (`*.delete`) are separate permissions.
-- **Default roles**, defined in code and available to every company:
+- **Default roles**, defined in code and available to every company (since T-027 derived from the permission suffixes,
+  ADR-025 — the table below is the result):
 
   | Permission | Owner | Admin | Member | Viewer |
   | --- | :---: | :---: | :---: | :---: |
@@ -448,6 +449,21 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
     found here, since EF marks owned parts deleted along with their owner.
   - Events are published to an exchange named after the event type (`OrderPlaced`) — our rule (ADR-023), not the
     library's default.
+
+### ADR-025 — Contracts is a registry; roles follow permission names
+
+- **Context:** the plug-and-play proof (T-013) allows no core change, yet every module so far also edited
+  `Contracts/Identity/Roles.cs` (the role matrix) and the `Permissions.All` list — an Open/Closed violation.
+- **Decision — Contracts is a shared registry:** a module may **add** declarations there — its permission class and
+  its events — and never change an existing line. Identity must know every permission to put it in a token, so the
+  names have to live in one shared place; adding to it is declaring, not changing the core.
+- **Decision — roles are derived by convention:** a module permission ends in `.read`, `.write` or `.delete`, and the
+  default roles follow the suffix: `read` → every role, `write` → Owner, Admin, Member, `delete` → Owner, Admin.
+  `Permissions.All` is collected from the declared classes by reflection. Administrative permissions (`users.manage`,
+  `settings.manage`, `plan.manage`) stay explicit. A module that needs something else declares it explicitly — the
+  convention is the default, not a cage.
+- **Rejected:** permissions discovered at runtime from the services (Identity would depend on every service being up
+  and would learn permissions late); a hand-edited matrix (every module edits core code and can forget a role).
 
 ---
 
