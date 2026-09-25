@@ -52,15 +52,17 @@ public sealed class LoginTests(AppFixture app)
 
         var token = new JsonWebTokenHandler().ReadJsonWebToken(
             (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("accessToken").GetString());
-        var permissions = token.Claims.Where(c => c.Type == "perm").Select(c => c.Value).Order(StringComparer.Ordinal);
-        Assert.Equal(
-            [
-                "customers.delete", "customers.read", "customers.write",
-                "inventory.delete", "inventory.read", "inventory.write",
-                "orders.delete", "orders.read", "orders.write",
-                "plan.manage", "settings.manage", "users.manage",
-            ],
-            permissions);
+        var permissions = token.Claims.Where(c => c.Type == "perm").Select(c => c.Value).ToHashSet();
+
+        // EN: A subset check, not the full list: a new module adds permissions without editing this test (T-013).
+        // TR: Tam liste değil alt küme kontrolü: yeni bir modül bu testi düzenlemeden izin ekler (T-013).
+        Assert.Subset(permissions, new HashSet<string>
+        {
+            "customers.delete", "customers.read", "customers.write",
+            "inventory.delete", "inventory.read", "inventory.write",
+            "orders.delete", "orders.read", "orders.write",
+            "plan.manage", "settings.manage", "users.manage",
+        });
     }
 
     [Fact]

@@ -35,10 +35,14 @@ public sealed class UserManagementTests(AppFixture app)
         Assert.Equal(["Member"], body.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
         Assert.False(body.TryGetProperty("passwordHash", out _));
 
+        // EN: Member = every module's read and write, no delete, no administration — whatever modules exist.
+        // TR: Çalışan = her modülün okuma ve yazması, silme yok, yönetim yok — hangi modüller varsa.
         using var member = await SignInAsync(app, email, Ct);
-        Assert.Equal(
-            ["customers.read", "customers.write", "inventory.read", "inventory.write", "orders.read", "orders.write"],
-            PermissionsOf(member));
+        var memberPermissions = PermissionsOf(member).ToList();
+        Assert.Subset(
+            memberPermissions.ToHashSet(),
+            new HashSet<string> { "customers.read", "customers.write", "inventory.read", "inventory.write", "orders.read", "orders.write" });
+        Assert.All(memberPermissions, p => Assert.Matches(@"^[a-z]+\.(read|write)$", p));
     }
 
     [Fact]
@@ -108,8 +112,13 @@ public sealed class UserManagementTests(AppFixture app)
             owner, id, ["Viewer"], ["customers.delete"], await GetETagAsync(owner, id, Ct), Ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // EN: Viewer (every module's read) plus the one extra grant — nothing else.
+        // TR: İzleyici (her modülün okuması) artı tek ek izin — başka hiçbir şey.
         using var user = await SignInAsync(app, email, Ct);
-        Assert.Equal(["customers.delete", "customers.read", "inventory.read", "orders.read"], PermissionsOf(user));
+        var userPermissions = PermissionsOf(user).ToList();
+        Assert.Contains("customers.delete", userPermissions);
+        Assert.Subset(userPermissions.ToHashSet(), new HashSet<string> { "customers.read", "inventory.read", "orders.read" });
+        Assert.All(userPermissions.Where(p => p != "customers.delete"), p => Assert.EndsWith(".read", p, StringComparison.Ordinal));
     }
 
     [Fact]

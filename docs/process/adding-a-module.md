@@ -17,12 +17,13 @@ ProblemDetails errors, API docs (Scalar), paging and search, tenant settings and
 | You change | How |
 | --- | --- |
 | `src/Services/MyWorkplace.Products/` | New project — all the module's code |
-| `MyWorkplace.slnx` | One line |
+| `MyWorkplace.slnx` | One line per project (service, unit tests) |
 | `src/MyWorkplace.Contracts/Identity/Permissions.cs` | **Add** one nested class (ADR-025) |
 | `src/MyWorkplace.Contracts/Events/` | **Add** event records, only if the module publishes events |
 | `src/MyWorkplace.AppHost/AppHost.cs` and `.csproj` | Register the database and the project |
 | `src/MyWorkplace.Gateway/appsettings.json` | One route and one cluster |
-| `tests/MyWorkplace.IntegrationTests/` | The module's tests |
+| `tests/MyWorkplace.IntegrationTests/` | The module's tests through the gateway |
+| `tests/MyWorkplace.Products.Tests/` | New project — fast unit tests of the domain rules |
 | `docs/tasks.md`, README | Board and module table |
 
 **Never changed by a module:** BuildingBlocks, ServiceDefaults, Gateway code, `Roles.cs` or any existing line in
@@ -74,8 +75,8 @@ and the one-line
 - [ ] `ProductsDbContext : ServiceDbContext`; describe only your entities in `ConfigureModel` — lengths, `HasPrecision`
       for decimals, a unique index filtered with `is_deleted = false`, and a `(TenantId, sort key)` index for lists.
       Filters, `xmin` concurrency, `audit_log`, `tenant_settings` and `processed_events` come from the base class.
-- [ ] `dotnet ef migrations add InitialCreate --project src/Services/MyWorkplace.Products --output-dir Persistence/Migrations`.
-      It creates your tables plus the core's; Development applies it at startup (ADR-015).
+- [ ] The first migration comes **after step 8**: `dotnet ef` builds the project, and a web project doesn't build
+      without its `Program.cs`.
 
 ### 6. Request and response types
 
@@ -108,6 +109,11 @@ Copy [`Program.cs`](../../src/Services/MyWorkplace.Customers/Program.cs): `AddSe
 `builder.Services.AddValidation()` (it must stay in the service), `await app.UseServiceModuleAsync<ProductsDbContext>()`,
 then one `MapGroup("/products").WithTags("Products")` and the five `Map…` calls.
 
+- [ ] Now the first migration:
+      `dotnet ef migrations add InitialCreate --project src/Services/MyWorkplace.Products --output-dir Persistence/Migrations`.
+      It creates your tables plus the core's (`audit_log`, `tenant_settings`, `processed_events`); Development applies
+      it at startup (ADR-015).
+
 ### 9. AppHost and gateway
 
 - [ ] [`AppHost.cs`](../../src/MyWorkplace.AppHost/AppHost.cs): `postgres.AddDatabase("products-db")`; the project with
@@ -129,13 +135,21 @@ pass through the gateway:
 - [ ] Another company's item → `404` (tenant isolation).
 - [ ] Viewer create → `403`; Member delete → `403` (see `RoleRestrictionTests`).
 - [ ] List: paging, sort order, search.
-- [ ] Domain rules with no I/O also get plain unit tests (fast; T-046).
+- [ ] Domain rules with no I/O also get plain unit tests (fast; T-046) in their own project
+      `tests/MyWorkplace.Products.Tests`: copy
+      [`MyWorkplace.Identity.Tests.csproj`](../../tests/MyWorkplace.Identity.Tests/MyWorkplace.Identity.Tests.csproj),
+      keep only `xunit.v3` and the reference to your service, and add it to the solution under `/tests/`.
 
 ### 11. Finish
 
 - [ ] `dotnet build MyWorkplace.slnx` with 0 warnings; `dotnet test --solution MyWorkplace.slnx` green.
-- [ ] `git diff --stat main -- src/MyWorkplace.BuildingBlocks src/MyWorkplace.ServiceDefaults src/MyWorkplace.Gateway`
-      lists at most the gateway's `appsettings.json`; in Contracts only additions.
+- [ ] Prove the core is untouched. The first command may list only `Permissions.cs` (and new event files) and the
+      gateway's `appsettings.json`; the second must print nothing — no core line was removed or changed:
+
+      ```bash
+      git diff --stat main -- src/MyWorkplace.BuildingBlocks src/MyWorkplace.ServiceDefaults src/MyWorkplace.Gateway src/MyWorkplace.Contracts
+      git diff main -- src/MyWorkplace.BuildingBlocks src/MyWorkplace.ServiceDefaults src/MyWorkplace.Gateway src/MyWorkplace.Contracts | grep -E "^-[^-]"
+      ```
 - [ ] Board, README module table, and an ADR for any new decision.
 
 ## Optional capabilities
@@ -192,4 +206,5 @@ Each of these happened in this repository once.
 | Update without `If-Match` | Overwrites someone else's change | `TryReadIfMatch` → `428` / `412` (ADR-017) |
 | `IgnoreQueryFilters()` to "see everything" | Cross-company data leak | Never, except the documented sign-in / registration cases |
 | A hand-edited role list | Roles drift from permissions | Suffix convention (ADR-025) |
+| A test pinning the whole permission list | Every new module breaks it | Assert subsets and the rule (T-013) |
 | Editing a doc with a script | Backticks and quotes mangled silently | Edit tool; re-read the result |

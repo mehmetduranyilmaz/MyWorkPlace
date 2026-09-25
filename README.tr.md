@@ -152,7 +152,7 @@ Her mimari kararı insan verir ve her merge'ü insan onaylar. Asistan seçenekle
 
 - [x] **Sprint 0 — Altyapı:** depo, çözüm iskeleti, CI
 - [x] **Sprint 1 — MVP:** Identity, Gateway, Customers (Basic), Inventory (Pro), plan yükseltme
-- [ ] **Sprint 2 — Tak-çalıştır çekirdek:** roller ve izinler, outbox'lı mesajlaşma, modül rehberi —
+- [x] **Sprint 2 — Tak-çalıştır çekirdek:** roller ve izinler, outbox'lı mesajlaşma, modül rehberi —
       çekirdek koda dokunmadan Products eklenerek kanıtlanır
 - [x] Orders, olay tabanlı stok güncelleme, canlı dayanıklılık demosu
 - [ ] Raporlama, plana göre rate limiting, refresh token

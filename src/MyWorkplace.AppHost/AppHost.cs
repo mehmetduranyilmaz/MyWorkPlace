@@ -41,6 +41,7 @@ var identityDb = postgres.AddDatabase("identity-db");
 var customersDb = postgres.AddDatabase("customers-db");
 var inventoryDb = postgres.AddDatabase("inventory-db");
 var ordersDb = postgres.AddDatabase("orders-db");
+var productsDb = postgres.AddDatabase("products-db");
 
 var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
     .WithReference(identityDb)
@@ -78,6 +79,13 @@ var orders = builder.AddProject<Projects.MyWorkplace_Orders>("orders")
     .WaitFor(identity)
     .WithHttpHealthCheck("/health");
 
+var products = builder.AddProject<Projects.MyWorkplace_Products>("products")
+    .WithReference(productsDb)
+    .WaitFor(productsDb)
+    .WithReference(identity)
+    .WaitFor(identity)
+    .WithHttpHealthCheck("/health");
+
 // EN: Only the gateway is exposed externally; services are reached through it.
 // TR: Dışarıya sadece gateway açılır; servislere onun üzerinden ulaşılır.
 builder.AddProject<Projects.MyWorkplace_Gateway>("gateway")
@@ -85,10 +93,12 @@ builder.AddProject<Projects.MyWorkplace_Gateway>("gateway")
     .WithReference(customers)
     .WithReference(inventory)
     .WithReference(orders)
+    .WithReference(products)
     .WaitFor(identity)
     .WaitFor(customers)
     .WaitFor(inventory)
     .WaitFor(orders)
+    .WaitFor(products)
     .WithExternalHttpEndpoints()
     .WithHttpHealthCheck("/health");
 

@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Services\MyWorkplace.Identity\MyWorkplace.Identity.csproj" />
     <ProjectReference Include="..\Services\MyWorkplace.Inventory\MyWorkplace.Inventory.csproj" />
     <ProjectReference Include="..\Services\MyWorkplace.Orders\MyWorkplace.Orders.csproj" />
+    <ProjectReference Include="..\Services\MyWorkplace.Products\MyWorkplace.Products.csproj" />
   </ItemGroup>
 
 </Project>

@@ -53,6 +53,19 @@ public static class Permissions
         public const string Delete = "orders.delete";
     }
 
+    /// <summary>EN: Products module. TR: Products modülü.</summary>
+    public static class Products
+    {
+        /// <summary>EN: View the product catalog. TR: Ürün kataloğunu görme.</summary>
+        public const string Read = "products.read";
+
+        /// <summary>EN: Create and edit products. TR: Ürün ekleme ve düzenleme.</summary>
+        public const string Write = "products.write";
+
+        /// <summary>EN: Delete products. TR: Ürün silme.</summary>
+        public const string Delete = "products.delete";
+    }
+
     /// <summary>EN: Manage the company's users and their roles. TR: Firmanın kullanıcılarını ve rollerini yönetme.</summary>
     public const string UsersManage = "users.manage";
 

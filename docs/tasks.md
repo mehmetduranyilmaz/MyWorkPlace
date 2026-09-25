@@ -31,7 +31,7 @@ the module's permission class and its events. No existing line in Contracts chan
 | Cross-service events (RabbitMQ + outbox) | Done | T-015, T-016, T-017 |
 | No module boilerplate: base entity, one-line service setup, shared mappings | Done | T-036 |
 | Module guide: step-by-step recipe for adding a module | Done | T-027 |
-| **Proof: Products added via the guide with zero core changes** | Todo | T-013 |
+| **Proof: Products added via the guide with zero core changes** | Done | T-013 |
 
 ---
 
@@ -530,12 +530,27 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
     the exact matrix of ADR-022 and the convention for an undeclared `products.*` permission. Every link in both guides
     was checked to point at an existing file. The code conventions still told modules to edit `All` and `Roles` —
     corrected. 7 new tests; 162 in total. The guide's real test is T-013.
-- **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes
-  - [ ] Products (a Basic catalog: SKU, name, price) is added using only the guide and the allowed registration points
-  - [ ] A friction log records every step the guide didn't cover; the guide (or, if unavoidable, the core — and then
+- **T-013** — Products service (Basic) — **the proof**: built only by following T-027, with zero core changes — **Done**
+  - [x] Products (a Basic catalog: SKU, name, price) is added using only the guide and the allowed registration points
+  - [x] A friction log records every step the guide didn't cover; the guide (or, if unavoidable, the core — and then
         the proof starts over) is fixed before the proof counts
-  - [ ] `git diff` of the task shows no change in BuildingBlocks, ServiceDefaults, Gateway code or existing Contracts lines
-  - [ ] Products has the same test coverage as the reference module
+  - [x] `git diff` of the task shows no change in BuildingBlocks, ServiceDefaults, Gateway code or existing Contracts lines
+  - [x] Products has the same test coverage as the reference module
+  - **Result:** the core is plug-and-play. Core paths changed: `Permissions.cs` (+13 lines, additions only) and the
+    gateway's `appsettings.json` (+7 lines of routing configuration) — both allowed registration points; no line in
+    BuildingBlocks, ServiceDefaults, Gateway code or Contracts logic was removed or changed. Roles picked up
+    `products.*` by their suffix without touching `Roles.cs`.
+  - **Friction log** (all fixed in the guide; none needed a core change):
+    1. The guide ran the first migration at step 5, but `dotnet ef` builds the project and a web project doesn't build
+       without `Program.cs` (step 8) — the migration moved to step 8.
+    2. "Unit tests for domain rules" didn't say where — the guide now names `tests/MyWorkplace.<Module>.Tests` and which
+       project file to copy.
+    3. The core-diff check in step 11 left Contracts out and couldn't show removed lines — now two exact commands.
+    4. Six existing tests pinned the complete permission list (Owner, Member and Viewer tokens, the role matrix), so
+       adding any module broke them. They now assert subsets and the rule; the guide lists it as a common mistake.
+       Test code only — no core change.
+  - Notes: 7 unit tests (`MyWorkplace.Products.Tests`) and 20 integration tests; 189 in total. Linking products to stock
+    items went to the backlog as T-050, to be refined with the business questions first.
 
 ---
 
@@ -557,6 +572,8 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 
 ## Backlog
 
+- **T-050** — Link stock items to products: `ProductCreated` / `ProductUpdated` from Products, consumed by Inventory
+  (ADR-019). Refine first: must every stock item have a product (raw materials?), and which fields does Inventory need?
 - **T-046** — Test pyramid: fast unit tests for domain rules now covered only through the API (order totals and
   rounding, last-Owner and anti-escalation, stock ledger rules), so most rules fail in milliseconds, not minutes
 - **T-047** — Shared integration-test helpers: one place for "create a stock item", "read a balance", "wait until",
