@@ -50,6 +50,80 @@ public sealed class StockItemTests(AppFixture app)
     }
 
     [Fact]
+    public async Task Create_WithAlternativeUnits_ReturnsThemNormalized()
+    {
+        using var client = await IdentityApi.CreateProClientAsync(app, Ct);
+
+        using var response = await client.PostAsJsonAsync(Items, new
+        {
+            sku = "WATER-6",
+            name = "Water",
+            baseUnit = "pcs",
+            units = new[] { new { unit = "pack", factor = 6m }, new { unit = "BOX", factor = 24m } },
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("PCS", body.GetProperty("baseUnit").GetString());
+        Assert.Equal(["BOX=24", "PACK=6"], Units(body));
+    }
+
+    [Theory]
+    [InlineData("BOX", "0", "units[0].factor")]
+    [InlineData("BOX", "0.0000001", "units[0].factor")]
+    [InlineData("pcs", "2", "units[0].unit")]
+    [InlineData("NO-SUCH", "2", "units[0].unit")]
+    public async Task Create_InvalidAlternativeUnit_Returns400WithFieldError(string unit, string factor, string invalidField)
+    {
+        using var client = await IdentityApi.CreateProClientAsync(app, Ct);
+
+        using var response = await client.PostAsJsonAsync(Items, new
+        {
+            sku = "BAD-UNIT",
+            name = "Bad",
+            baseUnit = "PCS",
+            units = new[] { new { unit, factor = decimal.Parse(factor, System.Globalization.CultureInfo.InvariantCulture) } },
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var errors = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("errors");
+        Assert.Contains(errors.EnumerateObject(), e => string.Equals(e.Name, invalidField, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Create_SameAlternativeUnitTwice_Returns400()
+    {
+        using var client = await IdentityApi.CreateProClientAsync(app, Ct);
+
+        using var response = await client.PostAsJsonAsync(Items, new
+        {
+            sku = "TWICE-1",
+            name = "Twice",
+            baseUnit = "PCS",
+            units = new[] { new { unit = "BOX", factor = 24m }, new { unit = "box", factor = 12m } },
+        }, Ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdatingOnlyTheUnits_ChangesTheVersion_SoAStaleWriterGets412()
+    {
+        using var client = await IdentityApi.CreateProClientAsync(app, Ct);
+        var (id, etag) = await CreateAsync(client, "UNITS-ONLY", "Same");
+        var withBox = new { sku = "UNITS-ONLY", name = "Same", baseUnit = "PCS", units = new[] { new { unit = "BOX", factor = 24m } } };
+
+        using var update = await client.PutWithIfMatchAsync($"{Items}/{id}", withBox, etag, Ct);
+        using var stale = await client.PutWithIfMatchAsync($"{Items}/{id}", Body("UNITS-ONLY", "Same"), etag, Ct);
+        var current = await client.GetFromJsonAsync<JsonElement>($"{Items}/{id}", Ct);
+
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.NotEqual(etag, update.Headers.ETag?.ToString());
+        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+        Assert.Equal(["BOX=24"], Units(current));
+    }
+
+    [Fact]
     public async Task GetUpdateDelete_FollowTheReferenceModule()
     {
         using var client = await IdentityApi.CreateProClientAsync(app, Ct);
@@ -187,4 +261,16 @@ public sealed class StockItemTests(AppFixture app)
     /// <returns>EN: The SKUs. TR: SKU'lar.</returns>
     private static List<string> Skus(JsonElement page) =>
         [.. page.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("sku").GetString()!)];
+
+    /// <summary>
+    /// EN: An item's alternative units as "CODE=factor", in the order returned. Trailing zeros are dropped: a factor read
+    ///     back from the numeric(18,6) column is 24.000000.
+    /// TR: Bir kalemin alternatif birimleri; döndüğü sırayla "KOD=katsayı" olarak. Sondaki sıfırlar atılır: numeric(18,6)
+    ///     sütunundan okunan katsayı 24.000000'dır.
+    /// </summary>
+    /// <param name="item">EN: Item body. TR: Kalem gövdesi.</param>
+    /// <returns>EN: The units. TR: Birimler.</returns>
+    private static List<string> Units(JsonElement item) =>
+        [.. item.GetProperty("units").EnumerateArray().Select(u =>
+            $"{u.GetProperty("unit").GetString()}={(u.GetProperty("factor").GetDecimal() / 1.000000000000000000000000000000000m).ToString(System.Globalization.CultureInfo.InvariantCulture)}")];
 }

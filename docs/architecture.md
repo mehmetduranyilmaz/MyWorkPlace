@@ -306,6 +306,22 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Barcodes:** per item unit (the piece and the box have different barcodes), unique per tenant; a lookup returns
   item, unit and factor.
 - **Out of scope:** variable-weight items, where each piece weighs differently (T-033).
+- **Refined (T-031):**
+  - **System units in code:** `PCS`, `KG`, `L`, `M`, `BOX`, `PACK` with their precision are defined in code and exist
+    for every company; a company stores only the units it adds. The catalog is both together. No per-company seeding
+    and no "company registered" event are needed (the same "defaults in code, the tenant stores the difference" idea
+    as ADR-018). System units can't be changed or deleted.
+  - **A company's own units:** code unique within the company and against system units (case-insensitive), precision
+    0–3 — balances and movements are stored with 3 decimals, so a finer unit would be rounded silently (widening the
+    columns waits for a real need). Code and precision are frozen once an item uses the unit, and a used unit can't be
+    deleted — changing them would make stored quantities invalid.
+  - **Units are addressed by code** (`/inventory/units/{code}`): system units have no database id, and items refer to
+    units by code.
+  - **Alternative units belong to the item:** a list of `{ unit, factor }` saved with the item's full update and ETag
+    (ADR-016), not separate endpoints.
+  - **Base unit is frozen once the item has movements:** changing it would silently re-read the balance in another unit.
+  - **Precision is checked on manual movements (T-030)**, never on order issues, which are always applied (ADR-020).
+  - **Barcodes** follow separately (T-055).
 
 ### ADR-020 — Stock movements and the negative stock policy
 

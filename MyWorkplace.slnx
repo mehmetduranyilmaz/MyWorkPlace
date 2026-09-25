@@ -18,6 +18,7 @@
     <Project Path="tests/MyWorkplace.BuildingBlocks.Tests/MyWorkplace.BuildingBlocks.Tests.csproj" />
     <Project Path="tests/MyWorkplace.Identity.Tests/MyWorkplace.Identity.Tests.csproj" />
     <Project Path="tests/MyWorkplace.IntegrationTests/MyWorkplace.IntegrationTests.csproj" />
+    <Project Path="tests/MyWorkplace.Inventory.Tests/MyWorkplace.Inventory.Tests.csproj" />
     <Project Path="tests/MyWorkplace.Products.Tests/MyWorkplace.Products.Tests.csproj" />
   </Folder>
 </Solution>

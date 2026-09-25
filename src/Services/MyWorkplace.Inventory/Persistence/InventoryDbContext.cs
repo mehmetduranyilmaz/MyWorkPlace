@@ -20,9 +20,28 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     /// <summary>EN: Stock history of the current tenant. TR: Aktif firmanın stok geçmişi.</summary>
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
 
+    /// <summary>
+    /// EN: The current tenant's own units; system units live in code (<see cref="SystemUnits"/>).
+    /// TR: Aktif firmanın kendi birimleri; sistem birimleri koddadır (<see cref="SystemUnits"/>).
+    /// </summary>
+    public DbSet<UnitOfMeasure> Units => Set<UnitOfMeasure>();
+
     /// <inheritdoc />
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<UnitOfMeasure>(unit =>
+        {
+            unit.ToTable("units");
+            unit.Property(u => u.Code).HasMaxLength(UnitOfMeasure.CodeMaxLength);
+            unit.Property(u => u.Name).HasMaxLength(UnitOfMeasure.NameMaxLength);
+
+            // EN: Code unique per tenant among live units; the database enforces it against races too.
+            // TR: Kod firma içinde canlı birimler arasında benzersiz; veritabanı bunu yarışlara karşı da uygular.
+            unit.HasIndex(u => new { u.TenantId, u.Code })
+                .IsUnique()
+                .HasFilter("is_deleted = false");
+        });
+
         modelBuilder.Entity<StockMovement>(movement =>
         {
             // EN: Stored as text so the history stays readable. TR: Geçmiş okunur kalsın diye metin olarak saklanır.
@@ -41,7 +60,25 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
             item.Property(i => i.Sku).HasMaxLength(StockItem.SkuMaxLength);
             item.Property(i => i.NormalizedSku).HasMaxLength(StockItem.SkuMaxLength);
             item.Property(i => i.Name).HasMaxLength(StockItem.NameMaxLength);
-            item.Property(i => i.BaseUnit).HasMaxLength(DefaultUnits.CodeMaxLength);
+            item.Property(i => i.BaseUnit).HasMaxLength(UnitOfMeasure.CodeMaxLength);
+
+            // EN: Alternative units are part of the item (owned): saved, loaded and deleted with it (ADR-019).
+            // TR: Alternatif birimler kalemin parçasıdır (owned): onunla kaydedilir, yüklenir ve silinir (ADR-019).
+            item.OwnsMany(i => i.Units, unit =>
+            {
+                unit.ToTable("stock_item_units");
+                unit.WithOwner().HasForeignKey("StockItemId");
+                unit.HasKey(u => u.Id);
+                unit.Property(u => u.Id).ValueGeneratedNever();
+                unit.Property(u => u.UnitCode).HasMaxLength(UnitOfMeasure.CodeMaxLength);
+                unit.Property(u => u.Factor).HasPrecision(18, StockItem.FactorDecimals);
+
+                // EN: "Is this unit in use?" looks items up by unit code. TR: "Bu birim kullanımda mı?" kalemleri birim koduna göre arar.
+                unit.HasIndex(u => u.UnitCode);
+            });
+
+            // EN: "Is this unit in use?" also checks base units. TR: "Bu birim kullanımda mı?" temel birimleri de kontrol eder.
+            item.HasIndex(i => new { i.TenantId, i.BaseUnit });
             // EN: decimal, not double: 0.1 + 0.2 must be exactly 0.3 in a stock balance.
             // TR: double değil decimal: bir stok bakiyesinde 0,1 + 0,2 tam olarak 0,3 olmalı.
             item.Property(i => i.Quantity).HasPrecision(18, 3);

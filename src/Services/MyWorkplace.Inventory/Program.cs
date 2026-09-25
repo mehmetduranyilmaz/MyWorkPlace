@@ -9,6 +9,7 @@ using MyWorkplace.BuildingBlocks.Settings;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Features;
+using MyWorkplace.Inventory.Features.Units;
 using MyWorkplace.Inventory.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +19,7 @@ builder.AddServiceModule<InventoryDbContext>("inventory-db", Permissions.Catalog
 // TR: Stok düşmek için OrderPlaced'i dinler (T-016); handler bu derlemede bulunur (ADR-023).
 builder.AddServiceMessaging<InventoryDbContext>("inventory-db");
 builder.Services.AddScoped<StockLedger>();
+builder.Services.AddScoped<UnitCatalog>();
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();
@@ -36,6 +38,14 @@ items.MapCreateStockItem();
 items.MapGetStockItem();
 items.MapUpdateStockItem();
 items.MapDeleteStockItem();
+
+// EN: The unit catalog: system units plus the company's own (ADR-019). TR: Birim kataloğu: sistem birimleri artı firmanın kendi birimleri (ADR-019).
+var units = inventory.MapGroup("/units").WithTags("Units");
+units.MapListUnits();
+units.MapCreateUnit();
+units.MapGetUnit();
+units.MapUpdateUnit();
+units.MapDeleteUnit();
 
 // EN: GET / PUT /inventory/settings (ADR-018). TR: GET / PUT /inventory/settings (ADR-018).
 inventory.MapModuleSettings<InventorySettings>(Permissions.Inventory.Read);

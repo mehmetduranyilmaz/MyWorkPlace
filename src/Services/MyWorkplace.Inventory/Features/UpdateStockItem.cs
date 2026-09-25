@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
 using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Persistence;
 
 namespace MyWorkplace.Inventory.Features;
@@ -27,26 +28,30 @@ public static class UpdateStockItem
             .RequireAuthorization(Permissions.Inventory.Write)
             .WithSummary("EN: Update a stock item | TR: Stok kalemini güncelle")
             .WithDescription(
-                "EN: Replaces SKU, name and base unit; the balance is not changed. Requires If-Match with the ETag you " +
-                "read: 428 without it, 412 if the item changed meanwhile. Returns the new ETag. " +
-                "TR: SKU, ad ve temel birimi değiştirir; bakiye değişmez. Okuduğunuz ETag ile If-Match gerekir: yoksa " +
-                "428, kalem bu arada değiştiyse 412. Yeni ETag'i döner.")
+                "EN: Replaces SKU, name, base unit and alternative units; the balance is not changed. The base unit can't " +
+                "change once the item has stock movements (409). Requires If-Match with the ETag you read: 428 without it, " +
+                "412 if the item changed meanwhile. Returns the new ETag. " +
+                "TR: SKU, ad, temel birim ve alternatif birimleri değiştirir; bakiye değişmez. Kalemin stok hareketi olduktan " +
+                "sonra temel birim değişemez (409). Okuduğunuz ETag ile If-Match gerekir: yoksa 428, kalem bu arada " +
+                "değiştiyse 412. Yeni ETag'i döner.")
             .ProducesValidationProblem();
 
     /// <summary>
-    /// EN: Handles the request: precondition, lookup, version check, uniqueness, save.
-    /// TR: İsteği işler: ön koşul, arama, sürüm kontrolü, benzersizlik, kaydetme.
+    /// EN: Handles the request: precondition, lookup, version check, units, frozen base unit, uniqueness, save.
+    /// TR: İsteği işler: ön koşul, arama, sürüm kontrolü, birimler, donmuş temel birim, benzersizlik, kaydetme.
     /// </summary>
     /// <param name="id">EN: Item id. TR: Kalem kimliği.</param>
     /// <param name="input">EN: Item form. TR: Kalem formu.</param>
     /// <param name="db">EN: Inventory database. TR: Inventory veritabanı.</param>
+    /// <param name="catalog">EN: Unit catalog. TR: Birim kataloğu.</param>
     /// <param name="http">EN: Current request. TR: Mevcut istek.</param>
     /// <param name="cancellationToken">EN: Request cancellation. TR: İstek iptali.</param>
-    /// <returns>EN: 200, 404, 409, 412 or 428. TR: 200, 404, 409, 412 veya 428.</returns>
-    public static async Task<Results<Ok<StockItemResponse>, NotFound, ProblemHttpResult>> HandleAsync(
+    /// <returns>EN: 200, 400, 404, 409, 412 or 428. TR: 200, 400, 404, 409, 412 veya 428.</returns>
+    public static async Task<Results<Ok<StockItemResponse>, NotFound, ValidationProblem, ProblemHttpResult>> HandleAsync(
         Guid id,
         StockItemInput input,
         InventoryDbContext db,
+        UnitCatalog catalog,
         HttpContext http,
         CancellationToken cancellationToken)
     {
@@ -66,8 +71,29 @@ public static class UpdateStockItem
             return ETags.PreconditionFailed();
         }
 
+        if (await StockItemProblems.UnknownUnitsAsync(input, catalog, cancellationToken) is { } unknownUnits)
+        {
+            return unknownUnits;
+        }
+
+        // EN: Movements are recorded in the base unit; changing it would silently re-read the balance (ADR-019). A movement
+        //     arriving after this check changes the row version, so the save below fails with 412 instead.
+        // TR: Hareketler temel birimde kaydedilir; onu değiştirmek bakiyeyi sessizce başka birimde okutur (ADR-019). Bu kontrolden
+        //     sonra gelen bir hareket satır sürümünü değiştirir; bu yüzden aşağıdaki kaydetme 412 ile başarısız olur.
+        if (UnitOfMeasure.NormalizeCode(input.BaseUnit!) != item.BaseUnit
+            && await db.StockMovements.AnyAsync(m => m.StockItemId == item.Id, cancellationToken))
+        {
+            return StockItemProblems.BaseUnitFrozen();
+        }
+
         db.ExpectVersion(item, expectedVersion);
-        item.Update(input.Sku!, input.Name!, input.BaseUnit!);
+        item.Update(input.Sku!, input.Name!, input.BaseUnit!, input.UnitValues());
+
+        // EN: When only the alternative units change, EF would write just their rows and skip the item's row — and with it
+        //     the version check. Marking a column modified keeps "UPDATE ... WHERE xmin = @version" in every save (T-056).
+        // TR: Sadece alternatif birimler değişirse EF yalnızca onların satırlarını yazar, kalemin satırını — ve onunla birlikte sürüm
+        //     kontrolünü — atlardı. Bir sütunu değişmiş işaretlemek her kaydetmede "UPDATE ... WHERE xmin = @version"ı korur (T-056).
+        db.Entry(item).Property(i => i.UpdatedAt).IsModified = true;
 
         if (await db.StockItems.AnyAsync(i => i.NormalizedSku == item.NormalizedSku && i.Id != item.Id, cancellationToken))
         {

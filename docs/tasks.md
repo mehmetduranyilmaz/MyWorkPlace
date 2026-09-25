@@ -593,10 +593,35 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
     AppHost's `Auth` section reaches every project through `WithTokenSettings`, and Identity issues and publishes the same
     values. ServiceDefaults no longer references Contracts. `CoreBoundaryTests` scans the core sources for product
     terms — it found two comments on its first run. 206 tests pass.
-- **T-031** — Units and barcodes: a per-tenant unit catalog seeded with defaults (`PCS` 0 decimals, `KG` / `L` / `M`
-  3 decimals, `BOX` / `PACK` 0) that tenants can extend; per item alternative units with a conversion factor to the
-  base unit (e.g. 1 `BOX` = 24 `PCS`); barcodes per item unit, unique per tenant; `GET /inventory/barcodes/{code}`
-  returns item, unit and factor (`404` if unknown); quantities validated against the unit's precision
+- **T-031** — Unit catalog and alternative units (ADR-019) — **Done**
+  - Goal: a company works in its own units, and an item can be counted in more than its base unit.
+  - [x] System units live in code and every company has them: `PCS` 0 decimals, `KG` / `L` / `M` 3, `BOX` / `PACK` 0;
+        they can't be changed or deleted
+  - [x] `GET /inventory/units` lists system units and the company's own units; `POST` adds one (code unique within the
+        company, case-insensitive, also against system units → `409`; precision 0–3, as stored balances keep 3 decimals → otherwise `400`); `PUT` changes the
+        name, and code or precision only while no item uses the unit (`409`); `DELETE` only an unused unit (`409`);
+        a system unit can't be changed or deleted (`409`)
+  - [x] Permissions: reading `inventory.read`, add / change `inventory.write`, delete `inventory.delete`; another
+        company's units are invisible (`404`); a Basic company gets `403`
+  - [x] An item's base unit and alternative units must exist in the catalog (`400`)
+  - [x] The item form carries `units: [{ unit, factor }]`, saved with the item's full update (ETag): factor > 0, not the
+        base unit, no unit twice (`400`); the item response returns them
+  - [x] An item with stock movements can't change its base unit (`409`)
+  - [x] A unit tells whether a quantity fits its precision (`PCS`: 2.5 invalid, `KG`: 2.5 valid) — covered by unit
+        tests; applied to manual movements in T-030, never to order issues (ADR-020)
+  - Notes: decided with the owner while planning — precision is capped at 0–3 (not 0–6 as first refined), because
+    balances and movements are stored with 3 decimals; units are addressed by code. `SystemUnits` (code) replaces
+    `DefaultUnits`; `UnitOfMeasure` (table `units`) holds a company's own units; `UnitCatalog` is the one place answering
+    "exists?" and "in use?" (ready for T-030); alternative units are owned rows (`stock_item_units`, factor
+    numeric(18,6), 1–1,000,000). Codes are letters, digits, `-` or `_` and stored upper-case. A new
+    `MyWorkplace.Inventory.Tests` project holds the fast rule tests. Found on the way: when only an owned collection
+    changes, EF skips the owner's row and with it the ETag check — fixed for items by marking a column modified (a test
+    proves the fix: without it the ETag stays the same); the same gap exists in Orders → T-056. Known small race: a unit
+    deleted at the same moment an item starts using it is not blocked by the database (units are referenced by code,
+    system units have no row). 251 tests pass.
+- **T-055** — Barcodes (ADR-019): barcodes per item unit (base or alternative), unique per company; managed with the
+  item; `GET /inventory/barcodes/{code}` returns item, unit and factor (`404` if unknown or another company's).
+  Refine first: format rules (free text or EAN checksum) and what happens to barcodes when a unit is removed from an item
 - **T-030** — Stock movements: `POST /inventory/items/{id}/movements` (`In` / `Out`, quantity > 0, optional unit
   converted to the base unit, note); movements are append-only history; the balance changes only through them;
   negative stock follows `NegativeStockPolicy` (`Block` → `409`, `Allow`, `Warn` → success with a warning);
@@ -610,6 +635,11 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
   publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
   (the core has settled, and a second real consumer is about to start)
+- **T-056** — Version check for owned-only changes, in the core: when a PUT changes only an owned collection (an order's
+  lines with the same total, an item's alternative units), EF writes just the owned rows and skips the owner's
+  `UPDATE … WHERE xmin = @version`, so a stale ETag is not detected and `UpdatedAt` stays old. Found in T-031 and fixed
+  there for items only; fix it once in BuildingBlocks (e.g. the auditing interceptor marks the owner modified when an
+  owned entry changes) with a test, then drop the per-endpoint line. Orders is affected today
 - **T-051** — Flaky CI: a Testcontainers container can fail to start with "address already in use" while the three
   test projects start containers in parallel (CI #35, passed on re-run). Options: run test projects one after another,
   or retry container start on a port conflict; measure the cost in CI time

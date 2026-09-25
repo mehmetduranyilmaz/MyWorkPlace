@@ -81,6 +81,28 @@ public sealed class StockFromOrdersTests(AppFixture app)
     }
 
     [Fact]
+    public async Task ItemWithMovements_KeepsItsBaseUnit_ButOtherFieldsMayChange()
+    {
+        using var client = await CreateProClientAsync(app, Ct);
+        var sku = NewSku();
+        var itemId = await CreateItemAsync(client, sku);
+        await PlaceAsync(client, (sku, 1m));
+        await WaitUntilAsync(async () => (await MovementsAsync(itemId)).Count == 1);
+
+        // EN: The balance −1 is in PCS; reading it as −1 KG would be wrong (ADR-019).
+        // TR: −1 bakiyesi PCS cinsinden; onu −1 KG okumak yanlış olurdu (ADR-019).
+        using var read = await client.GetAsync($"/inventory/items/{itemId}", Ct);
+        var etag = read.Headers.ETag!.ToString();
+        using var toKg = await client.PutWithIfMatchAsync(
+            $"/inventory/items/{itemId}", new { sku, name = "Bolt", baseUnit = "KG" }, etag, Ct);
+        using var rename = await client.PutWithIfMatchAsync(
+            $"/inventory/items/{itemId}", new { sku, name = "Bolt M8", baseUnit = "pcs" }, etag, Ct);
+
+        Assert.Equal(HttpStatusCode.Conflict, toKg.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, rename.StatusCode);
+    }
+
+    [Fact]
     public async Task BasicCompanyOrder_ChangesNothing()
     {
         using var client = await CreateSignedInClientAsync(app, Ct);
