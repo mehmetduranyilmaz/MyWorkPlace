@@ -119,7 +119,9 @@ then one `MapGroup("/products").WithTags("Products")` and the five `Map…` call
 ### 9. AppHost and gateway
 
 - [ ] [`AppHost.cs`](../../src/MyWorkplace.AppHost/AppHost.cs): `postgres.AddDatabase("products-db")`; the project with
-      `.WithReference(db).WaitFor(db).WithReference(identity).WaitFor(identity).WithHttpHealthCheck("/health")`; add it
+      `.WithTokenSettings(builder.Configuration).WithReference(db).WaitFor(db).WithReference(identity).WaitFor(identity)
+      .WithHttpHealthCheck("/health")` — without the token settings the service stops at startup naming the missing
+      `Auth:*` key (ADR-026); add it
       to the gateway's `WithReference` / `WaitFor` list. Add the `ProjectReference` to `MyWorkplace.AppHost.csproj`.
 - [ ] [`appsettings.json`](../../src/MyWorkplace.Gateway/appsettings.json) of the gateway: a route
       `"/products/{**catch-all}"` → cluster `products` with address `https+http://products`.
@@ -158,9 +160,9 @@ pass through the gateway:
 
 ### A Pro-only module
 
-- Group: `app.MapGroup("/products").RequireAuthorization(PolicyNames.ProPlan)` — the service checks the plan itself
+- Group: `app.MapGroup("/products").RequireAuthorization(Plans.ProPolicy)` — the service checks the plan itself
   (defense in depth, ADR-006). See [Inventory's `Program.cs`](../../src/Services/MyWorkplace.Inventory/Program.cs).
-- Gateway route: `"AuthorizationPolicy": "pro-plan"`.
+- Gateway route: `"AuthorizationPolicy": "plan:pro"`.
 - Tests: a Basic company gets `403` through the gateway **and** directly at the service (`DefenseInDepthTests`).
 
 ### Company settings (ADR-018)

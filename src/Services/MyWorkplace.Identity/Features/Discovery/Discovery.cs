@@ -1,7 +1,7 @@
 using System.Buffers.Text;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
-using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Identity.Tokens;
 
 namespace MyWorkplace.Identity.Features.Discovery;
@@ -59,10 +59,11 @@ public static class Discovery
     ///     doğrudan da gelse doğrudur.
     /// </summary>
     /// <param name="request">EN: The incoming request. TR: Gelen istek.</param>
+    /// <param name="auth">EN: Token settings (<c>Auth:*</c>). TR: Token ayarları (<c>Auth:*</c>).</param>
     /// <returns>EN: The discovery document. TR: Keşif dokümanı.</returns>
-    private static Ok<OpenIdConfiguration> GetConfiguration(HttpRequest request) =>
+    private static Ok<OpenIdConfiguration> GetConfiguration(HttpRequest request, IOptions<TokenAuthenticationOptions> auth) =>
         TypedResults.Ok(new OpenIdConfiguration(
-            ProductTokens.Issuer,
+            auth.Value.Issuer,
             $"{request.Scheme}://{request.Host}{request.PathBase}/identity/.well-known/jwks.json",
             [SecurityAlgorithms.RsaSha256]));
 

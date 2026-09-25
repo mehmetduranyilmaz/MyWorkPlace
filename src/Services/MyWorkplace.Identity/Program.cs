@@ -5,6 +5,7 @@
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using MyWorkplace.BuildingBlocks.Hosting;
 using MyWorkplace.Contracts.Identity;
@@ -29,9 +30,9 @@ builder.Services.AddValidation();
 // TR: İmzalama anahtarları Identity'nin kendisinde olduğu için, kendi keşif dokümanını indirmek yerine doğrudan onlarla doğrular.
 //     AddServiceModule'den sonra kaydedildiği için ortak JwtBearer ayarlarının üzerine yazar (ADR-006).
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-    .Configure<SigningKeyProvider>((options, keys) =>
+    .Configure<SigningKeyProvider, IOptions<TokenAuthenticationOptions>>((options, keys, auth) =>
     {
-        options.Configuration = new OpenIdConnectConfiguration { Issuer = ProductTokens.Issuer };
+        options.Configuration = new OpenIdConnectConfiguration { Issuer = auth.Value.Issuer };
         options.TokenValidationParameters.IssuerSigningKeyResolver = (_, _, _, _) => keys.All;
     });
 

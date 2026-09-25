@@ -4,6 +4,7 @@
 //     Kaynak isimleri ("identity-db", "identity", "gateway") aynı zamanda servis bulma / bağlantı isimleridir.
 
 using Microsoft.Extensions.Configuration;
+using MyWorkplace.AppHost;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -43,7 +44,10 @@ var inventoryDb = postgres.AddDatabase("inventory-db");
 var ordersDb = postgres.AddDatabase("orders-db");
 var productsDb = postgres.AddDatabase("products-db");
 
+// EN: Every project gets the same token settings from the "Auth" section of appsettings.json (ADR-026).
+// TR: Her proje aynı token ayarlarını appsettings.json'daki "Auth" bölümünden alır (ADR-026).
 var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
+    .WithTokenSettings(builder.Configuration)
     .WithReference(identityDb)
     .WaitFor(identityDb)
     .WithHttpHealthCheck("/health");
@@ -51,6 +55,7 @@ var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
 // EN: Services reference Identity to fetch its public signing keys and validate tokens themselves (ADR-006).
 // TR: Servisler, açık imzalama anahtarlarını alıp token'ları kendileri doğrulamak için Identity'ye bağlanır (ADR-006).
 var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
+    .WithTokenSettings(builder.Configuration)
     .WithReference(customersDb)
     .WaitFor(customersDb)
     .WithReference(identity)
@@ -60,6 +65,7 @@ var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
 // EN: Inventory consumes OrderPlaced, so it references the broker too (T-016).
 // TR: Inventory OrderPlaced'i dinler; bu yüzden mesaj aracına da bağlanır (T-016).
 var inventory = builder.AddProject<Projects.MyWorkplace_Inventory>("inventory")
+    .WithTokenSettings(builder.Configuration)
     .WithReference(inventoryDb)
     .WaitFor(inventoryDb)
     .WithReference(messaging)
@@ -71,6 +77,7 @@ var inventory = builder.AddProject<Projects.MyWorkplace_Inventory>("inventory")
 // EN: Orders publishes events, so it also references the broker (ADR-023).
 // TR: Orders olay yayınlar; bu yüzden mesaj aracına da bağlanır (ADR-023).
 var orders = builder.AddProject<Projects.MyWorkplace_Orders>("orders")
+    .WithTokenSettings(builder.Configuration)
     .WithReference(ordersDb)
     .WaitFor(ordersDb)
     .WithReference(messaging)
@@ -80,6 +87,7 @@ var orders = builder.AddProject<Projects.MyWorkplace_Orders>("orders")
     .WithHttpHealthCheck("/health");
 
 var products = builder.AddProject<Projects.MyWorkplace_Products>("products")
+    .WithTokenSettings(builder.Configuration)
     .WithReference(productsDb)
     .WaitFor(productsDb)
     .WithReference(identity)
@@ -89,6 +97,7 @@ var products = builder.AddProject<Projects.MyWorkplace_Products>("products")
 // EN: Only the gateway is exposed externally; services are reached through it.
 // TR: Dışarıya sadece gateway açılır; servislere onun üzerinden ulaşılır.
 builder.AddProject<Projects.MyWorkplace_Gateway>("gateway")
+    .WithTokenSettings(builder.Configuration)
     .WithReference(identity)
     .WithReference(customers)
     .WithReference(inventory)

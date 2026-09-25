@@ -576,15 +576,23 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
     Services now reference Contracts explicitly — the arrow points from product to core. The core's tests use a made-up
     catalog; the product's agreed matrix test moved to Identity.Tests. Abstractions counts as core in the milestone and
     in the guide's core-diff check. 195 tests pass.
-- **T-054** — Plan names and token settings out of the core (ADR-026 stage 1, part 2)
+- **T-054** — Plan names and token settings out of the core (ADR-026 stage 1, part 2) — **Done**
   - Goal: the core knows the concept of a plan and a token, not this product's names and addresses.
-  - [ ] Plan policies `plan:<name>` are built on demand (like permission policies); `basic` / `pro` move to the product;
+  - [x] Plan policies `plan:<name>` are built on demand (like permission policies); `basic` / `pro` move to the product;
         the gateway route and the Pro services use `plan:pro`
-  - [ ] Issuer, audience and the Identity address are read from `Auth:*` configuration, set once in the AppHost;
+  - [x] Issuer, audience and the Identity address are read from `Auth:*` configuration, set once in the AppHost;
         a missing value fails at startup with a clear message
-  - [ ] Core check: no product term (`basic`, `pro`, `myworkplace-*`, `identity` address) left in BuildingBlocks,
+  - [x] Core check: no product term (`basic`, `pro`, `myworkplace-*`, `identity` address) left in BuildingBlocks,
         ServiceDefaults or Abstractions
-  - [ ] No behavior change: all existing tests pass
+  - [x] No behavior change: all existing tests pass
+  - Notes: decisions agreed with the owner — any `plan:<name>` is accepted (an unknown plan refuses everyone, fails
+    closed), and the full discovery address is configured (`Auth:MetadataAddress`), so the core guesses no path.
+    `PlanPolicy` (Abstractions) holds the convention; `ConventionPolicyProvider` (renamed from `PermissionPolicyProvider`)
+    builds plan and permission policies; `Plans` (Contracts) holds `basic` / `pro` and `ProPolicy`; `PolicyNames` and
+    `ProductTokens` are gone. `TokenAuthenticationOptions` is checked at startup by a source-generated validator; the
+    AppHost's `Auth` section reaches every project through `WithTokenSettings`, and Identity issues and publishes the same
+    values. ServiceDefaults no longer references Contracts. `CoreBoundaryTests` scans the core sources for product
+    terms — it found two comments on its first run. 206 tests pass.
 - **T-031** — Units and barcodes: a per-tenant unit catalog seeded with defaults (`PCS` 0 decimals, `KG` / `L` / `M`
   3 decimals, `BOX` / `PACK` 0) that tenants can extend; per item alternative units with a conversion factor to the
   base unit (e.g. 1 `BOX` = 24 `PCS`); barcodes per item unit, unique per tenant; `GET /inventory/barcodes/{code}`

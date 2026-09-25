@@ -50,7 +50,7 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 
 1. Client calls `POST /identity/login` → Identity returns a **JWT** containing `tenant_id` and `plan`.
 2. Client calls `GET /inventory/items` with the token.
-3. The gateway validates the token. The route requires the `ProPlan` policy; if `plan` is not `pro`
+3. The gateway validates the token. The route requires the `plan:pro` policy; if `plan` is not `pro`
    it returns **403** and the request never reaches the service.
 4. Otherwise the request is forwarded to the Inventory service.
 5. Inventory validates the token **itself**, re-checks the plan, and returns only that tenant's data.
@@ -101,13 +101,14 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Alternatives:** Keycloak / Duende / Entra ID — preferred in real projects, but they hide the mechanics.
   Rejected on purpose for learning.
 - **Token claims:** `sub` (user), `tenant_id`, `plan` (`basic` | `pro`); short lifetime (15 min);
-  `iss = myworkplace-identity`, `aud = myworkplace-api`. Claim names live in `Contracts.Identity.TokenClaims`.
+  `iss = myworkplace-identity`, `aud = myworkplace-api`. Claim names live in `Abstractions.Identity.TokenClaims`;
+  the plan names in `Contracts.Identity.Plans`; issuer and audience in the AppHost's `Auth` settings (ADR-026).
 - **Discovery:** Identity publishes `/identity/.well-known/jwks.json` and a minimal
   `/identity/.well-known/openid-configuration`, so standard JWT middleware finds and refreshes the keys by itself.
 
 ### ADR-006 — Plan enforcement in two layers
 
-- **Decision:** (1) A per-route authorization policy at the gateway (`ProPlan`). (2) The same check inside the service.
+- **Decision:** (1) A per-route authorization policy at the gateway (`plan:pro`). (2) The same check inside the service.
 - **Why:** Defense in depth — protection holds even if the gateway is misconfigured or a service is reached from the internal network.
 - **Known behavior on upgrade:** The plan lives in the token, so after an upgrade the old plan stays in effect
   **until a new token is issued**. The short token lifetime bounds this window. Accepted trade-off.
@@ -115,17 +116,19 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Identity validates its own tokens** with the keys it holds in memory (static JwtBearer configuration +
   `IssuerSigningKeyResolver`), never by downloading its own discovery document — no network call to itself.
 - **Secure by default:** the gateway's fallback policy requires a valid token. Public routes (sign-up, sign-in,
-  `/.well-known/*`) are explicitly marked `anonymous`; Pro routes use the `pro-plan` policy. A route whose policy is
+  `/.well-known/*`) are explicitly marked `anonymous`; Pro routes use the `plan:pro` policy. A route whose policy is
   forgotten is closed, never open. Health endpoints are explicitly anonymous (Development only).
 - **Token validation (both layers):** `AddTokenAuthentication()` in ServiceDefaults — standard JwtBearer with the
-  Identity discovery document, fetched through Aspire service discovery (`https+http://identity`) — is used by the
+  Identity discovery document (`Auth:MetadataAddress`), fetched through Aspire service discovery (`https+http://identity`) — is used by the
   gateway **and** every service, so both layers accept exactly the same tokens. `RequireHttpsMetadata` is off because
   that logical scheme is not literally `https://`; service discovery still prefers HTTPS. A production deployment
   should point at a real `https://` address.
 - **Services are secure by default too:** the same fallback policy applies inside each service; Pro services put their
-  endpoints in a group requiring `pro-plan`. A caller reaching a service directly, bypassing the gateway, still gets
-  `401`/`403` (zero trust inside the network).
-- **Dependency rule:** the gateway references ServiceDefaults (and through it Contracts), never BuildingBlocks —
+  endpoints in a group requiring `plan:pro` (`Plans.ProPolicy`). A caller reaching a service directly, bypassing the
+  gateway, still gets `401`/`403` (zero trust inside the network).
+- **Plan policies by convention (ADR-026):** a policy named `plan:<name>` is built on demand and requires that plan
+  claim; nothing is registered per plan. An unknown name matches no token, so a typo refuses everyone (fails closed).
+- **Dependency rule:** the gateway references ServiceDefaults (and through it Abstractions), never BuildingBlocks —
   it has no business with databases.
 
 ### ADR-007 — Cross-service communication: events first (asynchronous)
@@ -493,6 +496,10 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
     permission policies; `basic` / `pro` belong to the product (the gateway route becomes `plan:pro`).
   - Token issuer, audience and the Identity address come from configuration (`Auth:*`), set once in the AppHost for
     every service.
+  - Done in T-054: the core's options (`TokenAuthenticationOptions`) are validated at startup, so a missing `Auth:*`
+    value stops the host with the key's name. A plan-policy name with a typo is accepted and refuses everyone (fails
+    closed) rather than making the product register its plans. A test (`CoreBoundaryTests`) keeps product terms out of
+    the core projects.
   - `MyWorkplace.*` namespaces are renamed only when packaging (T-053), together with choosing the package names.
 
 ---

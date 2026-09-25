@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using MyWorkplace.Abstractions.Identity;
-using MyWorkplace.Contracts.Identity;
 
 // EN: Same namespace as the other service defaults, so AddTokenAuthentication() is found without an extra using.
 // TR: Diğer ortak ayarlarla aynı namespace; böylece AddTokenAuthentication() ek bir using olmadan bulunur.
@@ -17,16 +17,14 @@ namespace Microsoft.Extensions.Hosting;
 public static class AuthenticationExtensions
 {
     /// <summary>
-    /// EN: Identity's discovery document; "https+http://identity" is resolved by Aspire service discovery (prefers HTTPS).
-    /// TR: Identity'nin keşif dokümanı; "https+http://identity" adresini Aspire servis bulma çözer (HTTPS'i tercih eder).
-    /// </summary>
-    public const string IdentityMetadataAddress = "https+http://identity/identity/.well-known/openid-configuration";
-
-    /// <summary>
-    /// EN: Validates JWTs locally with Identity's published keys (fetched once, cached, refreshed on an unknown kid),
-    ///     requires a valid token by default (secure by default) and registers the <c>pro-plan</c> policy.
-    /// TR: JWT'leri Identity'nin yayınladığı anahtarlarla yerelde doğrular (bir kez çekilir, önbelleğe alınır, bilinmeyen
-    ///     kid'de yenilenir), varsayılan olarak geçerli token ister (secure by default) ve <c>pro-plan</c> politikasını kaydeder.
+    /// EN: Validates JWTs locally with the issuer's published keys (fetched once, cached, refreshed on an unknown kid),
+    ///     requires a valid token by default (secure by default) and resolves permission and <c>plan:&lt;name&gt;</c>
+    ///     policies by convention. Issuer, audience and the discovery address come from <c>Auth:*</c> configuration; a
+    ///     missing value stops the host at startup (ADR-026).
+    /// TR: JWT'leri token üreticisinin yayınladığı anahtarlarla yerelde doğrular (bir kez çekilir, önbelleğe alınır, bilinmeyen
+    ///     kid'de yenilenir), varsayılan olarak geçerli token ister (secure by default) ve izin ile <c>plan:&lt;ad&gt;</c>
+    ///     politikalarını kurala göre çözer. Issuer, audience ve keşif adresi <c>Auth:*</c> yapılandırmasından gelir; eksik bir
+    ///     değer host'u açılışta durdurur (ADR-026).
     /// </summary>
     /// <typeparam name="TBuilder">EN: The host builder type. TR: Host builder tipi.</typeparam>
     /// <param name="builder">EN: The application builder. TR: Uygulama builder'ı.</param>
@@ -34,14 +32,19 @@ public static class AuthenticationExtensions
     public static TBuilder AddTokenAuthentication<TBuilder>(this TBuilder builder)
         where TBuilder : IHostApplicationBuilder
     {
+        builder.Services.AddOptions<TokenAuthenticationOptions>()
+            .BindConfiguration(TokenAuthenticationOptions.SectionName)
+            .ValidateOnStart();
+        builder.Services.AddSingleton<IValidateOptions<TokenAuthenticationOptions>, TokenAuthenticationOptionsValidator>();
+
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
         builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IHttpClientFactory>((options, httpClients) =>
+            .Configure<IHttpClientFactory, IOptions<TokenAuthenticationOptions>>((options, httpClients, auth) =>
             {
-                options.MetadataAddress = IdentityMetadataAddress;
+                options.MetadataAddress = auth.Value.MetadataAddress;
                 // EN: A factory client, so service discovery and resilience apply to the key download too.
                 // TR: Fabrika istemcisi; böylece servis bulma ve hata toleransı anahtar indirmede de geçerli olur.
-                options.Backchannel = httpClients.CreateClient("identity-metadata");
+                options.Backchannel = httpClients.CreateClient("token-metadata");
                 // EN: The logical "https+http" scheme is not literally "https://"; see ADR-006.
                 // TR: Mantıksal "https+http" şeması harfiyen "https://" değildir; bkz. ADR-006.
                 options.RequireHttpsMetadata = false;
@@ -49,22 +52,19 @@ public static class AuthenticationExtensions
                 // EN: Keep claim names exactly as issued ("sub", "tenant_id", "plan").
                 // TR: Claim adlarını üretildiği gibi tut ("sub", "tenant_id", "plan").
                 options.MapInboundClaims = false;
-                options.TokenValidationParameters.ValidIssuer = ProductTokens.Issuer;
-                options.TokenValidationParameters.ValidAudience = ProductTokens.Audience;
+                options.TokenValidationParameters.ValidIssuer = auth.Value.Issuer;
+                options.TokenValidationParameters.ValidAudience = auth.Value.Audience;
                 options.TokenValidationParameters.NameClaimType = TokenClaims.Subject;
             });
 
         builder.Services.AddAuthorizationBuilder()
             // EN: Secure by default: an endpoint without a policy requires a valid token.
             // TR: Varsayılan olarak korumalı: politikası olmayan uç nokta geçerli token ister.
-            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
-            .AddPolicy(PolicyNames.ProPlan, policy => policy
-                .RequireAuthenticatedUser()
-                .RequireClaim(TokenClaims.Plan, ProductTokens.ProPlan));
+            .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
-        // EN: Every catalog permission becomes a usable policy name (ADR-022).
-        // TR: Katalogdaki her izin kullanılabilir bir politika adı olur (ADR-022).
-        builder.Services.AddPermissionPolicies();
+        // EN: Every catalog permission and every "plan:<name>" becomes a usable policy name (ADR-022, ADR-026).
+        // TR: Katalogdaki her izin ve her "plan:<ad>" kullanılabilir bir politika adı olur (ADR-022, ADR-026).
+        builder.Services.AddConventionPolicies();
 
         return builder;
     }

@@ -42,7 +42,7 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
             .AddScheme<AuthenticationSchemeOptions, HeaderAuthenticationHandler>(HeaderAuthenticationHandler.SchemeName, null);
         builder.Services.AddAuthorization();
         builder.Services.AddPermissionCatalog(TestPermissions.Catalog);
-        builder.Services.AddPermissionPolicies();
+        builder.Services.AddConventionPolicies();
 
         _app = builder.Build();
         _app.UseAuthentication();
@@ -98,7 +98,7 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
     {
         // EN: A host that registers no catalog (like the gateway) resolves no permission policies at all.
         // TR: Katalog kaydetmeyen bir host (gateway gibi) hiçbir izin politikasını çözmez.
-        var services = new ServiceCollection().AddLogging().AddAuthorization().AddPermissionPolicies();
+        var services = new ServiceCollection().AddLogging().AddAuthorization().AddConventionPolicies();
         await using var provider = services.BuildServiceProvider();
         var policies = provider.GetRequiredService<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider>();
 

@@ -26,9 +26,9 @@ var app = builder.Build();
 
 await app.UseServiceModuleAsync<InventoryDbContext>();
 
-// EN: Every inventory endpoint lives under this group and inherits the Pro-plan policy.
-// TR: Her stok uç noktası bu grubun altında yer alır ve Pro plan politikasını devralır.
-var inventory = app.MapGroup("/inventory").RequireAuthorization(PolicyNames.ProPlan);
+// EN: Every inventory endpoint lives under this group and inherits the Pro-plan policy ("plan:pro").
+// TR: Her stok uç noktası bu grubun altında yer alır ve Pro plan politikasını ("plan:pro") devralır.
+var inventory = app.MapGroup("/inventory").RequireAuthorization(Plans.ProPolicy);
 
 var items = inventory.MapGroup("/items").WithTags("Stock items");
 items.MapListStockItems();

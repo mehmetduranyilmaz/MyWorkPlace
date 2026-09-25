@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using MyWorkplace.Abstractions.Identity;
@@ -14,7 +15,8 @@ namespace MyWorkplace.Identity.Tokens;
 /// </summary>
 /// <param name="keys">EN: Signing keys. TR: İmzalama anahtarları.</param>
 /// <param name="timeProvider">EN: Clock (UTC). TR: Saat (UTC).</param>
-public sealed class TokenIssuer(SigningKeyProvider keys, TimeProvider timeProvider)
+/// <param name="auth">EN: Issuer and audience (<c>Auth:*</c>, ADR-026). TR: Issuer ve audience (<c>Auth:*</c>, ADR-026).</param>
+public sealed class TokenIssuer(SigningKeyProvider keys, TimeProvider timeProvider, IOptions<TokenAuthenticationOptions> auth)
 {
     /// <summary>
     /// EN: Token lifetime. Short on purpose: a plan change takes effect with the next token (ADR-006).
@@ -37,8 +39,8 @@ public sealed class TokenIssuer(SigningKeyProvider keys, TimeProvider timeProvid
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var descriptor = new SecurityTokenDescriptor
         {
-            Issuer = ProductTokens.Issuer,
-            Audience = ProductTokens.Audience,
+            Issuer = auth.Value.Issuer,
+            Audience = auth.Value.Audience,
             IssuedAt = now,
             NotBefore = now,
             Expires = now.Add(Lifetime),
@@ -46,7 +48,7 @@ public sealed class TokenIssuer(SigningKeyProvider keys, TimeProvider timeProvid
             {
                 [TokenClaims.Subject] = user.Id.ToString(),
                 [TokenClaims.TenantId] = user.TenantId.ToString(),
-                [TokenClaims.Plan] = plan == Plan.Pro ? ProductTokens.ProPlan : ProductTokens.BasicPlan,
+                [TokenClaims.Plan] = plan == Plan.Pro ? Plans.Pro : Plans.Basic,
                 // EN: One "perm" claim per effective permission; services check them locally (ADR-022).
                 // TR: Her etkin izin için bir "perm" claim'i; servisler bunları yerelde kontrol eder (ADR-022).
                 [TokenClaims.Permission] = user.EffectivePermissions.ToArray(),

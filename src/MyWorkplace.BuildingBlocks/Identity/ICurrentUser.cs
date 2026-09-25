@@ -21,8 +21,8 @@ public interface ICurrentUser
     Guid? TenantId { get; }
 
     /// <summary>
-    /// EN: Plan of the company as carried by the token ("basic" or "pro"), or null.
-    /// TR: Token'da taşındığı haliyle firmanın planı ("basic" veya "pro") ya da null.
+    /// EN: Plan of the company as carried by the token (a plan name defined by the product), or null.
+    /// TR: Token'da taşındığı haliyle firmanın planı (ürünün tanımladığı bir plan adı) ya da null.
     /// </summary>
     string? Plan { get; }
 }
