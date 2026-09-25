@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Persistence;
 
@@ -26,10 +27,17 @@ public static class ServiceModuleExtensions
     /// <typeparam name="TContext">EN: The service's DbContext. TR: Servisin DbContext'i.</typeparam>
     /// <param name="builder">EN: The application builder. TR: Uygulama builder'ı.</param>
     /// <param name="connectionName">EN: Aspire connection name, e.g. "customers-db". TR: Aspire bağlantı adı, ör. "customers-db".</param>
+    /// <param name="permissions">
+    /// EN: The product's permission catalog (ADR-026), e.g. <c>Permissions.Catalog</c>; required, so a service can't
+    ///     start without knowing its permissions.
+    /// TR: Ürünün izin kataloğu (ADR-026), ör. <c>Permissions.Catalog</c>; zorunludur, böylece bir servis izinlerini bilmeden başlayamaz.
+    /// </param>
     /// <returns>EN: The same builder. TR: Aynı builder.</returns>
-    public static WebApplicationBuilder AddServiceModule<TContext>(this WebApplicationBuilder builder, string connectionName)
+    public static WebApplicationBuilder AddServiceModule<TContext>(
+        this WebApplicationBuilder builder, string connectionName, PermissionCatalog permissions)
         where TContext : ServiceDbContext
     {
+        builder.Services.AddPermissionCatalog(permissions);
         builder.AddServiceDefaults();
         builder.AddTokenAuthentication();
         builder.AddServiceDbContext<TContext>(connectionName);

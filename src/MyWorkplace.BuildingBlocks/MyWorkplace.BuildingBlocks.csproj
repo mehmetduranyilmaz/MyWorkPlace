@@ -17,7 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MyWorkplace.Contracts\MyWorkplace.Contracts.csproj" />
+    <!-- EN: Generic contracts only — never the product's (ADR-026). TR: Sadece genel sözleşmeler — asla ürününkiler değil (ADR-026). -->
+    <ProjectReference Include="..\MyWorkplace.Abstractions\MyWorkplace.Abstractions.csproj" />
     <!-- EN: For AddServiceModule (ADR-021). TR: AddServiceModule için (ADR-021). -->
     <ProjectReference Include="..\MyWorkplace.ServiceDefaults\MyWorkplace.ServiceDefaults.csproj" />
   </ItemGroup>

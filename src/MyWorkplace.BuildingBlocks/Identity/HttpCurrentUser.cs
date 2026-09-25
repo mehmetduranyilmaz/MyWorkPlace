@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
-using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Abstractions.Identity;
 
 namespace MyWorkplace.BuildingBlocks.Identity;
 

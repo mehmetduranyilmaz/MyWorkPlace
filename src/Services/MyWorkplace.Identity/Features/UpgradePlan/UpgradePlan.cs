@@ -73,7 +73,7 @@ public static class UpgradePlan
         }
 
         var token = tokens.Issue(user, Plan.Pro);
-        return TypedResults.Ok(new UpgradePlanResponse(TokenClaims.ProPlan, token.AccessToken, token.ExpiresIn));
+        return TypedResults.Ok(new UpgradePlanResponse(ProductTokens.ProPlan, token.AccessToken, token.ExpiresIn));
     }
 
     /// <summary>

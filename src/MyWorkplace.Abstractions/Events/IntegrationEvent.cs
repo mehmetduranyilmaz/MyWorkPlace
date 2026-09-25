@@ -1,10 +1,11 @@
-namespace MyWorkplace.Contracts.Events;
+namespace MyWorkplace.Abstractions.Events;
 
 /// <summary>
-/// EN: Base of every event one service publishes for others (ADR-007, ADR-023). Events live here so services depend on
-///     the contract, never on each other's code. Once published, an event only gains fields — none is removed or renamed.
-/// TR: Bir servisin diğerleri için yayınladığı her olayın temeli (ADR-007, ADR-023). Olaylar burada durur; böylece servisler
-///     birbirinin koduna değil sözleşmeye bağlıdır. Yayınlanmış bir olaya sadece alan eklenir — alan silinmez, adı değişmez.
+/// EN: Base of every event one service publishes for others (ADR-007, ADR-023). The product's events derive from it in
+///     the product's contracts, so services depend on the contract, never on each other's code. Once published, an event
+///     only gains fields — none is removed or renamed.
+/// TR: Bir servisin diğerleri için yayınladığı her olayın temeli (ADR-007, ADR-023). Ürünün olayları, ürünün sözleşmelerinde bundan türer;
+///     böylece servisler birbirinin koduna değil sözleşmeye bağlıdır. Yayınlanmış bir olaya sadece alan eklenir — alan silinmez, adı değişmez.
 /// </summary>
 public abstract record IntegrationEvent
 {

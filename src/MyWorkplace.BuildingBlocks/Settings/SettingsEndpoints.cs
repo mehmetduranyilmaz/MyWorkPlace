@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using MyWorkplace.BuildingBlocks.Http;
-using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Abstractions.Identity;
 
 namespace MyWorkplace.BuildingBlocks.Settings;
 
@@ -52,7 +52,7 @@ public static class SettingsEndpoints
             // TR: Gövde handler tarafından okunur (bkz. SaveAsync); bu yüzden API dokümanı için burada bildirilir.
             .Accepts<TSettings>("application/json")
             .WithName($"Update{TSettings.Module}Settings")
-            .RequireAuthorization(Permissions.SettingsManage)
+            .RequireAuthorization(CorePermissions.SettingsManage)
             .WithSummary("EN: Change the settings | TR: Ayarları değiştir")
             .WithDescription(
                 "EN: Replaces all settings of this module; omitted values take their defaults. Requires If-Match with " +

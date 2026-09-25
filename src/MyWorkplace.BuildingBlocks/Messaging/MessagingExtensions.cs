@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MyWorkplace.BuildingBlocks.Persistence;
-using MyWorkplace.Contracts.Events;
+using MyWorkplace.Abstractions.Events;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.Postgresql;

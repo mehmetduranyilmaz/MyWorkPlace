@@ -465,6 +465,36 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Rejected:** permissions discovered at runtime from the services (Identity would depend on every service being up
   and would learn permissions late); a hand-edited matrix (every module edits core code and can forget a role).
 
+### ADR-026 — The core is reused as versioned NuGet packages, extracted in two stages
+
+- **Context:** the owner wants to reuse the plug-and-play core in future projects. Options were a template repository,
+  a `dotnet new` solution template, or versioned packages; the first two copy the core, so fixes stop flowing between
+  projects.
+- **Decision:** the core (BuildingBlocks, ServiceDefaults and the generic part of Contracts) will be published as
+  versioned NuGet packages (GitHub Packages, SemVer, a changelog, publishing from CI on a tag). This repository will
+  consume the packages itself, so it is always the first user of every release.
+- **Stage 1 — now (T-052), cheap:** keep the boundary clean before anything is packaged. Split Contracts into a
+  generic part (token claims, `IntegrationEvent`, the permission convention) and this product's part (the permission
+  catalog, `OrderPlaced`); find anything product-specific still inside the core (e.g. the plan names) and move it out
+  or make it configurable.
+- **Stage 2 — later (T-053), when both signals hold:** the core has settled (several module tasks in a row finished
+  with no core change — Sprint 3 is the test) **and** a second real consumer is about to start. Packaging a core that
+  still changes every week would turn every fix into a release (rule of three: generalize after real use, not before).
+- **Rejected:** template repository or solution template as the main reuse path (projects drift apart; fixes are
+  copied by hand); packaging immediately (premature — the core changed in T-014, T-016, T-027 and T-043).
+- **Stage 1 refined (T-052, T-054):**
+  - A dependency-free `MyWorkplace.Abstractions` project holds the generic contracts: token claim names,
+    `IntegrationEvent`, the permission and role convention. `MyWorkplace.Contracts` keeps only this product's part
+    (the permission catalog, events like `OrderPlaced`) and references Abstractions. Contracts stay light — never in
+    BuildingBlocks, which would drag EF and Wolverine into every consumer.
+  - The product registers its permission catalog explicitly (`AddPermissionCatalog(typeof(Permissions))`); no
+    assembly scanning, so where permissions come from stays visible and testable.
+  - The core knows the *concept* of a plan, not the plan names: policies named `plan:<name>` are built on demand like
+    permission policies; `basic` / `pro` belong to the product (the gateway route becomes `plan:pro`).
+  - Token issuer, audience and the Identity address come from configuration (`Auth:*`), set once in the AppHost for
+    every service.
+  - `MyWorkplace.*` namespaces are renamed only when packaging (T-053), together with choosing the package names.
+
 ---
 
 ## 4. Solution layout (planned)
@@ -476,7 +506,8 @@ src/
   MyWorkplace.ServiceDefaults/    # Shared: OpenTelemetry, health checks, resilience
   MyWorkplace.Gateway/            # YARP
   MyWorkplace.BuildingBlocks/     # Shared technical infrastructure (ADR-011) — no domain types
-  MyWorkplace.Contracts/          # Cross-service contracts: token claims, policy names, events (no dependencies)
+  MyWorkplace.Abstractions/       # Generic contracts of the core: claim names, event base, permission convention (ADR-026)
+  MyWorkplace.Contracts/          # This product's contracts: permission catalog, events (on Abstractions only)
   Services/
     MyWorkplace.Identity/
     MyWorkplace.Customers/

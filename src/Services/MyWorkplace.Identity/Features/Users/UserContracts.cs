@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http.HttpResults;
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Identity.Domain;
 using MyWorkplace.Identity.Features.Register;
@@ -35,13 +36,13 @@ public sealed record AccessInput : IValidatableObject
     /// <returns>EN: One error per field with unknown names. TR: Bilinmeyen ad içeren her alan için bir hata.</returns>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        var unknownRoles = (Roles ?? []).Where(role => !Contracts.Identity.Roles.All.Contains(role)).ToArray();
+        var unknownRoles = (Roles ?? []).Where(role => !DefaultRoles.All.Contains(role)).ToArray();
         if (unknownRoles.Length > 0)
         {
             yield return new ValidationResult($"Unknown role(s): {string.Join(", ", unknownRoles)}.", [nameof(Roles)]);
         }
 
-        var unknownPermissions = (ExtraPermissions ?? []).Where(p => !Permissions.All.Contains(p)).ToArray();
+        var unknownPermissions = (ExtraPermissions ?? []).Where(p => !Permissions.Catalog.All.Contains(p)).ToArray();
         if (unknownPermissions.Length > 0)
         {
             yield return new ValidationResult(
@@ -76,7 +77,7 @@ public sealed record NewUserInput : IValidatableObject
     public string[]? ExtraPermissions { get; init; }
 
     /// <summary>EN: Roles to assign, with the default applied. TR: Varsayılanı uygulanmış, atanacak roller.</summary>
-    public string[] RolesOrDefault => Roles ?? [Contracts.Identity.Roles.Member];
+    public string[] RolesOrDefault => Roles ?? [DefaultRoles.Member];
 
     /// <summary>
     /// EN: Same catalog check as <see cref="AccessInput"/>.

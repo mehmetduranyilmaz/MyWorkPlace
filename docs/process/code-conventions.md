@@ -52,7 +52,8 @@ Adding a whole module step by step: [adding-a-module.md](adding-a-module.md). Th
   soft-deletable), `TenantOwnedEntity`, `AuditableEntity` or plain `Entity` otherwise. Don't repeat interface properties.
 - **Responses** define one `static readonly Expression<Func<TEntity, TResponse>> Projection`, used by lists
   (`ToPagedResultAsync`), single reads (`SingleWithVersionAsync`) and `From` (compiled once). Never write the mapping twice.
-- **`Program.cs`** calls `AddServiceModule<TContext>("x-db")`, `builder.Services.AddValidation()` (it must stay in the
+- **`Program.cs`** calls `AddServiceModule<TContext>("x-db", Permissions.Catalog)` (the product registers its catalog
+  explicitly, ADR-026), `builder.Services.AddValidation()` (it must stay in the
   service) and `await app.UseServiceModuleAsync<TContext>()`, then maps the module's endpoints.
 - **Design-time factory:** one line — `internal sealed class XDbContextDesignTimeFactory : ServiceDbContextDesignTimeFactory<XDbContext>;`
 - **Settings (ADR-018):** a rule companies legitimately differ on is a property with a default in the module's settings

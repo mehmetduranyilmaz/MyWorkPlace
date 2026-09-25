@@ -10,7 +10,7 @@ Conventions: [process/task-conventions.md](process/task-conventions.md)
 its entities, business rules, endpoints and tests — everything else comes from the core.
 
 **Proof:** a new module (Products, T-013) is added by following the module guide **without changing a single line
-of core code** (BuildingBlocks, ServiceDefaults, Gateway code, and the logic in Contracts). If the core has to change,
+of core code** (Abstractions, BuildingBlocks, ServiceDefaults, Gateway code). If the core has to change,
 it is not done.
 
 **Allowed registration points** (declarations, not core changes — ADR-025): the new project and its line in the
@@ -558,6 +558,33 @@ Goal: reach the milestone above. Tasks are refined with `/refine` before they st
 
 Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refined with `/refine` before starting.
 
+- **T-052** — Split Contracts and register the permission catalog (ADR-026 stage 1, part 1) — **Done**
+  - Goal: the generic contracts live in a project with no product knowledge; the product only declares.
+  - [x] New dependency-free `MyWorkplace.Abstractions`: token claim names, `IntegrationEvent`, the permission and role
+        convention (`Roles`, `Grants`, effective permissions) working on a registered catalog
+  - [x] `MyWorkplace.Contracts` keeps only the product part (permission catalog, `OrderPlaced`) and references Abstractions;
+        BuildingBlocks no longer references `MyWorkplace.Contracts`. ServiceDefaults keeps a reference only for the plan
+        policy and token values, which T-054 removes (agreed with the owner)
+  - [x] The product registers its catalog explicitly (`AddPermissionCatalog(typeof(Permissions))`) in the shared service
+        setup; an unregistered catalog fails at startup with a clear message
+  - [x] No behavior change: all existing tests pass with at most `using` changes; the guide (`adding-a-module.md`) is updated
+  - Notes: `PermissionCatalog.FromType` reads the product's catalog class; `DefaultRoles` holds the role names. Two hidden
+    couplings surfaced: the core's settings endpoint used the product's `Permissions.SettingsManage` (now
+    `CorePermissions.SettingsManage`, which a catalog must declare — checked at build of the catalog), and the Admin rule
+    named `plan.manage` (now an `[OwnerOnly]` attribute in the catalog). The catalog is a required parameter of
+    `AddServiceModule`, so a service without one doesn't even compile; registering a different catalog twice fails.
+    Services now reference Contracts explicitly — the arrow points from product to core. The core's tests use a made-up
+    catalog; the product's agreed matrix test moved to Identity.Tests. Abstractions counts as core in the milestone and
+    in the guide's core-diff check. 195 tests pass.
+- **T-054** — Plan names and token settings out of the core (ADR-026 stage 1, part 2)
+  - Goal: the core knows the concept of a plan and a token, not this product's names and addresses.
+  - [ ] Plan policies `plan:<name>` are built on demand (like permission policies); `basic` / `pro` move to the product;
+        the gateway route and the Pro services use `plan:pro`
+  - [ ] Issuer, audience and the Identity address are read from `Auth:*` configuration, set once in the AppHost;
+        a missing value fails at startup with a clear message
+  - [ ] Core check: no product term (`basic`, `pro`, `myworkplace-*`, `identity` address) left in BuildingBlocks,
+        ServiceDefaults or Abstractions
+  - [ ] No behavior change: all existing tests pass
 - **T-031** — Units and barcodes: a per-tenant unit catalog seeded with defaults (`PCS` 0 decimals, `KG` / `L` / `M`
   3 decimals, `BOX` / `PACK` 0) that tenants can extend; per item alternative units with a conversion factor to the
   base unit (e.g. 1 `BOX` = 24 `PCS`); barcodes per item unit, unique per tenant; `GET /inventory/barcodes/{code}`
@@ -572,6 +599,12 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 
 ## Backlog
 
+- **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
+  publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
+  (the core has settled, and a second real consumer is about to start)
+- **T-051** — Flaky CI: a Testcontainers container can fail to start with "address already in use" while the three
+  test projects start containers in parallel (CI #35, passed on re-run). Options: run test projects one after another,
+  or retry container start on a port conflict; measure the cost in CI time
 - **T-050** — Link stock items to products: `ProductCreated` / `ProductUpdated` from Products, consumed by Inventory
   (ADR-019). Refine first: must every stock item have a product (raw materials?), and which fields does Inventory need?
 - **T-046** — Test pyramid: fast unit tests for domain rules now covered only through the API (order totals and

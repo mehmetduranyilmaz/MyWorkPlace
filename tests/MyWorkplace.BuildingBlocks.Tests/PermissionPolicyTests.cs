@@ -9,13 +9,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Abstractions.Identity;
 
 namespace MyWorkplace.BuildingBlocks.Tests;
 
 /// <summary>
-/// EN: Permission policies (T-025, ADR-022): any catalog permission is a policy name; a typo never authorizes anyone.
-/// TR: İzin politikaları (T-025, ADR-022): katalogdaki her izin bir politika adıdır; bir yazım hatası kimseye asla yetki vermez.
+/// EN: Permission policies (T-025, ADR-022, ADR-026): any permission of the registered catalog is a policy name; a typo
+///     never authorizes anyone. Runs on a made-up catalog — the core knows no product.
+/// TR: İzin politikaları (T-025, ADR-022, ADR-026): kayıtlı katalogdaki her izin bir politika adıdır; bir yazım hatası kimseye asla yetki
+///     vermez. Uydurma bir katalogla çalışır — çekirdek hiçbir ürünü bilmez.
 /// </summary>
 public sealed class PermissionPolicyTests : IAsyncLifetime
 {
@@ -39,13 +41,14 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
         builder.Services.AddAuthentication(HeaderAuthenticationHandler.SchemeName)
             .AddScheme<AuthenticationSchemeOptions, HeaderAuthenticationHandler>(HeaderAuthenticationHandler.SchemeName, null);
         builder.Services.AddAuthorization();
+        builder.Services.AddPermissionCatalog(TestPermissions.Catalog);
         builder.Services.AddPermissionPolicies();
 
         _app = builder.Build();
         _app.UseAuthentication();
         _app.UseAuthorization();
-        _app.MapDelete("/customers", () => Results.NoContent()).RequireAuthorization(Permissions.Customers.Delete);
-        _app.MapGet("/typo", () => Results.Ok()).RequireAuthorization("customers.destroy");
+        _app.MapDelete("/widgets", () => Results.NoContent()).RequireAuthorization(TestPermissions.Widgets.Delete);
+        _app.MapGet("/typo", () => Results.Ok()).RequireAuthorization("widgets.destroy");
 
         await _app.StartAsync();
         _client = _app.GetTestClient();
@@ -61,7 +64,7 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
     [Fact]
     public async Task UserWithThePermission_IsAllowed()
     {
-        using var response = await SendAsync(HttpMethod.Delete, "/customers", "customers.read,customers.delete");
+        using var response = await SendAsync(HttpMethod.Delete, "/widgets", "widgets.read,widgets.delete");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
@@ -69,7 +72,7 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
     [Fact]
     public async Task UserWithoutThePermission_Gets403()
     {
-        using var response = await SendAsync(HttpMethod.Delete, "/customers", "customers.read,customers.write");
+        using var response = await SendAsync(HttpMethod.Delete, "/widgets", "widgets.read,widgets.write");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -77,7 +80,7 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
     [Fact]
     public async Task AnonymousCaller_Gets401()
     {
-        using var response = await SendAsync(HttpMethod.Delete, "/customers", permissions: null);
+        using var response = await SendAsync(HttpMethod.Delete, "/widgets", permissions: null);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -85,20 +88,30 @@ public sealed class PermissionPolicyTests : IAsyncLifetime
     [Fact]
     public async Task PolicyNameOutsideTheCatalog_FailsLoudly_InsteadOfAuthorizing()
     {
-        // EN: "customers.destroy" is a typo of "customers.delete": no policy exists, so ASP.NET Core throws.
-        // TR: "customers.destroy", "customers.delete"in yazım hatası: politika yok, bu yüzden ASP.NET Core hata fırlatır.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => SendAsync(HttpMethod.Get, "/typo", "customers.destroy"));
+        // EN: "widgets.destroy" is a typo of "widgets.delete": no policy exists, so ASP.NET Core throws.
+        // TR: "widgets.destroy", "widgets.delete"in yazım hatası: politika yok, bu yüzden ASP.NET Core hata fırlatır.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => SendAsync(HttpMethod.Get, "/typo", "widgets.destroy"));
     }
 
     [Fact]
-    public void OwnerHasEveryPermission_ViewerOnlyReads()
+    public async Task WithoutACatalog_NoPermissionPolicyExists()
     {
-        Assert.Equal(Permissions.All.Order(StringComparer.Ordinal), Roles.EffectivePermissions([Roles.Owner], []));
-        Assert.All(
-            Roles.EffectivePermissions([Roles.Viewer], []),
-            permission => Assert.EndsWith(".read", permission, StringComparison.Ordinal));
-        Assert.Contains(Permissions.Customers.Delete, Roles.EffectivePermissions([Roles.Member], [Permissions.Customers.Delete]));
-        Assert.DoesNotContain("made.up", Roles.EffectivePermissions(["NoSuchRole"], ["made.up"]));
+        // EN: A host that registers no catalog (like the gateway) resolves no permission policies at all.
+        // TR: Katalog kaydetmeyen bir host (gateway gibi) hiçbir izin politikasını çözmez.
+        var services = new ServiceCollection().AddLogging().AddAuthorization().AddPermissionPolicies();
+        await using var provider = services.BuildServiceProvider();
+        var policies = provider.GetRequiredService<Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider>();
+
+        Assert.Null(await policies.GetPolicyAsync(TestPermissions.Widgets.Delete));
+    }
+
+    [Fact]
+    public void RegisteringADifferentCatalog_Fails()
+    {
+        var services = new ServiceCollection().AddPermissionCatalog(TestPermissions.Catalog);
+
+        Assert.Throws<InvalidOperationException>(() => services.AddPermissionCatalog(
+            PermissionCatalog.FromType(typeof(TestPermissions))));
     }
 
     /// <summary>

@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MyWorkplace.BuildingBlocks.Identity;
 using MyWorkplace.BuildingBlocks.Persistence;
-using MyWorkplace.Contracts.Events;
+using MyWorkplace.Abstractions.Events;
 using Npgsql;
 
 namespace MyWorkplace.BuildingBlocks.Messaging;

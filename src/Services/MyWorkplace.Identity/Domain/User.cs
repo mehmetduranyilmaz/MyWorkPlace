@@ -1,6 +1,6 @@
 using MyWorkplace.BuildingBlocks.Domain;
 using MyWorkplace.Contracts.Identity;
-using RoleCatalog = MyWorkplace.Contracts.Identity.Roles;
+using MyWorkplace.Abstractions.Identity;
 
 namespace MyWorkplace.Identity.Domain;
 
@@ -53,7 +53,7 @@ public sealed class User : BusinessEntity
     /// TR: Bu kullanıcının neler yapabileceği: rollerin izinleri ile ek izinlerin birleşimi.
     /// </summary>
     public IReadOnlyList<string> EffectivePermissions =>
-        RoleCatalog.EffectivePermissions(Roles, ExtraPermissions);
+        Permissions.Catalog.EffectivePermissions(Roles, ExtraPermissions);
 
     /// <summary>
     /// EN: Replaces the user's roles; unknown role names are rejected so typos can't be stored.
@@ -63,7 +63,7 @@ public sealed class User : BusinessEntity
     public void AssignRoles(IEnumerable<string> roles)
     {
         var assigned = roles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        var unknown = assigned.Where(role => !RoleCatalog.All.Contains(role)).ToArray();
+        var unknown = assigned.Where(role => !DefaultRoles.All.Contains(role)).ToArray();
         if (unknown.Length > 0)
         {
             throw new ArgumentException($"Unknown role(s): {string.Join(", ", unknown)}.", nameof(roles));
@@ -80,7 +80,7 @@ public sealed class User : BusinessEntity
     public void GrantExtraPermissions(IEnumerable<string> permissions)
     {
         var granted = permissions.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        var unknown = granted.Where(permission => !Permissions.All.Contains(permission)).ToArray();
+        var unknown = granted.Where(permission => !Permissions.Catalog.All.Contains(permission)).ToArray();
         if (unknown.Length > 0)
         {
             throw new ArgumentException($"Unknown permission(s): {string.Join(", ", unknown)}.", nameof(permissions));
@@ -93,7 +93,7 @@ public sealed class User : BusinessEntity
     /// EN: Whether this user owns the company.
     /// TR: Bu kullanıcının firmanın sahibi olup olmadığı.
     /// </summary>
-    public bool IsOwner => Roles.Contains(RoleCatalog.Owner, StringComparer.Ordinal);
+    public bool IsOwner => Roles.Contains(DefaultRoles.Owner, StringComparer.Ordinal);
 
     /// <summary>
     /// EN: The anti-escalation rule (ADR-022), with this user as the one making the change: only an Owner may touch an
@@ -110,14 +110,14 @@ public sealed class User : BusinessEntity
     public bool MayAssignAccess(User? target, IEnumerable<string> roles, IEnumerable<string> extraPermissions)
     {
         var newRoles = roles.ToArray();
-        if (!IsOwner && (target?.IsOwner == true || newRoles.Contains(RoleCatalog.Owner, StringComparer.Ordinal)))
+        if (!IsOwner && (target?.IsOwner == true || newRoles.Contains(DefaultRoles.Owner, StringComparer.Ordinal)))
         {
             return false;
         }
 
         var before = target?.EffectivePermissions ?? [];
         var own = EffectivePermissions;
-        return RoleCatalog.EffectivePermissions(newRoles, extraPermissions)
+        return Permissions.Catalog.EffectivePermissions(newRoles, extraPermissions)
             .Except(before, StringComparer.Ordinal)
             .All(permission => own.Contains(permission, StringComparer.Ordinal));
     }

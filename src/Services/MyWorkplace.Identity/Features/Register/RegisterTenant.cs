@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Persistence;
-using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.Identity.Domain;
 using MyWorkplace.Identity.Persistence;
 
@@ -73,7 +73,7 @@ public static class RegisterTenant
         };
         user.PasswordHash = passwordHasher.HashPassword(user, request.Password!);
         // EN: The first user of a company owns it (ADR-022). TR: Firmanın ilk kullanıcısı onun sahibidir (ADR-022).
-        user.AssignRoles([Roles.Owner]);
+        user.AssignRoles([DefaultRoles.Owner]);
 
         db.Tenants.Add(tenant);
         db.Users.Add(user);

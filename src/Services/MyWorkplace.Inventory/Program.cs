@@ -13,7 +13,7 @@ using MyWorkplace.Inventory.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceModule<InventoryDbContext>("inventory-db");
+builder.AddServiceModule<InventoryDbContext>("inventory-db", Permissions.Catalog);
 // EN: Consumes OrderPlaced to decrease stock (T-016); the handler is found in this assembly (ADR-023).
 // TR: Stok düşmek için OrderPlaced'i dinler (T-016); handler bu derlemede bulunur (ADR-023).
 builder.AddServiceMessaging<InventoryDbContext>("inventory-db");

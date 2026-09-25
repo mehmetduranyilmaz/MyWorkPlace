@@ -18,6 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MyWorkplace.Abstractions\MyWorkplace.Abstractions.csproj" />
+    <!-- EN: Only for the plan policy and the token values; T-054 turns them into configuration and removes this.
+         TR: Sadece plan politikası ve token değerleri için; T-054 onları yapılandırmaya çevirir ve bunu kaldırır. -->
     <ProjectReference Include="..\MyWorkplace.Contracts\MyWorkplace.Contracts.csproj" />
   </ItemGroup>
 

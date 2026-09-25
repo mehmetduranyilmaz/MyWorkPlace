@@ -62,7 +62,7 @@ public static class Discovery
     /// <returns>EN: The discovery document. TR: Keşif dokümanı.</returns>
     private static Ok<OpenIdConfiguration> GetConfiguration(HttpRequest request) =>
         TypedResults.Ok(new OpenIdConfiguration(
-            TokenClaims.Issuer,
+            ProductTokens.Issuer,
             $"{request.Scheme}://{request.Host}{request.PathBase}/identity/.well-known/jwks.json",
             [SecurityAlgorithms.RsaSha256]));
 

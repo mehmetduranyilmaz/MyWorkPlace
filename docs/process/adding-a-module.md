@@ -26,7 +26,7 @@ ProblemDetails errors, API docs (Scalar), paging and search, tenant settings and
 | `tests/MyWorkplace.Products.Tests/` | New project — fast unit tests of the domain rules |
 | `docs/tasks.md`, README | Board and module table |
 
-**Never changed by a module:** BuildingBlocks, ServiceDefaults, Gateway code, `Roles.cs` or any existing line in
+**Never changed by a module:** Abstractions, BuildingBlocks, ServiceDefaults, Gateway code or any existing line in
 Contracts. If you think you need to, stop — that is a core gap, not a module task.
 
 ## Checklist
@@ -42,8 +42,9 @@ Contracts. If you think you need to, stop — that is a core gap, not a module t
 ### 2. Create the project
 
 - [ ] Copy [`MyWorkplace.Customers.csproj`](../../src/Services/MyWorkplace.Customers/MyWorkplace.Customers.csproj) as
-      `MyWorkplace.Products.csproj` (Web SDK, `Microsoft.EntityFrameworkCore.Design` as a private asset, one
-      reference to BuildingBlocks). No package versions — they come from `Directory.Packages.props`.
+      `MyWorkplace.Products.csproj` (Web SDK, `Microsoft.EntityFrameworkCore.Design` as a private asset, references
+      to BuildingBlocks — the core — and to Contracts — the product's permissions and events, ADR-026). No package
+      versions — they come from `Directory.Packages.props`.
 - [ ] Copy `appsettings.json`, `appsettings.Development.json` and
       [`Properties/launchSettings.json`](../../src/Services/MyWorkplace.Customers/Properties/launchSettings.json); give
       the profiles **ports no other service uses** (search the other `launchSettings.json` files).
@@ -105,7 +106,8 @@ Copy the five files in [`Features/`](../../src/Services/MyWorkplace.Customers/Fe
 
 ### 8. `Program.cs`
 
-Copy [`Program.cs`](../../src/Services/MyWorkplace.Customers/Program.cs): `AddServiceModule<ProductsDbContext>("products-db")`,
+Copy [`Program.cs`](../../src/Services/MyWorkplace.Customers/Program.cs): `AddServiceModule<ProductsDbContext>("products-db", Permissions.Catalog)`
+(the product's permission catalog, ADR-026),
 `builder.Services.AddValidation()` (it must stay in the service), `await app.UseServiceModuleAsync<ProductsDbContext>()`,
 then one `MapGroup("/products").WithTags("Products")` and the five `Map…` calls.
 
@@ -147,8 +149,8 @@ pass through the gateway:
       gateway's `appsettings.json`; the second must print nothing — no core line was removed or changed:
 
       ```bash
-      git diff --stat main -- src/MyWorkplace.BuildingBlocks src/MyWorkplace.ServiceDefaults src/MyWorkplace.Gateway src/MyWorkplace.Contracts
-      git diff main -- src/MyWorkplace.BuildingBlocks src/MyWorkplace.ServiceDefaults src/MyWorkplace.Gateway src/MyWorkplace.Contracts | grep -E "^-[^-]"
+      git diff --stat main -- src/MyWorkplace.Abstractions src/MyWorkplace.BuildingBlocks src/MyWorkplace.ServiceDefaults src/MyWorkplace.Gateway src/MyWorkplace.Contracts
+      git diff main -- src/MyWorkplace.Abstractions src/MyWorkplace.BuildingBlocks src/MyWorkplace.ServiceDefaults src/MyWorkplace.Gateway src/MyWorkplace.Contracts | grep -E "^-[^-]"
       ```
 - [ ] Board, README module table, and an ADR for any new decision.
 

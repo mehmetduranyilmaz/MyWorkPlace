@@ -1,3 +1,5 @@
+using MyWorkplace.Abstractions.Events;
+
 namespace MyWorkplace.Contracts.Events;
 
 /// <summary>

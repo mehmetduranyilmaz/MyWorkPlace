@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.BuildingBlocks.Http;
 using MyWorkplace.BuildingBlocks.Identity;
 using MyWorkplace.BuildingBlocks.Persistence;
@@ -88,7 +89,7 @@ public static class UpdateUserAccess
                 }
 
                 if (user.IsOwner
-                    && !roles.Contains(Roles.Owner, StringComparer.Ordinal)
+                    && !roles.Contains(DefaultRoles.Owner, StringComparer.Ordinal)
                     && !await UserAdministration.HasAnotherOwnerAsync(db, user.Id, ct))
                 {
                     return UserProblems.LastOwner();

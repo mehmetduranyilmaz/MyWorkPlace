@@ -4,12 +4,13 @@
 //     docs/process/adding-a-module.md izlenerek yazıldı: çekirdeğin tak-çalıştır olduğunun kanıtı (T-013).
 
 using MyWorkplace.BuildingBlocks.Hosting;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Products.Features;
 using MyWorkplace.Products.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceModule<ProductsDbContext>("products-db");
+builder.AddServiceModule<ProductsDbContext>("products-db", Permissions.Catalog);
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();

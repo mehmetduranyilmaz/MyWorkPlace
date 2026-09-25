@@ -19,7 +19,7 @@ using MyWorkplace.Identity.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceModule<IdentityDbContext>("identity-db");
+builder.AddServiceModule<IdentityDbContext>("identity-db", Permissions.Catalog);
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();
@@ -31,7 +31,7 @@ builder.Services.AddValidation();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<SigningKeyProvider>((options, keys) =>
     {
-        options.Configuration = new OpenIdConnectConfiguration { Issuer = TokenClaims.Issuer };
+        options.Configuration = new OpenIdConnectConfiguration { Issuer = ProductTokens.Issuer };
         options.TokenValidationParameters.IssuerSigningKeyResolver = (_, _, _, _) => keys.All;
     });
 

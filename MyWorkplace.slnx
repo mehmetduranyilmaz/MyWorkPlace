@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/MyWorkplace.Abstractions/MyWorkplace.Abstractions.csproj" />
     <Project Path="src/MyWorkplace.AppHost/MyWorkplace.AppHost.csproj" />
     <Project Path="src/MyWorkplace.BuildingBlocks/MyWorkplace.BuildingBlocks.csproj" />
     <Project Path="src/MyWorkplace.Contracts/MyWorkplace.Contracts.csproj" />

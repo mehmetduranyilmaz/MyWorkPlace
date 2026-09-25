@@ -5,12 +5,13 @@
 
 using MyWorkplace.BuildingBlocks.Hosting;
 using MyWorkplace.BuildingBlocks.Messaging;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Orders.Features;
 using MyWorkplace.Orders.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceModule<OrdersDbContext>("orders-db");
+builder.AddServiceModule<OrdersDbContext>("orders-db", Permissions.Catalog);
 builder.AddServiceMessaging<OrdersDbContext>("orders-db");
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).

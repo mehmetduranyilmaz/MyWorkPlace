@@ -4,12 +4,13 @@
 //     customers-db veritabanının sahibidir. Standart kurulum (kimlik, veritabanı, hatalar, dokümanlar, middleware sırası) BuildingBlocks'tan gelir.
 
 using MyWorkplace.BuildingBlocks.Hosting;
+using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Features;
 using MyWorkplace.Customers.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceModule<CustomersDbContext>("customers-db");
+builder.AddServiceModule<CustomersDbContext>("customers-db", Permissions.Catalog);
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();

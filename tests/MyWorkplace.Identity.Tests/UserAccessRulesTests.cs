@@ -1,3 +1,4 @@
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Identity.Domain;
 
@@ -12,37 +13,37 @@ public sealed class UserAccessRulesTests
     [Fact]
     public void Owner_MayGrantAnything()
     {
-        var owner = UserWith(Roles.Owner);
+        var owner = UserWith(DefaultRoles.Owner);
 
-        Assert.True(owner.MayAssignAccess(UserWith(Roles.Member), [Roles.Owner], [Permissions.PlanManage]));
+        Assert.True(owner.MayAssignAccess(UserWith(DefaultRoles.Member), [DefaultRoles.Owner], [Permissions.PlanManage]));
     }
 
     [Fact]
     public void Admin_MayNotGrantOwnerRole_NorChangeAnOwner()
     {
-        var admin = UserWith(Roles.Admin);
+        var admin = UserWith(DefaultRoles.Admin);
 
-        Assert.False(admin.MayAssignAccess(UserWith(Roles.Member), [Roles.Owner], []));
-        Assert.False(admin.MayAssignAccess(UserWith(Roles.Owner), [Roles.Viewer], []));
-        Assert.False(admin.MayRemove(UserWith(Roles.Owner)));
+        Assert.False(admin.MayAssignAccess(UserWith(DefaultRoles.Member), [DefaultRoles.Owner], []));
+        Assert.False(admin.MayAssignAccess(UserWith(DefaultRoles.Owner), [DefaultRoles.Viewer], []));
+        Assert.False(admin.MayRemove(UserWith(DefaultRoles.Owner)));
     }
 
     [Fact]
     public void Admin_MayNotGrantAPermissionTheyLack()
     {
-        var admin = UserWith(Roles.Admin);
+        var admin = UserWith(DefaultRoles.Admin);
 
-        Assert.False(admin.MayAssignAccess(UserWith(Roles.Member), [Roles.Member], [Permissions.PlanManage]));
+        Assert.False(admin.MayAssignAccess(UserWith(DefaultRoles.Member), [DefaultRoles.Member], [Permissions.PlanManage]));
     }
 
     [Fact]
     public void Admin_MayGrantWhatTheyHave_AndTakeAway()
     {
-        var admin = UserWith(Roles.Admin);
+        var admin = UserWith(DefaultRoles.Admin);
 
-        Assert.True(admin.MayAssignAccess(UserWith(Roles.Member), [Roles.Admin], []));
-        Assert.True(admin.MayAssignAccess(UserWith(Roles.Admin), [Roles.Viewer], []));
-        Assert.True(admin.MayRemove(UserWith(Roles.Member)));
+        Assert.True(admin.MayAssignAccess(UserWith(DefaultRoles.Member), [DefaultRoles.Admin], []));
+        Assert.True(admin.MayAssignAccess(UserWith(DefaultRoles.Admin), [DefaultRoles.Viewer], []));
+        Assert.True(admin.MayRemove(UserWith(DefaultRoles.Member)));
     }
 
     [Fact]
@@ -50,17 +51,17 @@ public sealed class UserAccessRulesTests
     {
         // EN: An Owner once granted plan.manage; an Admin editing other parts must not be blocked by it.
         // TR: Bir Sahip bir zamanlar plan.manage vermiş; başka kısımları düzenleyen Admin bundan dolayı engellenmemeli.
-        var admin = UserWith(Roles.Admin);
-        var target = UserWith(Roles.Viewer);
+        var admin = UserWith(DefaultRoles.Admin);
+        var target = UserWith(DefaultRoles.Viewer);
         target.GrantExtraPermissions([Permissions.PlanManage]);
 
-        Assert.True(admin.MayAssignAccess(target, [Roles.Member], [Permissions.PlanManage]));
+        Assert.True(admin.MayAssignAccess(target, [DefaultRoles.Member], [Permissions.PlanManage]));
     }
 
     [Fact]
     public void GrantExtraPermissions_UnknownName_Throws()
     {
-        var user = UserWith(Roles.Member);
+        var user = UserWith(DefaultRoles.Member);
 
         Assert.Throws<ArgumentException>(() => user.GrantExtraPermissions(["customers.fly"]));
     }

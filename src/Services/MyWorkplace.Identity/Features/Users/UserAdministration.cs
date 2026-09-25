@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Identity;
-using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.Identity.Domain;
 using MyWorkplace.Identity.Persistence;
 
@@ -74,5 +74,5 @@ internal static class UserAdministration
     /// <param name="cancellationToken">EN: Cancellation token. TR: İptal belirteci.</param>
     /// <returns>EN: True if another Owner remains. TR: Başka bir Sahip kalıyorsa true.</returns>
     public static Task<bool> HasAnotherOwnerAsync(IdentityDbContext db, Guid userId, CancellationToken cancellationToken) =>
-        db.Users.AnyAsync(u => u.Id != userId && u.Roles.Contains(Roles.Owner), cancellationToken);
+        db.Users.AnyAsync(u => u.Id != userId && u.Roles.Contains(DefaultRoles.Owner), cancellationToken);
 }

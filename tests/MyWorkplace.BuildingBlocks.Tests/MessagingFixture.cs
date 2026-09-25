@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.BuildingBlocks.Persistence;
-using MyWorkplace.Contracts.Events;
+using MyWorkplace.Abstractions.Events;
 using Testcontainers.PostgreSql;
 using Testcontainers.RabbitMq;
 

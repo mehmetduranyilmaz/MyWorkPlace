@@ -1,4 +1,4 @@
-using MyWorkplace.Contracts.Events;
+using MyWorkplace.Abstractions.Events;
 
 namespace MyWorkplace.BuildingBlocks.Messaging;
 

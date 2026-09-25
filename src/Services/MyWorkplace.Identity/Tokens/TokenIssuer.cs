@@ -1,5 +1,6 @@
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Identity.Domain;
 
@@ -36,8 +37,8 @@ public sealed class TokenIssuer(SigningKeyProvider keys, TimeProvider timeProvid
         var now = timeProvider.GetUtcNow().UtcDateTime;
         var descriptor = new SecurityTokenDescriptor
         {
-            Issuer = TokenClaims.Issuer,
-            Audience = TokenClaims.Audience,
+            Issuer = ProductTokens.Issuer,
+            Audience = ProductTokens.Audience,
             IssuedAt = now,
             NotBefore = now,
             Expires = now.Add(Lifetime),
@@ -45,7 +46,7 @@ public sealed class TokenIssuer(SigningKeyProvider keys, TimeProvider timeProvid
             {
                 [TokenClaims.Subject] = user.Id.ToString(),
                 [TokenClaims.TenantId] = user.TenantId.ToString(),
-                [TokenClaims.Plan] = plan == Plan.Pro ? TokenClaims.ProPlan : TokenClaims.BasicPlan,
+                [TokenClaims.Plan] = plan == Plan.Pro ? ProductTokens.ProPlan : ProductTokens.BasicPlan,
                 // EN: One "perm" claim per effective permission; services check them locally (ADR-022).
                 // TR: Her etkin izin için bir "perm" claim'i; servisler bunları yerelde kontrol eder (ADR-022).
                 [TokenClaims.Permission] = user.EffectivePermissions.ToArray(),

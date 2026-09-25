@@ -1,0 +1,11 @@
+<!--
+  EN: The generic contracts of the core (ADR-026): names and rules any product built on the core shares — token claim
+      names, the event base type, the permission and role convention. No product knowledge and no dependencies, so
+      product contracts and the core can both reference it without pulling in infrastructure.
+  TR: Çekirdeğin genel sözleşmeleri (ADR-026): çekirdek üzerine kurulan her ürünün paylaştığı adlar ve kurallar — token claim adları,
+      olay taban tipi, izin ve rol kuralı. Ürün bilgisi ve bağımlılık yok; böylece ürün sözleşmeleri ve çekirdek, altyapı yüklemeden
+      ona referans verebilir.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+</Project>

@@ -1,9 +1,13 @@
 <!--
-  EN: Cross-service contracts: names and shapes services agree on. No dependencies on purpose, so anything
-      (even the gateway) can reference it without pulling in infrastructure.
-  TR: Servisler arası sözleşmeler: servislerin üzerinde anlaştığı adlar ve şekiller. Bilerek bağımlılıksız;
-      böylece her şey (gateway bile) altyapı yüklenmeden buna başvurabilir.
+  EN: This product's contracts: its permission catalog and its events (ADR-026). Built on the generic contracts in
+      MyWorkplace.Abstractions; no other dependency, so anything can reference it without pulling in infrastructure.
+  TR: Bu ürünün sözleşmeleri: izin kataloğu ve olayları (ADR-026). MyWorkplace.Abstractions'taki genel sözleşmeler üzerine kuruludur;
+      başka bağımlılığı yok, böylece her şey altyapı yüklemeden ona referans verebilir.
 -->
 <Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\MyWorkplace.Abstractions\MyWorkplace.Abstractions.csproj" />
+  </ItemGroup>
 
 </Project>

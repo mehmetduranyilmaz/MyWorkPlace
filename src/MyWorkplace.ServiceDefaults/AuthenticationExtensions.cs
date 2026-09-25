@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.Contracts.Identity;
 
 // EN: Same namespace as the other service defaults, so AddTokenAuthentication() is found without an extra using.
@@ -48,8 +49,8 @@ public static class AuthenticationExtensions
                 // EN: Keep claim names exactly as issued ("sub", "tenant_id", "plan").
                 // TR: Claim adlarını üretildiği gibi tut ("sub", "tenant_id", "plan").
                 options.MapInboundClaims = false;
-                options.TokenValidationParameters.ValidIssuer = TokenClaims.Issuer;
-                options.TokenValidationParameters.ValidAudience = TokenClaims.Audience;
+                options.TokenValidationParameters.ValidIssuer = ProductTokens.Issuer;
+                options.TokenValidationParameters.ValidAudience = ProductTokens.Audience;
                 options.TokenValidationParameters.NameClaimType = TokenClaims.Subject;
             });
 
@@ -59,7 +60,7 @@ public static class AuthenticationExtensions
             .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
             .AddPolicy(PolicyNames.ProPlan, policy => policy
                 .RequireAuthenticatedUser()
-                .RequireClaim(TokenClaims.Plan, TokenClaims.ProPlan));
+                .RequireClaim(TokenClaims.Plan, ProductTokens.ProPlan));
 
         // EN: Every catalog permission becomes a usable policy name (ADR-022).
         // TR: Katalogdaki her izin kullanılabilir bir politika adı olur (ADR-022).
