@@ -217,6 +217,111 @@ public sealed class PersistenceConventionsTests(PostgreSqlFixture db)
         await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync(Ct));
     }
 
+    [Theory]
+    [InlineData(PartChange.Add)]
+    [InlineData(PartChange.Edit)]
+    [InlineData(PartChange.Remove)]
+    public async Task Update_OnlyOwnedParts_WithStaleVersion_ThrowsConcurrencyException(PartChange change)
+    {
+        // EN: The second writer touches only the parts; the owner's version must still be checked (T-056, ADR-017).
+        // TR: İkinci yazan sadece parçalara dokunur; sahibin sürümü yine de kontrol edilmelidir (T-056, ADR-017).
+        var owner = TestUser.OfNewTenant();
+        var noteId = await AddNoteWithPartsAsync(owner);
+
+        await using var first = db.CreateContext(owner);
+        await using var second = db.CreateContext(owner);
+        var firstCopy = await first.Notes.FindForUpdateAsync(noteId, Ct);
+        var secondCopy = await second.Notes.FindForUpdateAsync(noteId, Ct);
+
+        firstCopy!.Body = "first wins";
+        await first.SaveChangesAsync(Ct);
+
+        Change(secondCopy!, change);
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => second.SaveChangesAsync(Ct));
+    }
+
+    [Theory]
+    [InlineData(PartChange.Add)]
+    [InlineData(PartChange.Edit)]
+    [InlineData(PartChange.Remove)]
+    public async Task Update_OnlyOwnedParts_ChangesTheVersion_AndStampsTheUpdate(PartChange change)
+    {
+        var owner = TestUser.OfNewTenant();
+        var time = new FakeTimeProvider(new DateTimeOffset(2026, 1, 1, 9, 0, 0, TimeSpan.Zero));
+        var noteId = await AddNoteWithPartsAsync(owner, time);
+
+        time.Advance(TimeSpan.FromMinutes(5));
+        var editor = owner with { UserId = Guid.CreateVersion7() };
+        await using (var context = db.CreateContext(editor, time))
+        {
+            var note = await context.Notes.FindForUpdateAsync(noteId, Ct);
+            var before = context.GetVersion(note!);
+
+            Change(note!, change);
+            await context.SaveChangesAsync(Ct);
+
+            Assert.NotEqual(before, context.GetVersion(note!));
+        }
+
+        await using var check = db.CreateContext(owner);
+        var saved = await check.Notes.SingleAsync(n => n.Id == noteId, Ct);
+        Assert.Equal((time.GetUtcNow(), editor.UserId), (saved.UpdatedAt, saved.UpdatedBy));
+    }
+
+    /// <summary>
+    /// EN: The kinds of change to owned parts.
+    /// TR: Sahip olunan parçalardaki değişiklik türleri.
+    /// </summary>
+    public enum PartChange
+    {
+        /// <summary>EN: A part is added. TR: Bir parça eklenir.</summary>
+        Add,
+
+        /// <summary>EN: A part is edited. TR: Bir parça düzenlenir.</summary>
+        Edit,
+
+        /// <summary>EN: A part is removed. TR: Bir parça çıkarılır.</summary>
+        Remove,
+    }
+
+    /// <summary>
+    /// EN: Applies one kind of change to a note's parts only.
+    /// TR: Bir notun sadece parçalarına bir tür değişiklik uygular.
+    /// </summary>
+    /// <param name="note">EN: Tracked note. TR: Takip edilen not.</param>
+    /// <param name="change">EN: The change. TR: Değişiklik.</param>
+    private static void Change(TestNote note, PartChange change)
+    {
+        switch (change)
+        {
+            case PartChange.Add:
+                note.Items.Add(new TestNoteItem { Text = "c" });
+                break;
+            case PartChange.Edit:
+                note.Items[0].Text = "a, edited";
+                break;
+            case PartChange.Remove:
+                note.Items.RemoveAt(0);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// EN: Inserts a note with two parts as <paramref name="user"/> and returns its id.
+    /// TR: <paramref name="user"/> adına iki parçalı bir not ekler ve kimliğini döner.
+    /// </summary>
+    /// <param name="user">EN: Acting user. TR: İşlemi yapan kullanıcı.</param>
+    /// <param name="time">EN: Clock. TR: Saat.</param>
+    /// <returns>EN: The new note's id. TR: Yeni notun kimliği.</returns>
+    private async Task<Guid> AddNoteWithPartsAsync(TestUser user, TimeProvider? time = null)
+    {
+        await using var context = db.CreateContext(user, time);
+        var note = new TestNote { Title = "with parts", Items = [new() { Text = "a" }, new() { Text = "b" }] };
+        context.Notes.Add(note);
+        await context.SaveChangesAsync(Ct);
+        return note.Id;
+    }
+
     // ---------------------------------------------------------------- No-tracking reads
 
     [Fact]

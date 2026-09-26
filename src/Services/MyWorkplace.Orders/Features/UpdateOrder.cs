@@ -72,12 +72,6 @@ public static class UpdateOrder
         db.ExpectVersion(order, expectedVersion);
         order.Update(input.CustomerId, input.CustomerName, input.LineValues());
 
-        // EN: Changing only lines doesn't touch the order row, so its version wouldn't move and a stale ETag could still
-        //     match. Marking one column modified makes every update write the row, i.e. a new version.
-        // TR: Sadece satırları değiştirmek sipariş satırına dokunmaz; sürümü ilerlemez ve eskimiş bir ETag hâlâ eşleşebilirdi.
-        //     Bir sütunu değişmiş işaretlemek her güncellemenin satırı yazmasını, yani yeni bir sürüm olmasını sağlar.
-        db.Entry(order).Property(o => o.Total).IsModified = true;
-
         try
         {
             await db.SaveChangesAsync(cancellationToken);

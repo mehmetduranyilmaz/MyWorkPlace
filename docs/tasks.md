@@ -635,11 +635,26 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
   publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
   (the core has settled, and a second real consumer is about to start)
-- **T-056** — Version check for owned-only changes, in the core: when a PUT changes only an owned collection (an order's
-  lines with the same total, an item's alternative units), EF writes just the owned rows and skips the owner's
-  `UPDATE … WHERE xmin = @version`, so a stale ETag is not detected and `UpdatedAt` stays old. Found in T-031 and fixed
-  there for items only; fix it once in BuildingBlocks (e.g. the auditing interceptor marks the owner modified when an
-  owned entry changes) with a test, then drop the per-endpoint line. Orders is affected today
+- **T-056** — Version check for owned-only changes, in the core (ADR-017) — **Done**
+  - Goal: changing only an owned collection (an order's lines with the same total, an item's alternative units) is a
+    change to its owner, so a stale ETag is always refused — by the core, not by a line each endpoint must remember.
+    Found in T-031.
+  - [x] Orders: updating a draft's lines with the total unchanged, using a stale ETag → `412` — written first and seen
+        failing without the fix
+  - [x] The auditing interceptor marks an unchanged owner as modified when one of its owned entries is added, modified
+        or deleted: the save runs `UPDATE … WHERE xmin = @version`, the version changes, `UpdatedAt` / `UpdatedBy` are set
+  - [x] Core test (BuildingBlocks, real PostgreSQL, a made-up owner with an owned collection): an owned-only change with
+        a stale version fails with a concurrency error; with the current version it saves and stamps `UpdatedAt`
+  - [x] The per-endpoint line from T-031 in `UpdateStockItem` is removed; its test still passes
+  - [x] ADR-017 records the rule; no behavior change otherwise — all existing tests pass
+  - Notes: correction to T-031 — Orders was *not* exposed: `UpdateOrder` already carried the same hand-written line
+    (marking `Total` modified, since T-014). So two endpoints each patched the gap by hand, which is the case for fixing
+    it once in the core; both lines are removed. Red/green proven: with both lines removed and the interceptor step
+    disabled, the six core tests and the Orders and Inventory tests fail; with the step they pass. Limits: only
+    `IAuditable` owners (every entity with owned parts today) and one level of ownership. The core changed, so ADR-026's
+    "core has settled" count restarts. On the first full run right after Docker started, `StockFromOrdersTests` hit its
+    30-second wait once (cold containers); it passed alone and in a second full run — a timing flake like T-051.
+    258 tests pass.
 - **T-051** — Flaky CI: a Testcontainers container can fail to start with "address already in use" while the three
   test projects start containers in parallel (CI #35, passed on re-run). Options: run test projects one after another,
   or retry container start on a port conflict; measure the cost in CI time

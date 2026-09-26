@@ -97,6 +97,24 @@ public sealed class OrderTests(AppFixture app)
     }
 
     [Fact]
+    public async Task UpdateDraft_LinesChangeButTotalStays_StillChangesTheETag()
+    {
+        // EN: Swapping the prices keeps the total (5) and the customer, so only the lines change. The order's version must
+        //     change anyway, or a second writer with the old ETag would silently overwrite the first (T-056, ADR-017).
+        // TR: Fiyatları yer değiştirmek toplamı (5) ve müşteriyi korur; sadece satırlar değişir. Siparişin sürümü yine de değişmeli,
+        //     yoksa eski ETag'li ikinci bir yazan ilkinin üzerine sessizce yazardı (T-056, ADR-017).
+        using var client = await CreateSignedInClientAsync(app, Ct);
+        var (id, etag) = await CreateDraftAsync(client, Ct, Lines(2m, 3m));
+
+        using var updated = await client.PutWithIfMatchAsync($"/orders/{id}", Lines(3m, 2m), etag, Ct);
+        using var stale = await client.PutWithIfMatchAsync($"/orders/{id}", Lines(2m, 3m), etag, Ct);
+
+        Assert.Equal(HttpStatusCode.OK, updated.StatusCode);
+        Assert.NotEqual(etag, updated.Headers.ETag?.ToString());
+        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+    }
+
+    [Fact]
     public async Task DeleteDraft_Returns204_AndItIsGone()
     {
         using var client = await CreateSignedInClientAsync(app, Ct);
@@ -253,4 +271,20 @@ public sealed class OrderTests(AppFixture app)
             .Where(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
             .Select(p => (JsonElement?)p.Value)
             .FirstOrDefault();
+
+    /// <summary>
+    /// EN: An order body with two lines of quantity 1 and the given prices.
+    /// TR: Miktarı 1 olan ve verilen fiyatlarla iki satırlı bir sipariş gövdesi.
+    /// </summary>
+    /// <param name="firstPrice">EN: First line's price. TR: İlk satırın fiyatı.</param>
+    /// <param name="secondPrice">EN: Second line's price. TR: İkinci satırın fiyatı.</param>
+    /// <returns>EN: The body. TR: Gövde.</returns>
+    private static object Lines(decimal firstPrice, decimal secondPrice) => new
+    {
+        lines = new[]
+        {
+            new { sku = "A", name = "A", quantity = 1m, unitPrice = firstPrice },
+            new { sku = "B", name = "B", quantity = 1m, unitPrice = secondPrice },
+        },
+    };
 }

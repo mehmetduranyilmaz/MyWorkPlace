@@ -89,12 +89,6 @@ public static class UpdateStockItem
         db.ExpectVersion(item, expectedVersion);
         item.Update(input.Sku!, input.Name!, input.BaseUnit!, input.UnitValues());
 
-        // EN: When only the alternative units change, EF would write just their rows and skip the item's row — and with it
-        //     the version check. Marking a column modified keeps "UPDATE ... WHERE xmin = @version" in every save (T-056).
-        // TR: Sadece alternatif birimler değişirse EF yalnızca onların satırlarını yazar, kalemin satırını — ve onunla birlikte sürüm
-        //     kontrolünü — atlardı. Bir sütunu değişmiş işaretlemek her kaydetmede "UPDATE ... WHERE xmin = @version"ı korur (T-056).
-        db.Entry(item).Property(i => i.UpdatedAt).IsModified = true;
-
         if (await db.StockItems.AnyAsync(i => i.NormalizedSku == item.NormalizedSku && i.Id != item.Id, cancellationToken))
         {
             return StockItemProblems.SkuTaken();

@@ -267,6 +267,10 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   `ConcurrencyExtensions` (`GetVersion`, `ExpectVersion`). `ExpectVersion` makes the save conditional on the version
   the client edited (`UPDATE ... WHERE xmin = @version`), closing the gap between the check and the save.
   Untracked reads project the version with `EF.Property<uint>(e, "Version")`.
+- **Owned parts count as a change to their owner (T-056):** EF writes only the changed rows, so a save that changes
+  just an owned collection (an order's lines, an item's alternative units) would skip the owner's row — and with it the
+  version check and `UpdatedAt`. The auditing interceptor therefore marks the owner modified whenever one of its owned
+  parts is added, modified or deleted: every such save is conditional on the version, and produces a new one.
 
 ### ADR-018 — Tenant settings: business rules that vary per company
 

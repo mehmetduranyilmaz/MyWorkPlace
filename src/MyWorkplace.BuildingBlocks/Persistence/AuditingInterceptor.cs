@@ -47,8 +47,10 @@ public sealed class AuditingInterceptor(ICurrentUser currentUser, TimeProvider t
 
         context.ChangeTracker.DetectChanges();
         var now = timeProvider.GetUtcNow();
+        var entries = context.ChangeTracker.Entries().ToList();
+        TouchOwnersOfChangedParts(entries);
 
-        foreach (var entry in context.ChangeTracker.Entries().ToList())
+        foreach (var entry in entries)
         {
             switch (entry.State)
             {
@@ -61,6 +63,45 @@ public sealed class AuditingInterceptor(ICurrentUser currentUser, TimeProvider t
                 case EntityState.Deleted:
                     OnDeleted(entry, now);
                     break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// EN: A change to an owned part (an order's line, an item's alternative unit) is a change to its owner (ADR-017,
+    ///     T-056). EF writes only changed rows, so without this a save that touches just the parts would skip the owner's
+    ///     <c>UPDATE … WHERE xmin = @version</c>: a stale ETag would go unnoticed and <c>UpdatedAt</c> would stay old.
+    ///     Marking the unchanged owner modified (through <c>UpdatedAt</c>, which <see cref="OnModified"/> then stamps)
+    ///     brings the version check back. Owners that are not <see cref="IAuditable"/> are left alone.
+    /// TR: Sahip olunan bir parçadaki (bir siparişin satırı, bir kalemin alternatif birimi) değişiklik sahibinin değişikliğidir (ADR-017,
+    ///     T-056). EF sadece değişen satırları yazar; bu olmadan sadece parçalara dokunan bir kaydetme sahibin
+    ///     <c>UPDATE … WHERE xmin = @version</c>'ını atlardı: eski bir ETag fark edilmez, <c>UpdatedAt</c> eski kalırdı.
+    ///     Değişmemiş sahibi (<see cref="OnModified"/>'ın sonra işlediği <c>UpdatedAt</c> üzerinden) değişmiş işaretlemek sürüm
+    ///     kontrolünü geri getirir. <see cref="IAuditable"/> olmayan sahiplere dokunulmaz.
+    /// </summary>
+    /// <param name="entries">EN: All tracked entries. TR: Takip edilen tüm kayıtlar.</param>
+    private static void TouchOwnersOfChangedParts(List<EntityEntry> entries)
+    {
+        var changedParts = entries.Where(e =>
+            e.Metadata.IsOwned() && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
+
+        foreach (var part in changedParts)
+        {
+            var ownership = part.Metadata.FindOwnership()!;
+
+            // EN: A deleted part's link to its owner is read as it was before the change.
+            // TR: Silinmiş bir parçanın sahibine bağlantısı, değişiklikten önceki haliyle okunur.
+            var ownerKey = ownership.Properties
+                .Select(p => part.State == EntityState.Deleted ? part.Property(p.Name).OriginalValue : part.Property(p.Name).CurrentValue)
+                .ToList();
+
+            var owner = entries.FirstOrDefault(e =>
+                e.Metadata == ownership.PrincipalEntityType
+                && ownership.PrincipalKey.Properties.Select(p => e.Property(p.Name).CurrentValue).SequenceEqual(ownerKey));
+
+            if (owner is { State: EntityState.Unchanged, Entity: IAuditable })
+            {
+                owner.Property(nameof(IAuditable.UpdatedAt)).IsModified = true;
             }
         }
     }
