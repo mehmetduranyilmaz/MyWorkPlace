@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using Npgsql;
 
 namespace MyWorkplace.IntegrationTests;
 
@@ -181,16 +180,8 @@ public sealed class StockItemTests(AppFixture app)
         using var client = await IdentityApi.CreateProClientAsync(app, Ct);
         var (id, _) = await CreateAsync(client, "STOCKED-1", "Has stock");
 
-        // EN: Movements arrive in T-030; until then the balance is set directly in the database for this test.
-        // TR: Hareketler T-030'da gelecek; o zamana kadar bu test için bakiye doğrudan veritabanında verilir.
-        var connectionString = await app.App.GetConnectionStringAsync("inventory-db", Ct);
-        await using (var connection = new NpgsqlConnection(connectionString))
-        {
-            await connection.OpenAsync(Ct);
-            await using var command = new NpgsqlCommand("update stock_items set quantity = 5 where id = @id", connection);
-            command.Parameters.AddWithValue("id", id);
-            Assert.Equal(1, await command.ExecuteNonQueryAsync(Ct));
-        }
+        using var received = await client.PostAsJsonAsync($"{Items}/{id}/movements", new { type = "In", quantity = 5m }, Ct);
+        Assert.Equal(HttpStatusCode.Created, received.StatusCode);
 
         using var delete = await client.DeleteAsync($"{Items}/{id}", Ct);
 

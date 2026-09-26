@@ -622,11 +622,32 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 - **T-055** — Barcodes (ADR-019): barcodes per item unit (base or alternative), unique per company; managed with the
   item; `GET /inventory/barcodes/{code}` returns item, unit and factor (`404` if unknown or another company's).
   Refine first: format rules (free text or EAN checksum) and what happens to barcodes when a unit is removed from an item
-- **T-030** — Stock movements: `POST /inventory/items/{id}/movements` (`In` / `Out`, quantity > 0, optional unit
-  converted to the base unit, note); movements are append-only history; the balance changes only through them;
-  negative stock follows `NegativeStockPolicy` (`Block` → `409`, `Allow`, `Warn` → success with a warning);
-  concurrent `Out`s under `Block` can never go below zero; paged movement history, newest first.
-  Builds on the minimal movement model of T-016
+- **T-030** — Manual stock movements and movement history (ADR-020) — **Done**
+  - Goal: a company records goods coming in and going out by hand, in any of the item's units, and can always see why
+    the stock is what it is.
+  - [x] `POST /inventory/items/{id}/movements` with `type` (`In` / `Out`), `quantity` > 0, optional `unit` (default: the
+        base unit) and optional `note` (≤ 500): the quantity must fit the unit's precision and, converted with the item's
+        factor, the base unit's precision; a unit the item doesn't have → `400`
+  - [x] A movement records type, entered quantity, unit, factor, base-unit quantity, balance after, reason `Manual`,
+        note, user and time; movements are never edited or deleted — a mistake is fixed with an opposite movement
+  - [x] `201` with the movement, the balance after it and a `warnings` list
+  - [x] Negative stock follows `NegativeStockPolicy`: `Block` → `409` and nothing is recorded; `Allow` → applied;
+        `Warn` → applied and `warnings` contains `NegativeStock`. Under `Allow` / `Warn` a movement taking the balance
+        below zero is flagged as negative stock, like an order's
+  - [x] Under `Block`, parallel `Out`s can never take the balance below zero: one conditional update
+        (`… WHERE quantity >= @q`) — proven by a concurrency test (e.g. 5 × 1 out of 3 → exactly 3 succeed, balance 0)
+  - [x] `GET /inventory/items/{id}/movements`: paged, newest first, manual and order movements together, each with
+        type, entered quantity and unit, base-unit quantity, balance after, reason, note, order number, user and time
+  - [x] Recording needs `inventory.write`, reading `inventory.read`; another company's or a deleted item → `404`;
+        a Basic company → `403`
+  - Notes: decided with the owner while planning — no `Location` header (no single-movement endpoint yet; the movement
+    is in the body), and only an *issue* ending below zero is flagged (a receipt while negative improves things).
+    `StockLedger` has one atomic balance change for orders and manual movements; under `Block` it is conditional
+    (`… WHERE quantity + @delta >= 0`). Proven: swapping in a read-then-write check lets 5 of 5 parallel issues through
+    (balance −2); the conditional update lets exactly 3. `UnitConversion` checks both precisions; a movement is at most
+    1,000,000 of its unit, so the base quantity always fits the column. Migration `AddManualMovements` fills the new
+    columns of earlier order movements (base unit, factor 1). The delete-with-stock test now uses a real movement
+    instead of SQL. 285 tests pass.
 
 ---
 
@@ -635,6 +656,9 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
   publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
   (the core has settled, and a second real consumer is about to start)
+- **T-057** — Idempotent POSTs, in the core: a client that retries a `POST` after a lost response (e.g. a stock
+  movement "in 10") must not apply it twice. An `Idempotency-Key` header stored once per tenant, returning the first
+  answer to a repeat; decide storage, lifetime and which endpoints require it. Found while refining T-030
 - **T-056** — Version check for owned-only changes, in the core (ADR-017) — **Done**
   - Goal: changing only an owned collection (an order's lines with the same total, an item's alternative units) is a
     change to its owner, so a stale ETag is always refused — by the core, not by a line each endpoint must remember.

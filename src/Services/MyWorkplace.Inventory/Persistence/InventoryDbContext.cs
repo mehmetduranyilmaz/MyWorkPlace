@@ -48,6 +48,10 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
             movement.Property(m => m.Type).HasConversion<string>().HasMaxLength(10);
             movement.Property(m => m.Reason).HasConversion<string>().HasMaxLength(20);
             movement.Property(m => m.Quantity).HasPrecision(18, 3);
+            movement.Property(m => m.EnteredQuantity).HasPrecision(18, 3);
+            movement.Property(m => m.UnitCode).HasMaxLength(UnitOfMeasure.CodeMaxLength);
+            movement.Property(m => m.Factor).HasPrecision(18, StockItem.FactorDecimals);
+            movement.Property(m => m.Note).HasMaxLength(StockMovement.NoteMaxLength);
             movement.Property(m => m.BalanceAfter).HasPrecision(18, 3);
             movement.HasOne<StockItem>().WithMany().HasForeignKey(m => m.StockItemId).OnDelete(DeleteBehavior.Restrict);
 

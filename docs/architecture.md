@@ -351,6 +351,17 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   flag), in the same transaction. The row lock serializes concurrent orders for the same item; a test showed that a
   read-then-write version loses updates (5 parallel orders left −1 instead of −5). Items of one order are issued in id
   order, so two orders can't deadlock.
+- **Refined (T-030):**
+  - **What a movement records:** type, the quantity and unit as entered, the factor, the quantity in the base unit,
+    the balance after, the reason (`Order` or `Manual`), an optional note, the user and the time.
+  - **Never edited or deleted:** a mistake is corrected with an opposite movement, as a reversing entry in bookkeeping;
+    so the history always explains the balance.
+  - **Precision at the edge:** the entered quantity must fit the entered unit's precision, and the converted quantity
+    the base unit's; otherwise `400`, never a silent rounding.
+  - **Answer:** `201` with the movement, the balance after and a `warnings` list (`NegativeStock` under `Warn`).
+    Movements under `Allow` / `Warn` that go below zero are flagged like order movements.
+  - **Retries** (the same `POST` sent twice after a lost response) are a core concern for every `POST`, handled by
+    T-057, not per endpoint.
 
 ### ADR-021 — Module building blocks: no boilerplate in modules
 

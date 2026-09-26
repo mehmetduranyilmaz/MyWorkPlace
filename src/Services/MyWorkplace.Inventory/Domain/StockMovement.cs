@@ -16,13 +16,16 @@ public enum StockMovementType
 }
 
 /// <summary>
-/// EN: Why a movement happened. Manual movements arrive with T-030.
-/// TR: Bir hareketin neden olduğu. Elle yapılan hareketler T-030 ile gelir.
+/// EN: Why a movement happened.
+/// TR: Bir hareketin neden olduğu.
 /// </summary>
 public enum StockMovementReason
 {
     /// <summary>EN: A placed order (T-016). TR: Verilmiş bir sipariş (T-016).</summary>
     Order,
+
+    /// <summary>EN: Recorded by hand (T-030). TR: Elle kaydedilmiş (T-030).</summary>
+    Manual,
 }
 
 /// <summary>
@@ -33,14 +36,32 @@ public enum StockMovementReason
 /// </summary>
 public sealed class StockMovement : TenantOwnedEntity
 {
+    /// <summary>EN: Max length of <see cref="Note"/>. TR: <see cref="Note"/> için en fazla uzunluk.</summary>
+    public const int NoteMaxLength = 500;
+
     /// <summary>EN: The stock item. TR: Stok kalemi.</summary>
     public Guid StockItemId { get; init; }
 
     /// <summary>EN: In or out. TR: Giriş veya çıkış.</summary>
     public StockMovementType Type { get; init; }
 
-    /// <summary>EN: Quantity in the item's base unit, always positive. TR: Kalemin temel biriminde miktar, her zaman pozitif.</summary>
+    /// <summary>EN: Quantity as entered, in <see cref="UnitCode"/>. TR: <see cref="UnitCode"/> cinsinden, girildiği haliyle miktar.</summary>
+    public decimal EnteredQuantity { get; init; }
+
+    /// <summary>EN: Unit the quantity was entered in. TR: Miktarın girildiği birim.</summary>
+    public string UnitCode { get; init; } = "";
+
+    /// <summary>EN: Base units in one entered unit (1 for the base unit). TR: Girilen birimin bir tanesindeki temel birim sayısı (temel birim için 1).</summary>
+    public decimal Factor { get; init; } = 1;
+
+    /// <summary>
+    /// EN: Quantity in the item's base unit (entered quantity × factor), always positive — what the balance changed by.
+    /// TR: Kalemin temel biriminde miktar (girilen miktar × katsayı), her zaman pozitif — bakiyenin değiştiği miktar.
+    /// </summary>
     public decimal Quantity { get; init; }
+
+    /// <summary>EN: Optional note of a manual movement. TR: Elle yapılan bir hareketin isteğe bağlı notu.</summary>
+    public string? Note { get; init; }
 
     /// <summary>EN: The item's balance right after this movement. TR: Bu hareketten hemen sonra kalemin bakiyesi.</summary>
     public decimal BalanceAfter { get; init; }
@@ -55,10 +76,10 @@ public sealed class StockMovement : TenantOwnedEntity
     public int? OrderNumber { get; init; }
 
     /// <summary>
-    /// EN: True when this movement took the balance below zero — shown for review, since an order's issue is applied
-    ///     even then (ADR-020).
-    /// TR: Bu hareket bakiyeyi sıfırın altına indirdiyse true — inceleme için gösterilir; çünkü bir siparişin çıkışı o durumda
-    ///     bile uygulanır (ADR-020).
+    /// EN: True when this movement is an issue that took the balance below zero — shown for review, since order issues
+    ///     and manual ones under <c>Allow</c> / <c>Warn</c> are applied even then (ADR-020). A receipt never sets it.
+    /// TR: Bu hareket bakiyeyi sıfırın altına indiren bir çıkışsa true — inceleme için gösterilir; çünkü sipariş çıkışları ve
+    ///     <c>Allow</c> / <c>Warn</c> altındaki elle çıkışlar o durumda bile uygulanır (ADR-020). Bir giriş bunu asla işaretlemez.
     /// </summary>
     public bool CausedNegativeStock { get; init; }
 }

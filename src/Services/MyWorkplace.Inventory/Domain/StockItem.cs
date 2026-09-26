@@ -100,6 +100,20 @@ public sealed class StockItem : BusinessEntity
     }
 
     /// <summary>
+    /// EN: How many base units one of <paramref name="unitCode"/> is for this item: 1 for the base unit, the factor for an
+    ///     alternative unit, null for a unit the item doesn't have.
+    /// TR: Bu kalem için bir <paramref name="unitCode"/>'un kaç temel birim olduğu: temel birim için 1, alternatif birim için katsayı,
+    ///     kalemde olmayan bir birim için null.
+    /// </summary>
+    /// <param name="unitCode">EN: Unit code, any case. TR: Birim kodu, harf büyüklüğü fark etmez.</param>
+    /// <returns>EN: The factor or null. TR: Katsayı veya null.</returns>
+    public decimal? FactorOf(string unitCode)
+    {
+        var code = UnitOfMeasure.NormalizeCode(unitCode);
+        return code == BaseUnit ? 1m : _units.FirstOrDefault(u => u.UnitCode == code)?.Factor;
+    }
+
+    /// <summary>
     /// EN: Whether a conversion factor is usable: above zero, at most <see cref="MaxFactor"/> and
     ///     <see cref="FactorDecimals"/> decimals (more would be rounded silently by the column).
     /// TR: Bir çevrim katsayısının kullanılabilir olup olmadığı: sıfırdan büyük, en fazla <see cref="MaxFactor"/> ve

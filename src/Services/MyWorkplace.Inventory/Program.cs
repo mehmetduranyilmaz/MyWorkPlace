@@ -9,6 +9,7 @@ using MyWorkplace.BuildingBlocks.Settings;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Features;
+using MyWorkplace.Inventory.Features.Movements;
 using MyWorkplace.Inventory.Features.Units;
 using MyWorkplace.Inventory.Persistence;
 
@@ -38,6 +39,10 @@ items.MapCreateStockItem();
 items.MapGetStockItem();
 items.MapUpdateStockItem();
 items.MapDeleteStockItem();
+
+// EN: Stock movements: the only way a balance changes by hand (ADR-020). TR: Stok hareketleri: bir bakiyenin elle değişmesinin tek yolu (ADR-020).
+items.MapRecordMovement();
+items.MapListMovements();
 
 // EN: The unit catalog: system units plus the company's own (ADR-019). TR: Birim kataloğu: sistem birimleri artı firmanın kendi birimleri (ADR-019).
 var units = inventory.MapGroup("/units").WithTags("Units");

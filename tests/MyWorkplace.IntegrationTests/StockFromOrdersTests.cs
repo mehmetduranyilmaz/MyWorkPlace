@@ -103,6 +103,29 @@ public sealed class StockFromOrdersTests(AppFixture app)
     }
 
     [Fact]
+    public async Task History_ShowsOrderAndManualMovementsTogether_NewestFirst()
+    {
+        using var client = await CreateProClientAsync(app, Ct);
+        var sku = NewSku();
+        var itemId = await CreateItemAsync(client, sku);
+        var (_, number) = await PlaceAsync(client, (sku, 2m));
+        await WaitUntilAsync(async () => (await MovementsAsync(itemId)).Count == 1);
+
+        using var received = await client.PostAsJsonAsync(
+            $"/inventory/items/{itemId}/movements", new { type = "In", quantity = 5m }, Ct);
+        var history = await client.GetFromJsonAsync<JsonElement>($"/inventory/items/{itemId}/movements", Ct);
+
+        Assert.Equal(HttpStatusCode.Created, received.StatusCode);
+        Assert.Equal(
+            [("Manual", (int?)null, "PCS"), ("Order", number, "PCS")],
+            history.GetProperty("items").EnumerateArray().Select(m => (
+                m.GetProperty("reason").GetString(),
+                m.GetProperty("orderNumber").ValueKind == JsonValueKind.Null ? null : (int?)m.GetProperty("orderNumber").GetInt32(),
+                m.GetProperty("unit").GetString())));
+        Assert.Equal(3m, await QuantityAsync(client, itemId));
+    }
+
+    [Fact]
     public async Task BasicCompanyOrder_ChangesNothing()
     {
         using var client = await CreateSignedInClientAsync(app, Ct);
