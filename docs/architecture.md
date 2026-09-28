@@ -326,6 +326,18 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   - **Base unit is frozen once the item has movements:** changing it would silently re-read the balance in another unit.
   - **Precision is checked on manual movements (T-030)**, never on order issues, which are always applied (ADR-020).
   - **Barcodes** follow separately (T-055).
+- **Refined (T-055) — barcodes:**
+  - **Free text, no checksum:** 1–50 letters, digits, `-` or `.`, kept as entered and compared exactly. Small
+    businesses print their own internal codes (Code128, case-sensitive, no EAN check digit); a scanner reads correctly,
+    so a checksum rule would mostly refuse legitimate internal codes.
+  - **A record of their own, not part of the item form:** uniqueness is a rule *across* items, so each barcode is a
+    tenant-owned row with a unique index on (tenant, code) among live rows — the database settles parallel adds. Owned
+    parts (like alternative units) carry no tenant id and could only be checked in code. Barcodes are added and removed
+    one at a time (`/inventory/items/{id}/barcodes`), which is also how they are scanned in.
+  - **No silent loss:** an alternative unit that still has barcodes can't be removed from its item (`409`); deleting an
+    item deletes its barcodes, so their codes are free again (like SKUs).
+  - **Lookup** returns the item, the scanned unit with its factor, the base unit and the balance — everything a till or
+    a stock count needs in one call.
 
 ### ADR-020 — Stock movements and the negative stock policy
 

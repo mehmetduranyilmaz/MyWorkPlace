@@ -112,6 +112,14 @@ public sealed record StockItemUnitInput
 public sealed record StockItemUnitResponse(string Unit, decimal Factor);
 
 /// <summary>
+/// EN: A barcode as listed on its item.
+/// TR: Kaleminde listelendiği haliyle bir barkod.
+/// </summary>
+/// <param name="Code">EN: The code. TR: Kod.</param>
+/// <param name="Unit">EN: The item unit it stands for. TR: Temsil ettiği kalem birimi.</param>
+public sealed record ItemBarcodeResponse(string Code, string Unit);
+
+/// <summary>
 /// EN: What the API returns for a stock item; the version travels in the ETag header.
 /// TR: API'nin bir stok kalemi için döndürdüğü; sürüm ETag başlığında taşınır.
 /// </summary>
@@ -123,6 +131,7 @@ public sealed record StockItemUnitResponse(string Unit, decimal Factor);
 /// <param name="CreatedAt">EN: Creation time. TR: Oluşturulma zamanı.</param>
 /// <param name="UpdatedAt">EN: Last update time. TR: Son güncelleme zamanı.</param>
 /// <param name="Units">EN: Alternative units, by code. TR: Koda göre alternatif birimler.</param>
+/// <param name="Barcodes">EN: Barcodes, by code (T-055). TR: Koda göre barkodlar (T-055).</param>
 public sealed record StockItemResponse(
     Guid Id,
     string Sku,
@@ -131,7 +140,8 @@ public sealed record StockItemResponse(
     decimal Quantity,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
-    IReadOnlyList<StockItemUnitResponse> Units)
+    IReadOnlyList<StockItemUnitResponse> Units,
+    IReadOnlyList<ItemBarcodeResponse> Barcodes)
 {
     /// <summary>
     /// EN: The one mapping from entity to API shape (ADR-021), used by lists, single reads and <see cref="From"/>.
@@ -140,7 +150,8 @@ public sealed record StockItemResponse(
     public static readonly Expression<Func<StockItem, StockItemResponse>> Projection = i =>
         new StockItemResponse(
             i.Id, i.Sku, i.Name, i.BaseUnit, i.Quantity, i.CreatedAt, i.UpdatedAt,
-            i.Units.OrderBy(u => u.UnitCode).Select(u => new StockItemUnitResponse(u.UnitCode, u.Factor)).ToList());
+            i.Units.OrderBy(u => u.UnitCode).Select(u => new StockItemUnitResponse(u.UnitCode, u.Factor)).ToList(),
+            i.Barcodes.OrderBy(b => b.Code).Select(b => new ItemBarcodeResponse(b.Code, b.UnitCode)).ToList());
 
     /// <summary>EN: <see cref="Projection"/>, compiled once. TR: Bir kez derlenmiş <see cref="Projection"/>.</summary>
     private static readonly Func<StockItem, StockItemResponse> _map = Projection.Compile();
@@ -192,6 +203,18 @@ internal static class StockItemProblems
             statusCode: StatusCodes.Status409Conflict,
             title: "The base unit can't change.",
             detail: "The item has stock movements recorded in its base unit; create a new item for another base unit.");
+
+    /// <summary>
+    /// EN: 409 for removing an alternative unit that still has barcodes: they would silently stop working (ADR-019).
+    /// TR: Hâlâ barkodu olan bir alternatif birimi çıkarmak için 409: barkodlar sessizce çalışmaz olurdu (ADR-019).
+    /// </summary>
+    /// <param name="units">EN: The units that still have barcodes. TR: Hâlâ barkodu olan birimler.</param>
+    /// <returns>EN: A 409 ProblemDetails. TR: 409 ProblemDetails.</returns>
+    public static ProblemHttpResult UnitHasBarcodes(IEnumerable<string> units) =>
+        TypedResults.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: "A removed unit still has barcodes.",
+            detail: $"Remove the barcodes of {string.Join(", ", units)} first.");
 
     /// <summary>
     /// EN: 400 for unit codes that are not in the company's catalog, keyed like the form's fields; null if all exist.

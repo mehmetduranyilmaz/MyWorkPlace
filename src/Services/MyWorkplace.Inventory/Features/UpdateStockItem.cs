@@ -86,6 +86,17 @@ public static class UpdateStockItem
             return StockItemProblems.BaseUnitFrozen();
         }
 
+        // EN: A unit leaving the item must not take barcodes with it silently (ADR-019, T-055). Loaded here also so the
+        //     response lists them.
+        // TR: Kalemden çıkan bir birim barkodları sessizce götürmemelidir (ADR-019, T-055). Cevap onları listelesin diye de burada yüklenir.
+        await db.Entry(item).Collection(i => i.Barcodes).LoadAsync(cancellationToken);
+        var keptUnits = input.UnitCodes().Select(UnitOfMeasure.NormalizeCode).ToHashSet(StringComparer.Ordinal);
+        var orphaned = item.Barcodes.Select(b => b.UnitCode).Where(u => !keptUnits.Contains(u)).Distinct().Order().ToList();
+        if (orphaned.Count > 0)
+        {
+            return StockItemProblems.UnitHasBarcodes(orphaned);
+        }
+
         db.ExpectVersion(item, expectedVersion);
         item.Update(input.Sku!, input.Name!, input.BaseUnit!, input.UnitValues());
 

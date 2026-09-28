@@ -619,9 +619,27 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
     proves the fix: without it the ETag stays the same); the same gap exists in Orders → T-056. Known small race: a unit
     deleted at the same moment an item starts using it is not blocked by the database (units are referenced by code,
     system units have no row). 251 tests pass.
-- **T-055** — Barcodes (ADR-019): barcodes per item unit (base or alternative), unique per company; managed with the
-  item; `GET /inventory/barcodes/{code}` returns item, unit and factor (`404` if unknown or another company's).
-  Refine first: format rules (free text or EAN checksum) and what happens to barcodes when a unit is removed from an item
+- **T-055** — Barcodes (ADR-019) — **Done**
+  - Goal: scanning a barcode tells at once which item it is, in which unit, and how much is in stock.
+  - [x] `POST /inventory/items/{id}/barcodes` with `{ code, unit }` adds a barcode to one of the item's units (base or
+        alternative; another unit → `400`). Code: 1–50 characters, letters, digits, `-` or `.`, trimmed, kept as entered
+        (case-sensitive), no checksum → otherwise `400`
+  - [x] A code is unique within the company across all live items (`409`), enforced by a database index so parallel
+        adds can't both win; another company may use the same code
+  - [x] `DELETE /inventory/items/{id}/barcodes/{code}` removes one (`404` if the item has no such barcode); the item
+        response lists its barcodes
+  - [x] Removing an alternative unit that still has barcodes from an item → `409`; deleting an item deletes its barcodes,
+        so their codes can be used again
+  - [x] `GET /inventory/barcodes/{code}` returns item id, SKU, name, the scanned unit, its factor, the base unit and the
+        balance; unknown, another company's or a deleted item's code → `404`
+  - [x] Reading needs `inventory.read`, adding `inventory.write`, removing `inventory.delete`; a Basic company → `403`
+  - Notes: decided with the owner while planning — `201` carries `Location: /inventory/barcodes/{code}` (the lookup is
+    a real address). `Barcode` is a `BusinessEntity` with a unique index on (tenant, code) among live rows; the item has
+    a read-only `Barcodes` navigation for its response. Proven: with the unique-violation handler disabled, the four
+    losers of five parallel adds all passed the code check and were stopped only by the index — the database is what
+    keeps codes unique. Update and delete load the item's barcodes (the response lists them; removing a unit with
+    barcodes → `409`; deleting the item soft-deletes them). Known small race, like T-031's: a barcode added to a unit
+    at the moment that unit is removed from its item is not blocked. 301 tests pass.
 - **T-030** — Manual stock movements and movement history (ADR-020) — **Done**
   - Goal: a company records goods coming in and going out by hand, in any of the item's units, and can always see why
     the stock is what it is.

@@ -81,6 +81,16 @@ public sealed class UnitRulesTests
     }
 
     [Theory]
+    [InlineData(" 8690000000017 ", "8690000000017")]
+    [InlineData("abc-1.2", "abc-1.2")]
+    [InlineData("ABC-1.2", "ABC-1.2")]
+    public void Barcode_IsTrimmed_ButKeepsItsCase(string entered, string stored)
+    {
+        // EN: Code128 is case-sensitive: "abc" and "ABC" are different labels. TR: Code128 harf duyarlıdır: "abc" ve "ABC" farklı etiketlerdir.
+        Assert.Equal(stored, Barcode.Create(Guid.CreateVersion7(), entered, "PCS").Code);
+    }
+
+    [Theory]
     [InlineData("24", true)]
     [InlineData("0.000001", true)]
     [InlineData("1000000", true)]

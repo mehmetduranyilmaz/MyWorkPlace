@@ -42,6 +42,9 @@ public sealed class StockItem : BusinessEntity
     /// <summary>EN: The alternative units. TR: Alternatif birimler.</summary>
     private readonly List<StockItemUnit> _units = [];
 
+    /// <summary>EN: The barcodes (records of their own, read-only here). TR: Barkodlar (kendi kayıtları; burada salt okunur).</summary>
+    private readonly List<Barcode> _barcodes = [];
+
     /// <summary>
     /// EN: Unit code the balance is kept in (ADR-019). Frozen once the item has movements — checked by the endpoint,
     ///     because it needs the database.
@@ -55,6 +58,14 @@ public sealed class StockItem : BusinessEntity
     /// TR: Kalemin sayıldığı diğer birimler; her biri temel birime çevrim katsayısıyla (1 <c>BOX</c> = 24 <c>PCS</c>).
     /// </summary>
     public IReadOnlyList<StockItemUnit> Units => _units;
+
+    /// <summary>
+    /// EN: The item's barcodes, for reading only: they are added and removed as records of their own (T-055), so the
+    ///     database can keep a code unique across items.
+    /// TR: Kalemin barkodları, sadece okumak için: kendi kayıtları olarak eklenir ve silinirler (T-055); böylece veritabanı bir kodu
+    ///     kalemler arasında benzersiz tutabilir.
+    /// </summary>
+    public IReadOnlyList<Barcode> Barcodes => _barcodes;
 
     /// <summary>
     /// EN: Balance in the base unit. Starts at 0; only stock movements change it (ADR-020).

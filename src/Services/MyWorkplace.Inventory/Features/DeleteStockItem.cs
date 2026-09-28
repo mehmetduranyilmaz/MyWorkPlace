@@ -23,10 +23,10 @@ public static class DeleteStockItem
             .RequireAuthorization(Permissions.Inventory.Delete)
             .WithSummary("EN: Delete a stock item | TR: Stok kalemini sil")
             .WithDescription(
-                "EN: Deletes an item whose balance is zero (409 otherwise). The record is kept for history and its " +
-                "SKU can be used again. " +
-                "TR: Bakiyesi sıfır olan bir kalemi siler (değilse 409). Kayıt geçmiş için saklanır ve SKU'su tekrar " +
-                "kullanılabilir.");
+                "EN: Deletes an item whose balance is zero (409 otherwise), with its barcodes. The record is kept for " +
+                "history; its SKU and barcodes can be used again. " +
+                "TR: Bakiyesi sıfır olan bir kalemi barkodlarıyla birlikte siler (değilse 409). Kayıt geçmiş için saklanır; " +
+                "SKU'su ve barkodları tekrar kullanılabilir.");
 
     /// <summary>
     /// EN: Handles the request.
@@ -54,6 +54,10 @@ public static class DeleteStockItem
             return StockItemProblems.StillHasStock();
         }
 
+        // EN: Its barcodes go with it, so their codes are free again, like the SKU (ADR-019, T-055).
+        // TR: Barkodları da onunla gider; böylece kodları SKU gibi yeniden serbest kalır (ADR-019, T-055).
+        await db.Entry(item).Collection(i => i.Barcodes).LoadAsync(cancellationToken);
+        db.Barcodes.RemoveRange(item.Barcodes);
         db.StockItems.Remove(item);
         await db.SaveChangesAsync(cancellationToken);
         return TypedResults.NoContent();

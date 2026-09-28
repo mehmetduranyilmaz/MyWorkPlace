@@ -9,6 +9,7 @@ using MyWorkplace.BuildingBlocks.Settings;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Features;
+using MyWorkplace.Inventory.Features.Barcodes;
 using MyWorkplace.Inventory.Features.Movements;
 using MyWorkplace.Inventory.Features.Units;
 using MyWorkplace.Inventory.Persistence;
@@ -43,6 +44,11 @@ items.MapDeleteStockItem();
 // EN: Stock movements: the only way a balance changes by hand (ADR-020). TR: Stok hareketleri: bir bakiyenin elle değişmesinin tek yolu (ADR-020).
 items.MapRecordMovement();
 items.MapListMovements();
+
+// EN: Barcodes: added per item unit, looked up by code (ADR-019, T-055). TR: Barkodlar: kalem birimine eklenir, koduyla sorgulanır (ADR-019, T-055).
+items.MapAddBarcode();
+items.MapRemoveBarcode();
+inventory.MapGroup("/barcodes").WithTags("Barcodes").MapLookupBarcode();
 
 // EN: The unit catalog: system units plus the company's own (ADR-019). TR: Birim kataloğu: sistem birimleri artı firmanın kendi birimleri (ADR-019).
 var units = inventory.MapGroup("/units").WithTags("Units");

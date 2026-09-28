@@ -26,9 +26,28 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     /// </summary>
     public DbSet<UnitOfMeasure> Units => Set<UnitOfMeasure>();
 
+    /// <summary>EN: Barcodes of the current tenant's items. TR: Aktif firmanın kalemlerinin barkodları.</summary>
+    public DbSet<Barcode> Barcodes => Set<Barcode>();
+
     /// <inheritdoc />
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Barcode>(barcode =>
+        {
+            barcode.Property(b => b.Code).HasMaxLength(Barcode.CodeMaxLength);
+            barcode.Property(b => b.UnitCode).HasMaxLength(UnitOfMeasure.CodeMaxLength);
+            barcode.HasOne<StockItem>().WithMany(i => i.Barcodes).HasForeignKey(b => b.StockItemId).OnDelete(DeleteBehavior.Restrict);
+
+            // EN: A code is unique per tenant among live barcodes: the database settles two parallel adds (ADR-019).
+            // TR: Bir kod firma içinde canlı barkodlar arasında benzersizdir: iki paralel eklemeyi veritabanı çözer (ADR-019).
+            barcode.HasIndex(b => new { b.TenantId, b.Code })
+                .IsUnique()
+                .HasFilter("is_deleted = false");
+
+            // EN: An item's barcodes. TR: Bir kalemin barkodları.
+            barcode.HasIndex(b => new { b.TenantId, b.StockItemId });
+        });
+
         modelBuilder.Entity<UnitOfMeasure>(unit =>
         {
             unit.ToTable("units");
