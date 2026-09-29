@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Domain;
 using MyWorkplace.BuildingBlocks.Identity;
+using MyWorkplace.BuildingBlocks.Idempotency;
 using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.BuildingBlocks.Settings;
 
@@ -59,6 +60,12 @@ public abstract class ServiceDbContext : DbContext
     public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
 
     /// <summary>
+    /// EN: Idempotency keys of client requests (ADR-027).
+    /// TR: İstemci isteklerinin idempotency anahtarları (ADR-027).
+    /// </summary>
+    public DbSet<IdempotencyRecord> IdempotencyKeys => Set<IdempotencyRecord>();
+
+    /// <summary>
     /// EN: Tenant of the current user. EF re-evaluates this member for every query because it belongs to the context.
     /// TR: Aktif kullanıcının firması. Context'e ait olduğu için EF bu üyeyi her sorguda yeniden değerlendirir.
     /// </summary>
@@ -77,6 +84,7 @@ public abstract class ServiceDbContext : DbContext
         ConfigureAuditLog(modelBuilder);
         ConfigureTenantSettings(modelBuilder);
         ConfigureProcessedEvents(modelBuilder);
+        ConfigureIdempotencyKeys(modelBuilder);
         ApplyConventions(modelBuilder);
     }
 
@@ -136,6 +144,30 @@ public abstract class ServiceDbContext : DbContext
             entity.HasKey(e => e.EventId);
             entity.Property(e => e.EventId).ValueGeneratedNever();
             entity.Property(e => e.EventType).HasMaxLength(ProcessedEvent.EventTypeMaxLength);
+        });
+    }
+
+    /// <summary>
+    /// EN: Maps the idempotency keys (ADR-027). Keyed by (tenant, key), so a parallel duplicate can't reserve the same key.
+    ///     Not tenant-filtered: the store always names the tenant, and the cleanup spans all of them.
+    /// TR: Idempotency anahtarlarını eşler (ADR-027). Anahtar (firma, anahtar); böylece paralel bir tekrar aynı anahtarı ayıramaz.
+    ///     Firma filtresi yoktur: depo her zaman firmayı belirtir ve temizlik hepsini kapsar.
+    /// </summary>
+    /// <param name="modelBuilder">EN: The model builder. TR: Model builder.</param>
+    private static void ConfigureIdempotencyKeys(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<IdempotencyRecord>(entity =>
+        {
+            entity.ToTable("idempotency_keys");
+            entity.HasKey(e => new { e.TenantId, e.Key });
+            entity.Property(e => e.Key).HasMaxLength(IdempotencyRecord.KeyMaxLength);
+            entity.Property(e => e.RequestHash).HasMaxLength(64);
+            entity.Property(e => e.ContentType).HasMaxLength(200);
+            entity.Property(e => e.Location).HasMaxLength(2000);
+            entity.Property(e => e.ETag).HasMaxLength(100);
+
+            // EN: The hourly cleanup deletes by expiry. TR: Saatlik temizlik bitiş zamanına göre siler.
+            entity.HasIndex(e => e.ExpiresAt);
         });
     }
 

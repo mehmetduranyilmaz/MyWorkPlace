@@ -38,6 +38,27 @@ public sealed class StockMovementTests(AppFixture app)
     }
 
     [Fact]
+    public async Task RetryWithTheSameIdempotencyKey_RecordsTheMovementOnce()
+    {
+        // EN: The client lost the first response and sends "in 10" again with the same key (T-057, ADR-027).
+        // TR: İstemci ilk cevabı kaybetti ve "10 giriş"i aynı anahtarla tekrar gönderiyor (T-057, ADR-027).
+        using var client = await CreateProClientAsync(app, Ct);
+        var itemId = await CreateItemAsync(client);
+        var key = Guid.NewGuid().ToString();
+
+        using var first = await RecordWithKeyAsync(client, itemId, key);
+        using var retry = await RecordWithKeyAsync(client, itemId, key);
+        using var newKey = await RecordWithKeyAsync(client, itemId, Guid.NewGuid().ToString());
+
+        Assert.Equal((HttpStatusCode.Created, HttpStatusCode.Created), (first.StatusCode, retry.StatusCode));
+        Assert.Equal(["true"], retry.Headers.GetValues("Idempotent-Replayed"));
+        Assert.Equal(await first.Content.ReadAsStringAsync(Ct), await retry.Content.ReadAsStringAsync(Ct));
+        Assert.Equal(HttpStatusCode.Created, newKey.StatusCode);
+        Assert.Equal(20m, await BalanceAsync(client, itemId));
+        Assert.Equal(2, (await client.GetFromJsonAsync<JsonElement>(Movements(itemId), Ct)).GetProperty("items").GetArrayLength());
+    }
+
+    [Fact]
     public async Task AlternativeUnit_IsConvertedToTheBaseUnit()
     {
         using var client = await CreateProClientAsync(app, Ct);
@@ -255,6 +276,24 @@ public sealed class StockMovementTests(AppFixture app)
     /// <returns>EN: The response. TR: Cevap.</returns>
     private static Task<HttpResponseMessage> RecordAsync(HttpClient client, Guid itemId, object body) =>
         client.PostAsJsonAsync(Movements(itemId), body, Ct);
+
+    /// <summary>
+    /// EN: Posts "in 10" with an Idempotency-Key.
+    /// TR: Bir Idempotency-Key ile "10 giriş" gönderir.
+    /// </summary>
+    /// <param name="client">EN: Pro client. TR: Pro istemci.</param>
+    /// <param name="itemId">EN: Item id. TR: Kalem kimliği.</param>
+    /// <param name="key">EN: The key. TR: Anahtar.</param>
+    /// <returns>EN: The response. TR: Cevap.</returns>
+    private static Task<HttpResponseMessage> RecordWithKeyAsync(HttpClient client, Guid itemId, string key)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, Movements(itemId))
+        {
+            Content = JsonContent.Create(new { type = "In", quantity = 10m }),
+        };
+        request.Headers.Add("Idempotency-Key", key);
+        return client.SendAsync(request, Ct);
+    }
 
     /// <summary>
     /// EN: Reads an item's balance.

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MyWorkplace.Abstractions.Identity;
 using MyWorkplace.BuildingBlocks.Http;
+using MyWorkplace.BuildingBlocks.Idempotency;
 using MyWorkplace.BuildingBlocks.Persistence;
 
 namespace MyWorkplace.BuildingBlocks.Hosting;
@@ -43,6 +44,7 @@ public static class ServiceModuleExtensions
         builder.AddServiceDbContext<TContext>(connectionName);
         builder.Services.AddServiceProblemDetails();
         builder.Services.AddServiceApiDocs();
+        builder.Services.AddIdempotency();
 
         // EN: Enums travel as names ("Block"), not numbers: readable, and reordering an enum can't change the API.
         // TR: Enum'lar sayı değil ad olarak taşınır ("Block"): okunur ve enum sırasının değişmesi API'yi değiştiremez.
@@ -68,6 +70,10 @@ public static class ServiceModuleExtensions
         app.UseServiceProblemDetails();
         app.UseAuthentication();
         app.UseAuthorization();
+
+        // EN: Every authenticated POST accepts an Idempotency-Key (ADR-027); after authentication, keys are per company.
+        // TR: Giriş gerektiren her POST bir Idempotency-Key kabul eder (ADR-027); kimlik doğrulamadan sonra, anahtarlar firma bazındadır.
+        app.UseIdempotency();
 
         app.MapDefaultEndpoints();
         app.MapServiceApiDocs();

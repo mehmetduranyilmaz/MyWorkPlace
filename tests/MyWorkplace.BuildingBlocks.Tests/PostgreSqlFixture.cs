@@ -23,6 +23,12 @@ public sealed class PostgreSqlFixture : IAsyncLifetime
     private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(PostgresImage.Reference).Build();
 
     /// <summary>
+    /// EN: Connection string of the test database, for tests that host a small app on it.
+    /// TR: Test veritabanının bağlantı cümlesi; üzerinde küçük bir uygulama barındıran testler için.
+    /// </summary>
+    public string ConnectionString => _container.GetConnectionString();
+
+    /// <summary>
     /// EN: Creates a context acting as <paramref name="user"/>, configured exactly like the services' contexts.
     /// TR: <paramref name="user"/> adına çalışan, servislerin context'leriyle birebir aynı yapılandırılmış bir context oluşturur.
     /// </summary>

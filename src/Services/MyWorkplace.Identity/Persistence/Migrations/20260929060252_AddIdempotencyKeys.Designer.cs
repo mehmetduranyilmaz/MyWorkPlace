@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using MyWorkplace.Products.Persistence;
+using MyWorkplace.Identity.Persistence;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace MyWorkplace.Products.Persistence.Migrations
+namespace MyWorkplace.Identity.Persistence.Migrations
 {
-    [DbContext(typeof(ProductsDbContext))]
-    partial class ProductsDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(IdentityDbContext))]
+    [Migration("20260929060252_AddIdempotencyKeys")]
+    partial class AddIdempotencyKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -211,7 +214,110 @@ namespace MyWorkplace.Products.Persistence.Migrations
                     b.ToTable("tenant_settings", (string)null);
                 });
 
-            modelBuilder.Entity("MyWorkplace.Products.Domain.Product", b =>
+            modelBuilder.Entity("MyWorkplace.Identity.Domain.SigningKey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Algorithm")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("algorithm");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("KeyId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("key_id");
+
+                    b.Property<byte[]>("PrivateKey")
+                        .IsRequired()
+                        .HasColumnType("bytea")
+                        .HasColumnName("private_key");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_signing_keys");
+
+                    b.HasIndex("KeyId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_signing_keys_key_id");
+
+                    b.ToTable("signing_keys", (string)null);
+                });
+
+            modelBuilder.Entity("MyWorkplace.Identity.Domain.Tenant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Plan")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("plan");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tenants");
+
+                    b.ToTable("tenants", (string)null);
+                });
+
+            modelBuilder.Entity("MyWorkplace.Identity.Domain.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -230,37 +336,36 @@ namespace MyWorkplace.Products.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("description");
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
+
+                    b.PrimitiveCollection<string[]>("ExtraPermissions")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("extra_permissions");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("NormalizedEmail")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("normalized_email");
 
-                    b.Property<string>("NormalizedSku")
+                    b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("normalized_sku");
+                        .HasColumnType("text")
+                        .HasColumnName("password_hash");
 
-                    b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("price");
-
-                    b.Property<string>("Sku")
+                    b.PrimitiveCollection<string[]>("Roles")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("sku");
+                        .HasColumnType("text[]")
+                        .HasColumnName("roles");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
@@ -281,17 +386,27 @@ namespace MyWorkplace.Products.Persistence.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id")
-                        .HasName("pk_products");
+                        .HasName("pk_users");
 
-                    b.HasIndex("TenantId", "Name")
-                        .HasDatabaseName("ix_products_tenant_id_name");
-
-                    b.HasIndex("TenantId", "NormalizedSku")
+                    b.HasIndex("NormalizedEmail")
                         .IsUnique()
-                        .HasDatabaseName("ix_products_tenant_id_normalized_sku")
+                        .HasDatabaseName("ix_users_normalized_email")
                         .HasFilter("is_deleted = false");
 
-                    b.ToTable("products", (string)null);
+                    b.HasIndex("TenantId")
+                        .HasDatabaseName("ix_users_tenant_id");
+
+                    b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("MyWorkplace.Identity.Domain.User", b =>
+                {
+                    b.HasOne("MyWorkplace.Identity.Domain.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_users_tenants_tenant_id");
                 });
 #pragma warning restore 612, 618
         }

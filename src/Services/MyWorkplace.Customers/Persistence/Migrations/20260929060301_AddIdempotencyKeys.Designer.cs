@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using MyWorkplace.Products.Persistence;
+using MyWorkplace.Customers.Persistence;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace MyWorkplace.Products.Persistence.Migrations
+namespace MyWorkplace.Customers.Persistence.Migrations
 {
-    [DbContext(typeof(ProductsDbContext))]
-    partial class ProductsDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(CustomersDbContext))]
+    [Migration("20260929060301_AddIdempotencyKeys")]
+    partial class AddIdempotencyKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -211,7 +214,7 @@ namespace MyWorkplace.Products.Persistence.Migrations
                     b.ToTable("tenant_settings", (string)null);
                 });
 
-            modelBuilder.Entity("MyWorkplace.Products.Domain.Product", b =>
+            modelBuilder.Entity("MyWorkplace.Customers.Domain.Customer", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -230,10 +233,10 @@ namespace MyWorkplace.Products.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
 
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("description");
+                    b.Property<string>("Email")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("email");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
@@ -245,22 +248,25 @@ namespace MyWorkplace.Products.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
-                    b.Property<string>("NormalizedSku")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("normalized_sku");
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)")
+                        .HasColumnName("normalized_email");
 
-                    b.Property<decimal>("Price")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("price");
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("notes");
 
-                    b.Property<string>("Sku")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("sku");
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("phone");
+
+                    b.Property<string>("TaxNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("tax_number");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
@@ -281,17 +287,17 @@ namespace MyWorkplace.Products.Persistence.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id")
-                        .HasName("pk_products");
+                        .HasName("pk_customers");
 
                     b.HasIndex("TenantId", "Name")
-                        .HasDatabaseName("ix_products_tenant_id_name");
+                        .HasDatabaseName("ix_customers_tenant_id_name");
 
-                    b.HasIndex("TenantId", "NormalizedSku")
+                    b.HasIndex("TenantId", "NormalizedEmail")
                         .IsUnique()
-                        .HasDatabaseName("ix_products_tenant_id_normalized_sku")
-                        .HasFilter("is_deleted = false");
+                        .HasDatabaseName("ix_customers_tenant_id_normalized_email")
+                        .HasFilter("normalized_email IS NOT NULL AND is_deleted = false");
 
-                    b.ToTable("products", (string)null);
+                    b.ToTable("customers", (string)null);
                 });
 #pragma warning restore 612, 618
         }

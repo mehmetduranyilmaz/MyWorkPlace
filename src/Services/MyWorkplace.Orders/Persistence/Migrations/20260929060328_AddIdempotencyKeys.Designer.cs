@@ -2,18 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using MyWorkplace.Products.Persistence;
+using MyWorkplace.Orders.Persistence;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace MyWorkplace.Products.Persistence.Migrations
+namespace MyWorkplace.Orders.Persistence.Migrations
 {
-    [DbContext(typeof(ProductsDbContext))]
-    partial class ProductsDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(OrdersDbContext))]
+    [Migration("20260929060328_AddIdempotencyKeys")]
+    partial class AddIdempotencyKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -211,7 +214,7 @@ namespace MyWorkplace.Products.Persistence.Migrations
                     b.ToTable("tenant_settings", (string)null);
                 });
 
-            modelBuilder.Entity("MyWorkplace.Products.Domain.Product", b =>
+            modelBuilder.Entity("MyWorkplace.Orders.Domain.Order", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -226,41 +229,92 @@ namespace MyWorkplace.Products.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("customer_name");
+
                     b.Property<DateTimeOffset?>("DeletedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("deleted_at");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("description");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean")
                         .HasColumnName("is_deleted");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
+                    b.Property<int?>("Number")
+                        .HasColumnType("integer")
+                        .HasColumnName("number");
 
-                    b.Property<string>("NormalizedSku")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("normalized_sku");
+                    b.Property<DateTimeOffset?>("PlacedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("placed_at");
 
-                    b.Property<decimal>("Price")
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("Total")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
-                        .HasColumnName("price");
+                        .HasColumnName("total");
 
-                    b.Property<string>("Sku")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("sku");
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id")
+                        .HasName("pk_orders");
+
+                    b.HasIndex("TenantId", "CreatedAt")
+                        .HasDatabaseName("ix_orders_tenant_id_created_at");
+
+                    b.HasIndex("TenantId", "Number")
+                        .IsUnique()
+                        .HasDatabaseName("ix_orders_tenant_id_number")
+                        .HasFilter("number IS NOT NULL");
+
+                    b.ToTable("orders", (string)null);
+                });
+
+            modelBuilder.Entity("MyWorkplace.Orders.Domain.OrderNumberSequence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("integer")
+                        .HasColumnName("last_number");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid")
@@ -281,17 +335,72 @@ namespace MyWorkplace.Products.Persistence.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id")
-                        .HasName("pk_products");
+                        .HasName("pk_order_number_sequences");
 
-                    b.HasIndex("TenantId", "Name")
-                        .HasDatabaseName("ix_products_tenant_id_name");
-
-                    b.HasIndex("TenantId", "NormalizedSku")
+                    b.HasIndex("TenantId")
                         .IsUnique()
-                        .HasDatabaseName("ix_products_tenant_id_normalized_sku")
-                        .HasFilter("is_deleted = false");
+                        .HasDatabaseName("ix_order_number_sequences_tenant_id");
 
-                    b.ToTable("products", (string)null);
+                    b.ToTable("order_number_sequences", (string)null);
+                });
+
+            modelBuilder.Entity("MyWorkplace.Orders.Domain.Order", b =>
+                {
+                    b.OwnsMany("MyWorkplace.Orders.Domain.OrderLine", "Lines", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .HasColumnType("uuid")
+                                .HasColumnName("id");
+
+                            b1.Property<int>("LineNumber")
+                                .HasColumnType("integer")
+                                .HasColumnName("line_number");
+
+                            b1.Property<decimal>("LineTotal")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("line_total");
+
+                            b1.Property<string>("Name")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("name");
+
+                            b1.Property<Guid>("OrderId")
+                                .HasColumnType("uuid")
+                                .HasColumnName("order_id");
+
+                            b1.Property<decimal>("Quantity")
+                                .HasPrecision(18, 3)
+                                .HasColumnType("numeric(18,3)")
+                                .HasColumnName("quantity");
+
+                            b1.Property<string>("Sku")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("sku");
+
+                            b1.Property<decimal>("UnitPrice")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("numeric(18,2)")
+                                .HasColumnName("unit_price");
+
+                            b1.HasKey("Id")
+                                .HasName("pk_order_lines");
+
+                            b1.HasIndex("OrderId")
+                                .HasDatabaseName("ix_order_lines_order_id");
+
+                            b1.ToTable("order_lines", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("OrderId")
+                                .HasConstraintName("fk_order_lines_orders_order_id");
+                        });
+
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

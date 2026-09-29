@@ -666,17 +666,6 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
     1,000,000 of its unit, so the base quantity always fits the column. Migration `AddManualMovements` fills the new
     columns of earlier order movements (base unit, factor 1). The delete-with-stock test now uses a real movement
     instead of SQL. 285 tests pass.
-
----
-
-## Backlog
-
-- **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
-  publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
-  (the core has settled, and a second real consumer is about to start)
-- **T-057** — Idempotent POSTs, in the core: a client that retries a `POST` after a lost response (e.g. a stock
-  movement "in 10") must not apply it twice. An `Idempotency-Key` header stored once per tenant, returning the first
-  answer to a repeat; decide storage, lifetime and which endpoints require it. Found while refining T-030
 - **T-056** — Version check for owned-only changes, in the core (ADR-017) — **Done**
   - Goal: changing only an owned collection (an order's lines with the same total, an item's alternative units) is a
     change to its owner, so a stale ETag is always refused — by the core, not by a line each endpoint must remember.
@@ -697,6 +686,46 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
     "core has settled" count restarts. On the first full run right after Docker started, `StockFromOrdersTests` hit its
     30-second wait once (cold containers); it passed alone and in a second full run — a timing flake like T-051.
     258 tests pass.
+
+---
+
+## Sprint 4 — Orders depth
+
+Goal: orders that can be undone and checked — cancelling returns the stock, unmatched lines are visible, customers
+are validated — and requests that are safe to retry. Refined with `/refine` before starting. Core check (ADR-026):
+only T-057 may change the core, and only by adding; the other three must not touch it.
+
+- **T-057** — Idempotent POSTs, in the core (ADR-027) — **Done**
+  - Goal: a client that retries a `POST` after a lost response (e.g. a stock movement "in 10") never applies it twice.
+    Found while refining T-030.
+  - [x] Every authenticated `POST` of a service module accepts an optional `Idempotency-Key` header (1–100 characters,
+        else `400`) — wired once by the core, no line per endpoint; without the header nothing changes; anonymous
+        endpoints (sign-up, sign-in) are not covered
+  - [x] Same key, same request → the first response is replayed (status and body) with `Idempotent-Replayed: true`,
+        and the operation is not applied again — proven on stock movements: two posts, one movement, one balance change
+  - [x] Same key, different request (body, method or path) → `422`; same key while the first is still running → `409`
+  - [x] `2xx` and `4xx` responses are stored, `5xx` are not (the retry may succeed); keys are per tenant — another
+        company may use the same key
+  - [x] Keys live 24 hours in the service's own database (`idempotency_keys`); expired ones are ignored and removed by
+        an hourly cleanup; a key left "in progress" for over a minute (a crash) can be taken over
+  - [x] Core tests on real PostgreSQL with a made-up endpoint cover each rule; every service gets its migration; the
+        module guide mentions the header
+  - Notes: a middleware rather than an endpoint filter, so the raw response (status, `Location`, `ETag`, body) replays
+    exactly; it runs right after authorization in `UseServiceModuleAsync`, so no service code changed. The store works in
+    a DI scope of its own (an endpoint may clear its change tracker). Red/green proven: with the middleware passing
+    everything through, 8 of the 12 rule tests and the stock-movement retry test fail (the other 4 assert that a request
+    runs). Core check (ADR-026): an addition only — nothing existing changed its behaviour. 315 tests pass.
+- **T-040** — Cancel a placed order: `OrderCancelled` and stock returned by Inventory (ADR-024)
+- **T-042** — Review list of order lines Inventory could not match to a stock item (ADR-020)
+- **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
+
+---
+
+## Backlog
+
+- **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
+  publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
+  (the core has settled, and a second real consumer is about to start)
 - **T-051** — Flaky CI: a Testcontainers container can fail to start with "address already in use" while the three
   test projects start containers in parallel (CI #35, passed on re-run). Options: run test projects one after another,
   or retry container start on a port conflict; measure the cost in CI time
@@ -713,9 +742,6 @@ Goal: stock the way small businesses really handle it (ADR-019, ADR-020). Refine
 - **T-045** — `dotnet new` template for a module, generated from the guide (T-027) once the guide has been proven
 - **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
   "Unknown", CI #28 / #29) — e.g. kill the process by its PID (closer to a real crash), check Aspire's known issues
-- **T-042** — Review list of order lines Inventory could not match to a stock item (ADR-020)
-- **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
-- **T-040** — Cancel a placed order: `OrderCancelled` and stock returned by Inventory (ADR-024)
 - **T-041** — Currency (a company setting) and VAT on orders (ADR-024)
 - **T-038** — Custom roles per company (named permission sets defined by the company)
 - **T-035** — Plan downgrade (Pro → Basic): what happens to Pro-module data must be decided first

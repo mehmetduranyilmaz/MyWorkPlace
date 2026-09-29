@@ -545,6 +545,33 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
     the core projects.
   - `MyWorkplace.*` namespaces are renamed only when packaging (T-053), together with choosing the package names.
 
+### ADR-027 — Idempotent POSTs with an `Idempotency-Key`, in the core
+
+- **Context:** a client that loses the response of a `POST` (timeout, dropped connection) cannot know whether it was
+  applied. Retrying a stock movement "in 10" would then add 20. Events between services are already deduplicated
+  (`processed_events`, ADR-023); requests from clients were not.
+- **Decision:** the core offers the `Idempotency-Key` header (as in the IETF draft and Stripe's API) on every
+  authenticated `POST` of a service module, wired once in the shared service setup — no line per endpoint, the lesson
+  of T-056. The header is optional: without it nothing changes, so no client breaks.
+  - Same key and same request → the first response is replayed with `Idempotent-Replayed: true`; nothing runs twice.
+  - Same key, different request (body, method or path) → `422`; same key while the first is still running → `409`.
+  - `2xx` and `4xx` responses are stored; `5xx` are not, because a retry after a server error may rightly succeed.
+  - Keys are per tenant, 1–100 characters, kept 24 hours; an hourly cleanup removes expired ones.
+- **Storage:** an `idempotency_keys` table in each service's own database, next to `processed_events` (ADR-003) — no
+  new infrastructure, and calls that reach a service directly are covered too.
+- **How it works:** the key is reserved first (a unique index turns a parallel duplicate into `409`), the endpoint
+  runs, then the response is stored. A key left "in progress" for over a minute (a crash) can be taken over.
+- **Cost, accepted:** this is not exactly-once. If a service crashes after committing the change but before storing
+  the response, a retry after the minute applies it again. Exactly-once would need the key saved in the endpoint's
+  own transaction, i.e. code inside every endpoint; the reservation approach is the common industry trade-off.
+- **Rejected:** idempotency at the gateway with Redis — one place, but new infrastructure, a stateful gateway, and
+  direct calls to a service unprotected.
+- **Implementation (T-057):** `IdempotencyMiddleware` runs right after authorization (`UseServiceModuleAsync`); the
+  fingerprint is SHA-256 of method, path, query and body. `IdempotencyStore` works in a DI scope of its own, so the key
+  rows never mix with the endpoint's unit of work; take-overs are conditional updates on the lock time, so of two
+  takers only one wins. `IdempotencyCleanup` deletes expired keys hourly. The table is mapped by `ServiceDbContext`,
+  like `processed_events`, so every service has it with its next migration.
+
 ---
 
 ## 4. Solution layout (planned)

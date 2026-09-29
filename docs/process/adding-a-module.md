@@ -99,6 +99,7 @@ Copy the five files in [`Features/`](../../src/Services/MyWorkplace.Customers/Fe
       business key **then `Id`**, `ToPagedResultAsync(Projection, page, ct)`. Permission: `Read`.
 - [ ] **Create** — `Update(...)`, `Add`, save; `201` with `Location`, body and `ETag`. Duplicate → `409`
       (check first for a friendly answer, catch `IsUniqueViolation()` for the race). Permission: `Write`.
+      Nothing to add for retries: every authenticated `POST` already accepts an `Idempotency-Key` (ADR-027).
 - [ ] **Get** — `SingleWithVersionAsync(id, Projection)`; `404` or `200` with `ETag`. Permission: `Read`.
 - [ ] **Update** — `TryReadIfMatch` (`428` / `412`), `FindForUpdateAsync`, compare `GetVersion`, `ExpectVersion`,
       `Update(...)`, save; `DbUpdateConcurrencyException` → `412`. Permission: `Write`.
@@ -208,6 +209,7 @@ Each of these happened in this repository once.
 | Read-then-write of a counter or balance | Lost updates under concurrency | One atomic `UPDATE … SET x = x - @q` (T-016) |
 | Loading with a query and changing it | Change is silently not saved (no-tracking default) | `FindForUpdateAsync` (ADR-011) |
 | Update without `If-Match` | Overwrites someone else's change | `TryReadIfMatch` → `428` / `412` (ADR-017) |
+| Deduplicating retries in an endpoint | Drifts, forgotten in the next module | Nothing — the core's `Idempotency-Key` (ADR-027) |
 | `IgnoreQueryFilters()` to "see everything" | Cross-company data leak | Never, except the documented sign-in / registration cases |
 | A hand-edited role list | Roles drift from permissions | Suffix convention (ADR-025) |
 | A test pinning the whole permission list | Every new module breaks it | Assert subsets and the rule (T-013) |
