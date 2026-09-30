@@ -29,6 +29,7 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options, I
             order.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
             order.Property(o => o.CustomerName).HasMaxLength(Order.CustomerNameMaxLength);
             order.Property(o => o.Total).HasPrecision(18, 2);
+            order.Property(o => o.CancellationReason).HasMaxLength(Order.CancellationReasonMaxLength);
 
             // EN: Lines are part of the order (owned): saved, loaded and deleted with it, in their own table so they can
             //     be queried later (reporting, T-018).

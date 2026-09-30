@@ -15,12 +15,23 @@ namespace MyWorkplace.Inventory.Features;
 /// <param name="db">EN: Inventory database. TR: Inventory veritabanı.</param>
 /// <param name="ledger">EN: Changes balances. TR: Bakiyeleri değiştirir.</param>
 /// <param name="logger">EN: Logger. TR: Günlükçü.</param>
-public sealed partial class OrderPlacedHandler(InventoryDbContext db, StockLedger ledger, ILogger<OrderPlacedHandler> logger)
+/// <param name="claims">EN: Order stock claims (T-040). TR: Sipariş stok talepleri (T-040).</param>
+public sealed partial class OrderPlacedHandler(
+    InventoryDbContext db, StockLedger ledger, OrderStockClaims claims, ILogger<OrderPlacedHandler> logger)
     : IEventHandler<OrderPlaced>
 {
     /// <inheritdoc />
     public async Task HandleAsync(OrderPlaced integrationEvent, CancellationToken cancellationToken)
     {
+        // EN: Claim the order first: if its cancellation was processed already, nothing is issued (T-040).
+        // TR: Önce sipariş talep edilir: iptali zaten işlendiyse hiçbir şey çıkılmaz (T-040).
+        if (!await claims.TryClaimAsync(
+            integrationEvent.OrderId, integrationEvent.TenantId, OrderStockStatus.Issued, cancellationToken))
+        {
+            LogAlreadyCancelled(integrationEvent.Number);
+            return;
+        }
+
         // EN: Lines of the same SKU are issued as one movement.
         // TR: Aynı SKU'lu satırlar tek hareket olarak çıkılır.
         var quantities = integrationEvent.Lines
@@ -57,4 +68,12 @@ public sealed partial class OrderPlacedHandler(InventoryDbContext db, StockLedge
     /// <param name="sku">EN: The unmatched SKU. TR: Eşleşmeyen SKU.</param>
     [LoggerMessage(Level = LogLevel.Warning, Message = "Order {OrderNumber}: no stock item with SKU {Sku}; line skipped.")]
     private partial void LogUnmatchedSku(int orderNumber, string sku);
+
+    /// <summary>
+    /// EN: The order's cancellation arrived first (events may come in any order); nothing is issued.
+    /// TR: Siparişin iptali önce geldi (olaylar herhangi bir sırayla gelebilir); hiçbir şey çıkılmaz.
+    /// </summary>
+    /// <param name="orderNumber">EN: Order number. TR: Sipariş numarası.</param>
+    [LoggerMessage(Level = LogLevel.Information, Message = "Order {OrderNumber} was already cancelled; its stock is not issued.")]
+    private partial void LogAlreadyCancelled(int orderNumber);
 }

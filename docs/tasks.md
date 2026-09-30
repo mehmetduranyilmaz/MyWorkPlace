@@ -715,7 +715,29 @@ only T-057 may change the core, and only by adding; the other three must not tou
     a DI scope of its own (an endpoint may clear its change tracker). Red/green proven: with the middleware passing
     everything through, 8 of the 12 rule tests and the stock-movement retry test fail (the other 4 assert that a request
     runs). Core check (ADR-026): an addition only — nothing existing changed its behaviour. 315 tests pass.
-- **T-040** — Cancel a placed order: `OrderCancelled` and stock returned by Inventory (ADR-024)
+- **T-040** — Cancel a placed order and return its stock (ADR-024) — **Done**
+  - Goal: a sale that didn't happen after all can be undone — the order says why, and exactly the stock that left
+    comes back.
+  - [x] `POST /orders/{id}/cancel` with `If-Match` and an optional `reason` (≤ 500) cancels a **placed** order: status
+        `Cancelled`, `CancelledAt`, `CancelledBy` and the reason are stored and returned; a draft (delete it instead) or
+        an already cancelled order → `409`; stale / missing `If-Match` → `412` / `428`
+  - [x] New permission `orders.cancel`: by the suffix convention (ADR-025) only Owner and Admin have it; a Member or
+        Viewer → `403`; another company's order → `404`
+  - [x] Cancelling publishes `OrderCancelled { OrderId, Number }` through the outbox, in the same transaction
+  - [x] Inventory returns exactly what it issued for that order: one `In` movement per issue movement of the order,
+        same quantity, reason `OrderCancelled`, with the order number; lines that matched no item return nothing; an
+        item deleted meanwhile is skipped with a warning log
+  - [x] Out of order: if `OrderCancelled` is processed before `OrderPlaced`, Inventory remembers the order as cancelled
+        and the late `OrderPlaced` issues nothing — proven by a test that delivers the two events in reverse
+  - [x] Whole orders only; partial returns are T-058
+  - Notes: decided with the owner while planning — the out-of-order case is proven at handler level on a real database
+    (`Inventory.Tests` now starts a PostgreSQL container), including 20 orders placed and cancelled at the same moment.
+    Inventory keeps one `order_stock` row per order (`Issued` / `Cancelled`); both handlers first claim it with
+    `INSERT … ON CONFLICT DO NOTHING`, so the database makes the second wait for the first; table and column names come
+    from the EF model (T-048). Migration `AddOrderStock` backfills `Issued` rows for orders issued before, so cancelling
+    an old order still returns its stock. Red/green: with the claim switched off, all five handler tests fail. Core
+    check (ADR-026): no core project changed — only additions to Contracts (`orders.cancel`, `OrderCancelled`).
+    329 tests pass.
 - **T-042** — Review list of order lines Inventory could not match to a stock item (ADR-020)
 - **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
 
@@ -723,6 +745,8 @@ only T-057 may change the core, and only by adding; the other three must not tou
 
 ## Backlog
 
+- **T-058** — Partial returns of a placed order: some lines or part of a quantity come back; the stock of what returned
+  goes back in, the order records the return and its adjusted total. Found while refining T-040
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
   publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
   (the core has settled, and a second real consumer is about to start)

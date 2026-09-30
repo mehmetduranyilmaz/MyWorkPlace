@@ -51,6 +51,12 @@ public static class Permissions
 
         /// <summary>EN: Delete draft orders. TR: Taslak siparişleri silme.</summary>
         public const string Delete = "orders.delete";
+
+        /// <summary>
+        /// EN: Cancel placed orders (T-040). Not a read/write/delete suffix, so only Owner and Admin have it (ADR-025).
+        /// TR: Verilmiş siparişleri iptal etme (T-040). read/write/delete son eki değil; bu yüzden sadece Owner ve Admin'de vardır (ADR-025).
+        /// </summary>
+        public const string Cancel = "orders.cancel";
     }
 
     /// <summary>EN: Products module. TR: Products modülü.</summary>

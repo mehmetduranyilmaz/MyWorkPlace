@@ -29,9 +29,27 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     /// <summary>EN: Barcodes of the current tenant's items. TR: Aktif firmanın kalemlerinin barkodları.</summary>
     public DbSet<Barcode> Barcodes => Set<Barcode>();
 
+    /// <summary>
+    /// EN: What was done about each order's stock (T-040). Keyed by the order id, which is unique system-wide, so not
+    ///     tenant-filtered; handlers always ask by order id.
+    /// TR: Her siparişin stoğu için ne yapıldığı (T-040). Anahtar tüm sistemde benzersiz olan sipariş kimliğidir; bu yüzden firma filtresi
+    ///     yoktur; handler'lar her zaman sipariş kimliğiyle sorar.
+    /// </summary>
+    public DbSet<OrderStock> OrderStocks => Set<OrderStock>();
+
     /// <inheritdoc />
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<OrderStock>(order =>
+        {
+            order.ToTable("order_stock");
+            order.HasKey(o => o.OrderId);
+            order.Property(o => o.OrderId).ValueGeneratedNever();
+
+            // EN: Stored as text so it stays readable. TR: Okunur kalsın diye metin olarak saklanır.
+            order.Property(o => o.Status).HasConversion<string>().HasMaxLength(20);
+        });
+
         modelBuilder.Entity<Barcode>(barcode =>
         {
             barcode.Property(b => b.Code).HasMaxLength(Barcode.CodeMaxLength);

@@ -13,6 +13,9 @@ public enum OrderStatus
 
     /// <summary>EN: Placed: numbered and frozen. TR: Verildi: numaralı ve dondurulmuş.</summary>
     Placed,
+
+    /// <summary>EN: A placed order undone; final (T-040). TR: Geri alınmış verilmiş bir sipariş; son durum (T-040).</summary>
+    Cancelled,
 }
 
 /// <summary>
@@ -29,6 +32,9 @@ public sealed class Order : BusinessEntity
     /// <summary>EN: Most lines one order may have. TR: Bir siparişin en fazla satır sayısı.</summary>
     public const int MaxLines = 200;
 
+    /// <summary>EN: Max length of <see cref="CancellationReason"/>. TR: <see cref="CancellationReason"/> için en fazla uzunluk.</summary>
+    public const int CancellationReasonMaxLength = 500;
+
     /// <summary>EN: The lines, in entry order. TR: Satırlar, giriş sırasıyla.</summary>
     private readonly List<OrderLine> _lines = [];
 
@@ -41,6 +47,19 @@ public sealed class Order : BusinessEntity
 
     /// <summary>EN: When it was placed (UTC). TR: Ne zaman verildiği (UTC).</summary>
     public DateTimeOffset? PlacedAt { get; private set; }
+
+    /// <summary>EN: When it was cancelled (UTC). TR: Ne zaman iptal edildiği (UTC).</summary>
+    public DateTimeOffset? CancelledAt { get; private set; }
+
+    /// <summary>EN: Who cancelled it. TR: Kimin iptal ettiği.</summary>
+    public Guid? CancelledBy { get; private set; }
+
+    /// <summary>EN: Why it was cancelled, if given. TR: Verildiyse neden iptal edildiği.</summary>
+    [AuditChanges]
+    public string? CancellationReason { get; private set; }
+
+    /// <summary>EN: Whether it is placed and not cancelled. TR: Verilmiş ve iptal edilmemiş olup olmadığı.</summary>
+    public bool IsPlaced => Status == OrderStatus.Placed;
 
     /// <summary>EN: The customer, if any (not validated yet, T-039). TR: Varsa müşteri (henüz doğrulanmaz, T-039).</summary>
     [AuditChanges]
@@ -102,6 +121,28 @@ public sealed class Order : BusinessEntity
         Status = OrderStatus.Placed;
         Number = number;
         PlacedAt = now;
+    }
+
+    /// <summary>
+    /// EN: Cancels a placed order, as a whole and once (ADR-024, T-040). Its lines stay as they were: they are the record
+    ///     of what was sold and is now returned.
+    /// TR: Verilmiş bir siparişi bütün olarak ve bir kez iptal eder (ADR-024, T-040). Satırları olduğu gibi kalır: satılan ve şimdi geri
+    ///     dönenin kaydıdır.
+    /// </summary>
+    /// <param name="reason">EN: Optional reason. TR: İsteğe bağlı neden.</param>
+    /// <param name="userId">EN: Who cancels. TR: İptal eden.</param>
+    /// <param name="now">EN: Current time. TR: Şu an.</param>
+    public void Cancel(string? reason, Guid? userId, DateTimeOffset now)
+    {
+        if (!IsPlaced)
+        {
+            throw new InvalidOperationException("Only a placed order can be cancelled.");
+        }
+
+        Status = OrderStatus.Cancelled;
+        CancelledAt = now;
+        CancelledBy = userId;
+        CancellationReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
     }
 
     /// <summary>

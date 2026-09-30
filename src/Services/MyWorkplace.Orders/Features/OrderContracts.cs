@@ -123,6 +123,9 @@ public sealed record OrderLineResponse(
 /// <param name="CreatedAt">EN: Creation time. TR: Oluşturulma zamanı.</param>
 /// <param name="UpdatedAt">EN: Last update time. TR: Son güncelleme zamanı.</param>
 /// <param name="Lines">EN: The lines. TR: Satırlar.</param>
+/// <param name="CancelledAt">EN: When cancelled (T-040). TR: Ne zaman iptal edildiği (T-040).</param>
+/// <param name="CancelledBy">EN: Who cancelled it. TR: Kimin iptal ettiği.</param>
+/// <param name="CancellationReason">EN: Why, if given. TR: Verildiyse nedeni.</param>
 public sealed record OrderResponse(
     Guid Id,
     OrderStatus Status,
@@ -133,7 +136,10 @@ public sealed record OrderResponse(
     DateTimeOffset? PlacedAt,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
-    IReadOnlyList<OrderLineResponse> Lines)
+    IReadOnlyList<OrderLineResponse> Lines,
+    DateTimeOffset? CancelledAt,
+    Guid? CancelledBy,
+    string? CancellationReason)
 {
     /// <summary>
     /// EN: The one mapping from entity to API shape (ADR-021).
@@ -144,7 +150,8 @@ public sealed record OrderResponse(
             o.Id, o.Status, o.Number, o.CustomerId, o.CustomerName, o.Total, o.PlacedAt, o.CreatedAt, o.UpdatedAt,
             o.Lines.OrderBy(l => l.LineNumber)
                 .Select(l => new OrderLineResponse(l.LineNumber, l.Sku, l.Name, l.Quantity, l.UnitPrice, l.LineTotal))
-                .ToList());
+                .ToList(),
+            o.CancelledAt, o.CancelledBy, o.CancellationReason);
 
     /// <summary>EN: <see cref="Projection"/>, compiled once. TR: Bir kez derlenmiş <see cref="Projection"/>.</summary>
     private static readonly Func<Order, OrderResponse> _map = Projection.Compile();
@@ -192,4 +199,29 @@ internal static class OrderProblems
             statusCode: StatusCodes.Status409Conflict,
             title: "The order has already been placed.",
             detail: "A placed order can't be changed, deleted or placed again.");
+
+    /// <summary>
+    /// EN: 409 for cancelling an order that is not placed: a draft (delete it instead) or an already cancelled order.
+    /// TR: Verilmemiş bir siparişi iptal etmek için 409: bir taslak (onun yerine silin) veya zaten iptal edilmiş bir sipariş.
+    /// </summary>
+    /// <param name="status">EN: The order's status. TR: Siparişin durumu.</param>
+    /// <returns>EN: A 409 ProblemDetails. TR: 409 ProblemDetails.</returns>
+    public static ProblemHttpResult NotCancellable(OrderStatus status) =>
+        TypedResults.Problem(
+            statusCode: StatusCodes.Status409Conflict,
+            title: status == OrderStatus.Draft ? "A draft can't be cancelled." : "The order is already cancelled.",
+            detail: status == OrderStatus.Draft
+                ? "Only a placed order is cancelled; delete a draft instead."
+                : "A cancelled order is final.");
+}
+
+/// <summary>
+/// EN: Form for cancelling a placed order (T-040).
+/// TR: Verilmiş bir siparişi iptal etmek için form (T-040).
+/// </summary>
+public sealed record CancelOrderInput
+{
+    /// <summary>EN: Why it is cancelled (optional). TR: Neden iptal edildiği (isteğe bağlı).</summary>
+    [MaxLength(Order.CancellationReasonMaxLength)]
+    public string? Reason { get; init; }
 }

@@ -72,6 +72,43 @@ internal static class OrdersApi
     }
 
     /// <summary>
+    /// EN: Cancels an order with an optional If-Match and reason (T-040).
+    /// TR: Bir siparişi isteğe bağlı If-Match ve nedenle iptal eder (T-040).
+    /// </summary>
+    /// <param name="client">EN: Signed-in client. TR: Giriş yapmış istemci.</param>
+    /// <param name="id">EN: Order id. TR: Sipariş kimliği.</param>
+    /// <param name="ifMatch">EN: ETag or null. TR: ETag veya null.</param>
+    /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <param name="reason">EN: Reason or null. TR: Neden veya null.</param>
+    /// <returns>EN: The response. TR: Cevap.</returns>
+    public static Task<HttpResponseMessage> CancelAsync(
+        HttpClient client, Guid id, string? ifMatch, CancellationToken ct, string? reason = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/orders/{id}/cancel") { Content = JsonContent.Create(new { reason }) };
+        if (ifMatch is not null)
+        {
+            request.Headers.TryAddWithoutValidation("If-Match", ifMatch);
+        }
+
+        return client.SendAsync(request, ct);
+    }
+
+    /// <summary>
+    /// EN: Reads an order's current ETag.
+    /// TR: Bir siparişin güncel ETag'ini okur.
+    /// </summary>
+    /// <param name="client">EN: Signed-in client. TR: Giriş yapmış istemci.</param>
+    /// <param name="id">EN: Order id. TR: Sipariş kimliği.</param>
+    /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: The ETag. TR: ETag.</returns>
+    public static async Task<string> ETagOfAsync(HttpClient client, Guid id, CancellationToken ct)
+    {
+        using var read = await client.GetAsync($"/orders/{id}", ct);
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        return read.Headers.ETag!.ToString();
+    }
+
+    /// <summary>
     /// EN: Creates and places an order; returns its id and number.
     /// TR: Bir sipariş oluşturur ve verir; kimliğini ve numarasını döner.
     /// </summary>

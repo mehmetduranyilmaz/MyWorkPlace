@@ -243,6 +243,78 @@ public sealed class OrderTests(AppFixture app)
         Assert.NotEqual(Guid.Empty, Property(published, "tenantId")!.Value.GetGuid());
     }
 
+    // ---------------------------------------------------------------- Cancelling (T-040)
+
+    [Fact]
+    public async Task Cancel_PlacedOrder_StoresWhenWhoAndWhy_AndIsFinal()
+    {
+        using var client = await CreateSignedInClientAsync(app, Ct);
+        var (id, _) = await CreatePlacedAsync(client, Ct);
+        var etag = await ETagOfAsync(client, id, Ct);
+
+        using var missing = await CancelAsync(client, id, ifMatch: null, Ct);
+        using var stale = await CancelAsync(client, id, "\"1\"", Ct);
+        using var cancelled = await CancelAsync(client, id, etag, Ct, reason: "  Customer changed their mind  ");
+        using var again = await CancelAsync(client, id, cancelled.Headers.ETag!.ToString(), Ct);
+        using var place = await PlaceAsync(client, id, cancelled.Headers.ETag!.ToString(), Ct);
+
+        Assert.Equal(HttpStatusCode.PreconditionRequired, missing.StatusCode);
+        Assert.Equal(HttpStatusCode.PreconditionFailed, stale.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
+        var order = await cancelled.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        Assert.Equal("Cancelled", order.GetProperty("status").GetString());
+        Assert.Equal("Customer changed their mind", order.GetProperty("cancellationReason").GetString());
+        Assert.NotEqual(JsonValueKind.Null, order.GetProperty("cancelledAt").ValueKind);
+        Assert.NotEqual(JsonValueKind.Null, order.GetProperty("cancelledBy").ValueKind);
+        Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, place.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cancel_Draft_Returns409()
+    {
+        using var client = await CreateSignedInClientAsync(app, Ct);
+        var (id, etag) = await CreateDraftAsync(client, Ct);
+
+        using var response = await CancelAsync(client, id, etag, Ct);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cancel_IsForOwnerAndAdmin_AnotherCompanyGets404()
+    {
+        var (ownerClient, _) = await UsersApi.CreateCompanyAsync(app, Ct);
+        using var owner = ownerClient;
+        using var member = await UsersApi.SignInAsNewUserAsync(app, owner, "Member", Ct);
+        using var admin = await UsersApi.SignInAsNewUserAsync(app, owner, "Admin", Ct);
+        using var stranger = await CreateSignedInClientAsync(app, Ct);
+        var (id, _) = await CreatePlacedAsync(owner, Ct);
+        var etag = await ETagOfAsync(owner, id, Ct);
+
+        using var byMember = await CancelAsync(member, id, etag, Ct);
+        using var byStranger = await CancelAsync(stranger, id, etag, Ct);
+        using var byAdmin = await CancelAsync(admin, id, etag, Ct);
+
+        Assert.Equal(HttpStatusCode.Forbidden, byMember.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, byStranger.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, byAdmin.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cancel_PublishesOrderCancelled()
+    {
+        await using var tap = await EventTap.StartAsync(app, "OrderCancelled", Ct);
+        using var client = await CreateSignedInClientAsync(app, Ct);
+        var (id, number) = await CreatePlacedAsync(client, Ct);
+
+        using var cancelled = await CancelAsync(client, id, await ETagOfAsync(client, id, Ct), Ct);
+        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
+
+        var published = await tap.WaitForAsync(e => Property(e, "orderId")?.GetGuid() == id, Ct);
+        Assert.Equal(number, Property(published, "number")!.Value.GetInt32());
+    }
+
     [Fact]
     public async Task ListOrders_NewestFirst_SearchByNumber()
     {

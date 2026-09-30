@@ -22,6 +22,7 @@ builder.AddServiceModule<InventoryDbContext>("inventory-db", Permissions.Catalog
 builder.AddServiceMessaging<InventoryDbContext>("inventory-db");
 builder.Services.AddScoped<StockLedger>();
 builder.Services.AddScoped<UnitCatalog>();
+builder.Services.AddScoped<OrderStockClaims>();
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();

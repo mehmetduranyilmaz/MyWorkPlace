@@ -85,6 +85,38 @@ public sealed class StockLedger(InventoryDbContext db)
     }
 
     /// <summary>
+    /// EN: Returns what one order issue took (T-040): an <c>In</c> of the same quantity and unit, reason
+    ///     <c>OrderCancelled</c>, with the order number. Must run inside a transaction that also saves the movement.
+    /// TR: Bir sipariş çıkışının aldığını geri verir (T-040): aynı miktar ve birimde bir <c>In</c>, nedeni <c>OrderCancelled</c>, sipariş
+    ///     numarasıyla. Hareketi de kaydeden bir transaction içinde çalışmalıdır.
+    /// </summary>
+    /// <param name="issue">EN: The order's issue movement. TR: Siparişin çıkış hareketi.</param>
+    /// <param name="cancellationToken">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: The return, or null if the item no longer exists. TR: Geri veriş; kalem artık yoksa null.</returns>
+    public async Task<StockMovement?> ReturnForOrderAsync(StockMovement issue, CancellationToken cancellationToken)
+    {
+        var (changed, balance, _) = await ChangeBalanceAsync(issue.StockItemId, issue.Quantity, onlyIfEnough: false, cancellationToken);
+        if (!changed)
+        {
+            return null;
+        }
+
+        return Record(new StockMovement
+        {
+            StockItemId = issue.StockItemId,
+            Type = StockMovementType.In,
+            EnteredQuantity = issue.EnteredQuantity,
+            UnitCode = issue.UnitCode,
+            Factor = issue.Factor,
+            Quantity = issue.Quantity,
+            BalanceAfter = balance,
+            Reason = StockMovementReason.OrderCancelled,
+            OrderId = issue.OrderId,
+            OrderNumber = issue.OrderNumber,
+        });
+    }
+
+    /// <summary>
     /// EN: Records a manual movement under the company's negative stock policy (ADR-020): <c>Block</c> refuses an issue
     ///     larger than the balance, <c>Allow</c> and <c>Warn</c> apply it and flag it. Must run inside a transaction that
     ///     also saves the movement.

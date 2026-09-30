@@ -26,6 +26,9 @@ public enum StockMovementReason
 
     /// <summary>EN: Recorded by hand (T-030). TR: Elle kaydedilmiş (T-030).</summary>
     Manual,
+
+    /// <summary>EN: Stock returned by a cancelled order (T-040). TR: İptal edilen bir siparişin geri verdiği stok (T-040).</summary>
+    OrderCancelled,
 }
 
 /// <summary>

@@ -47,6 +47,18 @@ public sealed class ProductRoleMatrixTests
         Assert.All(viewer, p => Assert.EndsWith(".read", p, StringComparison.Ordinal));
     }
 
+    [Theory]
+    [InlineData("Owner", true)]
+    [InlineData("Admin", true)]
+    [InlineData("Member", false)]
+    [InlineData("Viewer", false)]
+    public void CancellingOrders_IsForOwnerAndAdminOnly(string role, bool granted)
+    {
+        // EN: "cancel" is not a read/write/delete suffix, so the convention keeps it for the managers (ADR-025, T-040).
+        // TR: "cancel" bir read/write/delete son eki değildir; bu yüzden kural onu yöneticilere bırakır (ADR-025, T-040).
+        Assert.Equal(granted, Catalog.Grants(role, Permissions.Orders.Cancel));
+    }
+
     [Fact]
     public void EveryPermission_IsGrantedToSomeone()
     {

@@ -495,6 +495,17 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
     found here, since EF marks owned parts deleted along with their owner.
   - Events are published to an exchange named after the event type (`OrderPlaced`) — our rule (ADR-023), not the
     library's default.
+- **Refined (T-040) — cancelling:**
+  - **Only a placed order is cancelled** (a draft is deleted instead), as a whole, once; `Cancelled` is final. It
+    needs `If-Match` like placing, and stores when, by whom and an optional reason. Partial returns are T-058.
+  - **Permission `orders.cancel`:** undoing a sale is more sensitive than making one. The suffix convention (ADR-025)
+    gives an unknown suffix to Owner and Admin only, so no role list is edited.
+  - **The event carries only the order:** `OrderCancelled { OrderId, Number }`. Inventory returns what *it recorded*
+    for that order — an `In` per issue movement, reason `OrderCancelled` — not what the lines say now: a SKU may have
+    changed or moved to another item since the sale.
+  - **Out-of-order events are expected:** the two events travel on different exchanges, so a cancellation can be
+    processed first. Inventory then remembers the order as cancelled, and a late `OrderPlaced` issues nothing —
+    otherwise the stock would stay wrong for good.
 
 ### ADR-025 — Contracts is a registry; roles follow permission names
 

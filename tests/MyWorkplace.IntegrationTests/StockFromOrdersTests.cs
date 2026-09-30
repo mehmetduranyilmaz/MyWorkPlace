@@ -126,6 +126,27 @@ public sealed class StockFromOrdersTests(AppFixture app)
     }
 
     [Fact]
+    public async Task CancelledOrder_ReturnsItsStock()
+    {
+        using var client = await CreateProClientAsync(app, Ct);
+        var sku = NewSku();
+        var itemId = await CreateItemAsync(client, sku);
+        var (orderId, number) = await PlaceAsync(client, (sku, 2m), ("NO-SUCH-SKU", 1m));
+        await WaitUntilAsync(async () => await QuantityAsync(client, itemId) == -2m);
+
+        using var cancelled = await CancelAsync(client, orderId, await ETagOfAsync(client, orderId, Ct), Ct);
+        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
+
+        // EN: Through RabbitMQ: OrderCancelled reaches Inventory, which returns exactly what it issued (T-040).
+        // TR: RabbitMQ üzerinden: OrderCancelled Inventory'ye ulaşır; Inventory çıkardığını birebir geri verir (T-040).
+        await WaitUntilAsync(async () => await QuantityAsync(client, itemId) == 0m);
+        var history = await client.GetFromJsonAsync<JsonElement>($"/inventory/items/{itemId}/movements", Ct);
+        var newest = history.GetProperty("items")[0];
+        Assert.Equal(("In", "OrderCancelled", number), (
+            newest.GetProperty("type").GetString(), newest.GetProperty("reason").GetString(), newest.GetProperty("orderNumber").GetInt32()));
+    }
+
+    [Fact]
     public async Task BasicCompanyOrder_ChangesNothing()
     {
         using var client = await CreateSignedInClientAsync(app, Ct);

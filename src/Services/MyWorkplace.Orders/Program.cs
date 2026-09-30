@@ -30,5 +30,6 @@ orders.MapGetOrder();
 orders.MapUpdateOrder();
 orders.MapDeleteOrder();
 orders.MapPlaceOrder();
+orders.MapCancelOrder();
 
 await app.RunAsync();
