@@ -37,9 +37,38 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     /// </summary>
     public DbSet<OrderStock> OrderStocks => Set<OrderStock>();
 
+    /// <summary>EN: Order lines waiting for review (T-042). TR: İncelemeyi bekleyen sipariş satırları (T-042).</summary>
+    public DbSet<UnmatchedOrderLine> UnmatchedOrderLines => Set<UnmatchedOrderLine>();
+
+    /// <summary>EN: SKUs never kept in stock (T-042). TR: Hiç stokta tutulmayan SKU'lar (T-042).</summary>
+    public DbSet<IgnoredSku> IgnoredSkus => Set<IgnoredSku>();
+
     /// <inheritdoc />
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<UnmatchedOrderLine>(line =>
+        {
+            line.Property(l => l.Sku).HasMaxLength(StockItem.SkuMaxLength);
+            line.Property(l => l.NormalizedSku).HasMaxLength(StockItem.SkuMaxLength);
+            line.Property(l => l.Name).HasMaxLength(StockItem.NameMaxLength);
+            line.Property(l => l.Quantity).HasPrecision(18, 3);
+            line.Property(l => l.Status).HasConversion<string>().HasMaxLength(20);
+            line.Property(l => l.Note).HasMaxLength(UnmatchedOrderLine.NoteMaxLength);
+
+            // EN: One entry per order and SKU, even if an event is delivered twice. TR: Bir olay iki kez iletilse bile sipariş ve SKU başına bir kayıt.
+            line.HasIndex(l => new { l.TenantId, l.OrderId, l.NormalizedSku }).IsUnique();
+
+            // EN: The review list: by status, newest first. TR: İnceleme listesi: duruma göre, en yeni önce.
+            line.HasIndex(l => new { l.TenantId, l.Status, l.CreatedAt });
+        });
+
+        modelBuilder.Entity<IgnoredSku>(sku =>
+        {
+            sku.Property(s => s.Sku).HasMaxLength(StockItem.SkuMaxLength);
+            sku.Property(s => s.NormalizedSku).HasMaxLength(StockItem.SkuMaxLength);
+            sku.HasIndex(s => new { s.TenantId, s.NormalizedSku }).IsUnique();
+        });
+
         modelBuilder.Entity<OrderStock>(order =>
         {
             order.ToTable("order_stock");

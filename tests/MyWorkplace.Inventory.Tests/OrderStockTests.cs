@@ -157,6 +157,37 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
             movements.Count(m => m.Reason == StockMovementReason.OrderCancelled));
     }
 
+    [Fact]
+    public async Task UnmatchedLines_AreListedOncePerSku_UnlessIgnored()
+    {
+        await using (var db = database.Create(_tenant))
+        {
+            db.IgnoredSkus.Add(new IgnoredSku { Sku = "SHIPPING", NormalizedSku = "SHIPPING" });
+            await db.SaveChangesAsync(Ct);
+        }
+
+        var order = NewOrder(("typo-1", 2m), ("TYPO-1", 3m), ("shipping", 1m));
+        await PlaceAsync(order);
+
+        await using var check = database.Create(_tenant);
+        var line = Assert.Single(await check.UnmatchedOrderLines.Where(l => l.OrderId == order.OrderId).ToListAsync(Ct));
+        Assert.Equal(("typo-1", "TYPO-1", 5m, UnmatchedLineStatus.Open, order.Number),
+            (line.Sku, line.NormalizedSku, line.Quantity, line.Status, line.OrderNumber));
+    }
+
+    [Fact]
+    public async Task CancellingTheOrder_ClosesItsOpenEntries()
+    {
+        var order = NewOrder(("UNKNOWN-9", 1m));
+        await PlaceAsync(order);
+
+        await CancelAsync(order);
+
+        await using var check = database.Create(_tenant);
+        Assert.Equal(UnmatchedLineStatus.OrderCancelled,
+            (await check.UnmatchedOrderLines.SingleAsync(l => l.OrderId == order.OrderId, Ct)).Status);
+    }
+
     /// <summary>
     /// EN: Creates a stock item (base unit PCS) with a starting balance, and returns its id.
     /// TR: Başlangıç bakiyeli bir stok kalemi (temel birim PCS) oluşturur ve kimliğini döner.

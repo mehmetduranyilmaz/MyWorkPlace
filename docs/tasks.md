@@ -738,7 +738,29 @@ only T-057 may change the core, and only by adding; the other three must not tou
     an old order still returns its stock. Red/green: with the claim switched off, all five handler tests fail. Core
     check (ADR-026): no core project changed — only additions to Contracts (`orders.cancel`, `OrderCancelled`).
     329 tests pass.
-- **T-042** — Review list of order lines Inventory could not match to a stock item (ADR-020)
+- **T-042** — Review list of unmatched order lines (ADR-020) — **Done**
+  - Goal: an order line Inventory could not match to a stock item (a typo in a SKU, a missing item) is seen and
+    settled by a person, instead of silently never leaving stock.
+  - [x] When `OrderPlaced` has a SKU that matches no stock item, Inventory records one `Open` entry per order and SKU
+        (quantities of equal SKUs summed): order id and number, SKU, name, quantity, time
+  - [x] `GET /inventory/unmatched-lines?status=Open` (default `Open`; also `Resolved`, `Dismissed`, `OrderCancelled`):
+        paged, newest first
+  - [x] `POST /inventory/unmatched-lines/{id}/resolve { stockItemId }` issues the quantity from that item now, as an
+        order issue of that order (reason `Order`, order number; always applied, flagged if it goes below zero) →
+        `Resolved`; cancelling the order later returns it like any other issue (T-040). Unknown item → `404`
+  - [x] `POST /inventory/unmatched-lines/{id}/dismiss { note, ignoreSku }` → `Dismissed`, stock unchanged; with
+        `ignoreSku: true` the SKU joins the company's ignored SKUs and later orders don't list it
+  - [x] `GET /inventory/ignored-skus` lists them, `DELETE /inventory/ignored-skus/{sku}` removes one
+  - [x] Cancelling the order closes its open entries as `OrderCancelled`; acting on an entry that is not `Open` → `409`
+  - [x] No automatic matching when an item with the SKU appears later — a person decides
+  - [x] Reading needs `inventory.read`, resolving and dismissing `inventory.write`, removing an ignored SKU
+        `inventory.delete`; another company's entry → `404`; a Basic company → `403`
+  - Notes: resolving loads the entry tracked and saves it with the stock issue in one transaction; a cancellation
+    closing the entry at the same moment changes its version, so the save fails and nothing is issued (`409`). The
+    resolved quantity is issued in the item's base unit, as order issues are (orders carry no unit yet). A unique index
+    on (tenant, order, SKU) keeps one entry per order and SKU even on redelivery. Red/green: with closing on cancel
+    switched off, the handler test and the end-to-end test fail. Core check (ADR-026): no core project and no Contracts
+    change — Inventory only. 339 tests pass.
 - **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
 
 ---

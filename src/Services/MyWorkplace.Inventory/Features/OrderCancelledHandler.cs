@@ -25,6 +25,14 @@ public sealed partial class OrderCancelledHandler(
     /// <inheritdoc />
     public async Task HandleAsync(OrderCancelled integrationEvent, CancellationToken cancellationToken)
     {
+        // EN: Its lines still waiting for review are closed: nothing to issue for a cancelled order (T-042). This changes
+        //     their row version, so a resolve running at the same moment fails instead of issuing.
+        // TR: İncelemeyi hâlâ bekleyen satırları kapatılır: iptal edilmiş bir sipariş için çıkılacak bir şey yok (T-042). Bu, satır sürümlerini
+        //     değiştirir; böylece aynı anda çalışan bir çözme çıkış yapmak yerine başarısız olur.
+        await db.UnmatchedOrderLines
+            .Where(l => l.OrderId == integrationEvent.OrderId && l.Status == UnmatchedLineStatus.Open)
+            .ExecuteUpdateAsync(set => set.SetProperty(l => l.Status, UnmatchedLineStatus.OrderCancelled), cancellationToken);
+
         if (await claims.TryClaimAsync(
             integrationEvent.OrderId, integrationEvent.TenantId, OrderStockStatus.Cancelled, cancellationToken))
         {

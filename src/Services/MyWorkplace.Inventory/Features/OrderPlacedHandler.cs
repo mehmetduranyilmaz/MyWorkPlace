@@ -44,9 +44,27 @@ public sealed partial class OrderPlacedHandler(
             .Select(i => new { i.Id, i.NormalizedSku })
             .ToListAsync(cancellationToken);
 
-        foreach (var sku in skus.Except(items.Select(i => i.NormalizedSku)))
+        // EN: A line matching no item waits for a person, unless the company never stocks that SKU (T-042).
+        // TR: Hiçbir kalemle eşleşmeyen bir satır bir insanı bekler; firma o SKU'yu hiç stokta tutmuyorsa beklemez (T-042).
+        var unmatched = skus.Except(items.Select(i => i.NormalizedSku)).ToList();
+        var ignored = await db.IgnoredSkus
+            .Where(s => unmatched.Contains(s.NormalizedSku))
+            .Select(s => s.NormalizedSku)
+            .ToListAsync(cancellationToken);
+        foreach (var sku in unmatched.Except(ignored))
         {
             LogUnmatchedSku(integrationEvent.Number, sku);
+            var first = integrationEvent.Lines.First(line => StockItem.NormalizeSku(line.Sku) == sku);
+            db.UnmatchedOrderLines.Add(new UnmatchedOrderLine
+            {
+                TenantId = integrationEvent.TenantId,
+                OrderId = integrationEvent.OrderId,
+                OrderNumber = integrationEvent.Number,
+                Sku = first.Sku.Trim(),
+                NormalizedSku = sku,
+                Name = first.Name.Trim(),
+                Quantity = quantities[sku],
+            });
         }
 
         // EN: Always in the same order (by id): two orders locking the same items can then never wait for each other
@@ -61,12 +79,12 @@ public sealed partial class OrderPlacedHandler(
     }
 
     /// <summary>
-    /// EN: An order line whose SKU matches no stock item — e.g. a service. Skipped; a review list follows (T-042).
-    /// TR: SKU'su hiçbir stok kalemiyle eşleşmeyen bir sipariş satırı — ör. bir hizmet. Atlanır; bir inceleme listesi sonra gelir (T-042).
+    /// EN: An order line whose SKU matches no stock item; it is listed for review (T-042).
+    /// TR: SKU'su hiçbir stok kalemiyle eşleşmeyen bir sipariş satırı; inceleme için listelenir (T-042).
     /// </summary>
     /// <param name="orderNumber">EN: Order number. TR: Sipariş numarası.</param>
     /// <param name="sku">EN: The unmatched SKU. TR: Eşleşmeyen SKU.</param>
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Order {OrderNumber}: no stock item with SKU {Sku}; line skipped.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Order {OrderNumber}: no stock item with SKU {Sku}; listed for review.")]
     private partial void LogUnmatchedSku(int orderNumber, string sku);
 
     /// <summary>

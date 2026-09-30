@@ -374,6 +374,17 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
     Movements under `Allow` / `Warn` that go below zero are flagged like order movements.
   - **Retries** (the same `POST` sent twice after a lost response) are a core concern for every `POST`, handled by
     T-057, not per endpoint.
+- **Refined (T-042) — unmatched order lines:**
+  - **Seen, not just logged:** an order line whose SKU matches no item becomes an `Open` entry in Inventory (one per
+    order and SKU), because a typo would otherwise mean stock that silently never leaves.
+  - **A person settles it:** *resolve* issues the quantity from a chosen item now, recorded as an order issue of that
+    order — so cancelling the order later returns it through T-040 with no extra code; *dismiss* leaves stock as it is
+    (e.g. a service). No automatic matching when an item with the SKU appears later: a silent retroactive issue would
+    surprise more than it helps.
+  - **Ignored SKUs:** dismissing can add the SKU to the company's ignored list (e.g. `SHIPPING`), so lines that are never
+    stock don't drown the list; the list can be edited.
+  - **Closed entries stay closed:** a cancelled order closes its open entries; acting on a closed entry is `409`, so a
+    quantity is never issued twice.
 
 ### ADR-021 — Module building blocks: no boilerplate in modules
 

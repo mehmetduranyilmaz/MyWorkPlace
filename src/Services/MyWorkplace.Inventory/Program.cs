@@ -11,6 +11,7 @@ using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Features;
 using MyWorkplace.Inventory.Features.Barcodes;
 using MyWorkplace.Inventory.Features.Movements;
+using MyWorkplace.Inventory.Features.UnmatchedLines;
 using MyWorkplace.Inventory.Features.Units;
 using MyWorkplace.Inventory.Persistence;
 
@@ -50,6 +51,9 @@ items.MapListMovements();
 items.MapAddBarcode();
 items.MapRemoveBarcode();
 inventory.MapGroup("/barcodes").WithTags("Barcodes").MapLookupBarcode();
+
+// EN: Order lines that matched no item, for a person to settle (ADR-020, T-042). TR: Hiçbir kalemle eşleşmeyen sipariş satırları, bir insanın çözmesi için (ADR-020, T-042).
+inventory.MapUnmatchedLines();
 
 // EN: The unit catalog: system units plus the company's own (ADR-019). TR: Birim kataloğu: sistem birimleri artı firmanın kendi birimleri (ADR-019).
 var units = inventory.MapGroup("/units").WithTags("Units");
