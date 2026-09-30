@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using static MyWorkplace.IntegrationTests.IdentityApi;
+using static MyWorkplace.IntegrationTests.InventoryApi;
 using static MyWorkplace.IntegrationTests.UsersApi;
 
 namespace MyWorkplace.IntegrationTests;
@@ -21,8 +22,8 @@ public sealed class BarcodeTests(AppFixture app)
     public async Task ScanningABoxBarcode_ReturnsTheItemUnitFactorAndStock()
     {
         using var client = await CreateProClientAsync(app, Ct);
-        var itemId = await CreateItemAsync(client, "Water", units: [new { unit = "BOX", factor = 24m }]);
-        using var received = await client.PostAsJsonAsync($"/inventory/items/{itemId}/movements", new { type = "In", quantity = 2m, unit = "BOX" }, Ct);
+        var itemId = await CreateItemAsync(client, Ct, name: "Water", units: [new { unit = "BOX", factor = 24m }]);
+        using var received = await RecordAsync(client, itemId, new { type = "In", quantity = 2m, unit = "BOX" }, Ct);
         received.EnsureSuccessStatusCode();
         var code = NewCode();
 
@@ -48,7 +49,7 @@ public sealed class BarcodeTests(AppFixture app)
     public async Task InvalidBarcode_Returns400WithFieldError(string code, string unit, string invalidField)
     {
         using var client = await CreateProClientAsync(app, Ct);
-        var itemId = await CreateItemAsync(client);
+        var itemId = await CreateItemAsync(client, Ct);
 
         using var response = await AddAsync(client, itemId, int.TryParse(code, out var length) ? new string('7', length) : code, unit);
 
@@ -62,9 +63,9 @@ public sealed class BarcodeTests(AppFixture app)
     {
         using var client = await CreateProClientAsync(app, Ct);
         using var otherCompany = await CreateProClientAsync(app, Ct);
-        var first = await CreateItemAsync(client);
-        var second = await CreateItemAsync(client);
-        var elsewhere = await CreateItemAsync(otherCompany);
+        var first = await CreateItemAsync(client, Ct);
+        var second = await CreateItemAsync(client, Ct);
+        var elsewhere = await CreateItemAsync(otherCompany, Ct);
         var code = "abc-" + NewCode();
 
         using var added = await AddAsync(client, first, code, "PCS");
@@ -82,7 +83,7 @@ public sealed class BarcodeTests(AppFixture app)
     public async Task ParallelAddsOfTheSameCode_ExactlyOneWins()
     {
         using var client = await CreateProClientAsync(app, Ct);
-        var items = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => CreateItemAsync(client)));
+        var items = await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => CreateItemAsync(client, Ct)));
         var code = NewCode();
 
         // EN: Five items claim the same code at once: the check alone could let several through; the index lets one.
@@ -102,8 +103,8 @@ public sealed class BarcodeTests(AppFixture app)
     public async Task RemovedBarcode_IsGone_AndItsCodeIsFree()
     {
         using var client = await CreateProClientAsync(app, Ct);
-        var first = await CreateItemAsync(client);
-        var second = await CreateItemAsync(client);
+        var first = await CreateItemAsync(client, Ct);
+        var second = await CreateItemAsync(client, Ct);
         var code = NewCode();
         using var added = await AddAsync(client, first, code, "PCS");
 
@@ -122,7 +123,7 @@ public sealed class BarcodeTests(AppFixture app)
     public async Task UnitWithBarcodes_CantLeaveTheItem_ButOtherChangesKeepThem()
     {
         using var client = await CreateProClientAsync(app, Ct);
-        var itemId = await CreateItemAsync(client, "Juice", units: [new { unit = "BOX", factor = 12m }]);
+        var itemId = await CreateItemAsync(client, Ct, name: "Juice", units: [new { unit = "BOX", factor = 12m }]);
         var code = NewCode();
         using var added = await AddAsync(client, itemId, code, "BOX");
         using var read = await client.GetAsync($"/inventory/items/{itemId}", Ct);
@@ -145,8 +146,8 @@ public sealed class BarcodeTests(AppFixture app)
     public async Task DeletedItem_TakesItsBarcodes_AndFreesTheirCodes()
     {
         using var client = await CreateProClientAsync(app, Ct);
-        var deleted = await CreateItemAsync(client);
-        var other = await CreateItemAsync(client);
+        var deleted = await CreateItemAsync(client, Ct);
+        var other = await CreateItemAsync(client, Ct);
         var code = NewCode();
         using var added = await AddAsync(client, deleted, code, "PCS");
 
@@ -164,7 +165,7 @@ public sealed class BarcodeTests(AppFixture app)
     {
         using var owner = await CreateProClientAsync(app, Ct);
         using var stranger = await CreateProClientAsync(app, Ct);
-        var itemId = await CreateItemAsync(owner);
+        var itemId = await CreateItemAsync(owner, Ct);
         var code = NewCode();
         using var added = await AddAsync(owner, itemId, code, "PCS");
 
@@ -180,12 +181,8 @@ public sealed class BarcodeTests(AppFixture app)
     [Fact]
     public async Task Roles_ViewerScans_MemberAdds_OnlyAdminRemoves()
     {
-        var (ownerClient, _) = await CreateCompanyAsync(app, Ct);
-        using var owner = ownerClient;
-        using var upgrade = await UpgradeAsync(owner, Ct);
-        upgrade.EnsureSuccessStatusCode();
-        Authorize(owner, (await upgrade.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("accessToken").GetString()!);
-        var itemId = await CreateItemAsync(owner);
+        using var owner = await CreateProClientAsync(app, Ct);
+        var itemId = await CreateItemAsync(owner, Ct);
         using var viewer = await SignInAsNewUserAsync(app, owner, "Viewer", Ct);
         using var member = await SignInAsNewUserAsync(app, owner, "Member", Ct);
         using var admin = await SignInAsNewUserAsync(app, owner, "Admin", Ct);
@@ -226,23 +223,6 @@ public sealed class BarcodeTests(AppFixture app)
     /// </summary>
     /// <returns>EN: The code. TR: Kod.</returns>
     private static string NewCode() => $"{Guid.NewGuid():N}"[..20];
-
-    /// <summary>
-    /// EN: Creates a stock item (base unit PCS) with a SKU no other test uses, and returns its id.
-    /// TR: Başka hiçbir testin kullanmadığı bir SKU ile bir stok kalemi (temel birim PCS) oluşturur ve kimliğini döner.
-    /// </summary>
-    /// <param name="client">EN: Pro client. TR: Pro istemci.</param>
-    /// <param name="name">EN: Item name. TR: Kalem adı.</param>
-    /// <param name="units">EN: Alternative units, or none. TR: Alternatif birimler veya hiçbiri.</param>
-    /// <returns>EN: Item id. TR: Kalem kimliği.</returns>
-    private static async Task<Guid> CreateItemAsync(HttpClient client, string name = "Item", object[]? units = null)
-    {
-        var sku = $"BAR-{Guid.NewGuid():N}"[..24].ToUpperInvariant();
-        using var response = await client.PostAsJsonAsync(
-            "/inventory/items", new { sku, name, baseUnit = "PCS", units = units ?? [] }, Ct);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
-    }
 
     /// <summary>
     /// EN: Posts a barcode for an item unit.

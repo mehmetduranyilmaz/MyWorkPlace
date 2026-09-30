@@ -1,11 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using MyWorkplace.BuildingBlocks.Identity;
-using MyWorkplace.BuildingBlocks.Persistence;
 using MyWorkplace.Contracts.Events;
 using MyWorkplace.Orders.Domain;
 using MyWorkplace.Orders.Features;
 using MyWorkplace.Orders.Persistence;
-using Testcontainers.PostgreSql;
+using MyWorkplace.Testing;
 
 namespace MyWorkplace.Orders.Tests;
 
@@ -13,52 +11,7 @@ namespace MyWorkplace.Orders.Tests;
 /// EN: A throw-away PostgreSQL with Orders' real migrations, for handler tests.
 /// TR: Handler testleri için Orders'ın gerçek migration'larıyla geçici bir PostgreSQL.
 /// </summary>
-public sealed class OrdersDatabase : IAsyncLifetime
-{
-    /// <summary>EN: The container, on the AppHost's version. TR: Konteyner; AppHost'un sürümünde.</summary>
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(MyWorkplace.PostgresImage.Reference).Build();
-
-    /// <summary>
-    /// EN: A context acting as a company's system actor, configured like the service's.
-    /// TR: Bir firmanın sistem kullanıcısı olarak çalışan, servisinkiyle aynı yapılandırılmış bir context.
-    /// </summary>
-    /// <param name="tenantId">EN: The company. TR: Firma.</param>
-    /// <returns>EN: A new context. TR: Yeni bir context.</returns>
-    public OrdersDbContext Create(Guid tenantId)
-    {
-        var user = new Actor(tenantId);
-        var options = new DbContextOptionsBuilder<OrdersDbContext>().UseServiceConventions(
-            _container.GetConnectionString(),
-            new AuditingInterceptor(user, TimeProvider.System),
-            new ChangeHistoryInterceptor(user, TimeProvider.System));
-        return new OrdersDbContext((DbContextOptions<OrdersDbContext>)options.Options, user);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync()
-    {
-        await _container.StartAsync();
-        await using var db = Create(Guid.Empty);
-        await db.Database.MigrateAsync();
-    }
-
-    /// <inheritdoc />
-    public ValueTask DisposeAsync() => _container.DisposeAsync();
-
-    /// <summary>
-    /// EN: The system actor of a company, as while an event is processed (ADR-023).
-    /// TR: Bir firmanın sistem kullanıcısı; bir olay işlenirken olduğu gibi (ADR-023).
-    /// </summary>
-    /// <param name="TenantId">EN: The company. TR: Firma.</param>
-    private sealed record Actor(Guid? TenantId) : ICurrentUser
-    {
-        /// <inheritdoc />
-        public Guid? UserId => null;
-
-        /// <inheritdoc />
-        public string? Plan => null;
-    }
-}
+public sealed class OrdersDatabase() : ServiceDatabase<OrdersDbContext>((options, user) => new OrdersDbContext(options, user));
 
 /// <summary>
 /// EN: The customer replica on a real database (T-039, ADR-024), with customer events delivered in every order: the

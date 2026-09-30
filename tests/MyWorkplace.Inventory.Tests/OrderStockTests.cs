@@ -1,12 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using MyWorkplace.BuildingBlocks.Identity;
 using MyWorkplace.BuildingBlocks.Persistence;
 using MyWorkplace.Contracts.Events;
 using MyWorkplace.Inventory.Domain;
 using MyWorkplace.Inventory.Features;
 using MyWorkplace.Inventory.Persistence;
-using Testcontainers.PostgreSql;
+using MyWorkplace.Testing;
 
 namespace MyWorkplace.Inventory.Tests;
 
@@ -14,52 +13,7 @@ namespace MyWorkplace.Inventory.Tests;
 /// EN: A throw-away PostgreSQL with Inventory's real migrations, for handler tests.
 /// TR: Handler testleri için Inventory'nin gerçek migration'larıyla geçici bir PostgreSQL.
 /// </summary>
-public sealed class InventoryDatabase : IAsyncLifetime
-{
-    /// <summary>EN: The container, on the AppHost's version. TR: Konteyner; AppHost'un sürümünde.</summary>
-    private readonly PostgreSqlContainer _container = new PostgreSqlBuilder(MyWorkplace.PostgresImage.Reference).Build();
-
-    /// <summary>
-    /// EN: A context acting as a company's system actor, configured like the service's.
-    /// TR: Bir firmanın sistem kullanıcısı olarak çalışan, servisinkiyle aynı yapılandırılmış bir context.
-    /// </summary>
-    /// <param name="tenantId">EN: The company. TR: Firma.</param>
-    /// <returns>EN: A new context. TR: Yeni bir context.</returns>
-    public InventoryDbContext Create(Guid tenantId)
-    {
-        var user = new Actor(tenantId);
-        var options = new DbContextOptionsBuilder<InventoryDbContext>().UseServiceConventions(
-            _container.GetConnectionString(),
-            new AuditingInterceptor(user, TimeProvider.System),
-            new ChangeHistoryInterceptor(user, TimeProvider.System));
-        return new InventoryDbContext((DbContextOptions<InventoryDbContext>)options.Options, user);
-    }
-
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync()
-    {
-        await _container.StartAsync();
-        await using var db = Create(Guid.Empty);
-        await db.Database.MigrateAsync();
-    }
-
-    /// <inheritdoc />
-    public ValueTask DisposeAsync() => _container.DisposeAsync();
-
-    /// <summary>
-    /// EN: The system actor of a company, as while an event is processed (ADR-023).
-    /// TR: Bir firmanın sistem kullanıcısı; bir olay işlenirken olduğu gibi (ADR-023).
-    /// </summary>
-    /// <param name="TenantId">EN: The company. TR: Firma.</param>
-    private sealed record Actor(Guid? TenantId) : ICurrentUser
-    {
-        /// <inheritdoc />
-        public Guid? UserId => null;
-
-        /// <inheritdoc />
-        public string? Plan => null;
-    }
-}
+public sealed class InventoryDatabase() : ServiceDatabase<InventoryDbContext>((options, user) => new InventoryDbContext(options, user));
 
 /// <summary>
 /// EN: <c>OrderPlaced</c> and <c>OrderCancelled</c> on a real database (T-040, ADR-024), called the way the event

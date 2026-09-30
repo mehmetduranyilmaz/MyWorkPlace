@@ -263,5 +263,5 @@ public sealed class StockItemTests(AppFixture app)
     /// <returns>EN: The units. TR: Birimler.</returns>
     private static List<string> Units(JsonElement item) =>
         [.. item.GetProperty("units").EnumerateArray().Select(u =>
-            $"{u.GetProperty("unit").GetString()}={(u.GetProperty("factor").GetDecimal() / 1.000000000000000000000000000000000m).ToString(System.Globalization.CultureInfo.InvariantCulture)}")];
+            $"{u.GetProperty("unit").GetString()}={Json.Trim(u.GetProperty("factor").GetDecimal())}")];
 }

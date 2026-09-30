@@ -65,9 +65,7 @@ public sealed class RoleRestrictionTests(AppFixture app)
     {
         // EN: Plan and permission are separate checks: Pro opens the module, the role still limits what you do in it.
         // TR: Plan ve izin ayrı kontrollerdir: Pro modülü açar, rol yine de içinde ne yapabileceğinizi sınırlar.
-        var (owner, _) = await CreateCompanyAsync(app, Ct);
-        using var upgrade = await UpgradeAsync(owner, Ct);
-        upgrade.EnsureSuccessStatusCode();
+        using var owner = await CreateProClientAsync(app, Ct);
         using var viewer = await SignInAsNewUserAsync(app, owner, "Viewer", Ct);
 
         using var list = await viewer.GetAsync("/inventory/items", Ct);

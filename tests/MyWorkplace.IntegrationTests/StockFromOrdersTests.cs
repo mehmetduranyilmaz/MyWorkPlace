@@ -1,8 +1,8 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Npgsql;
 using static MyWorkplace.IntegrationTests.IdentityApi;
+using static MyWorkplace.IntegrationTests.InventoryApi;
 using static MyWorkplace.IntegrationTests.OrdersApi;
 
 namespace MyWorkplace.IntegrationTests;
@@ -16,6 +16,9 @@ namespace MyWorkplace.IntegrationTests;
 /// <param name="app">EN: The running system. TR: Çalışan sistem.</param>
 public sealed class StockFromOrdersTests(AppFixture app)
 {
+    /// <summary>EN: What the waits below wait for. TR: Aşağıdaki beklemelerin beklediği şey.</summary>
+    private const string OrderReachesInventory = "the order to reach Inventory";
+
     /// <summary>EN: Test cancellation token. TR: Test iptal belirteci.</summary>
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -24,11 +27,11 @@ public sealed class StockFromOrdersTests(AppFixture app)
     {
         using var client = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
-        var itemId = await CreateItemAsync(client, sku);
+        var itemId = await CreateItemAsync(client, Ct, sku);
 
-        var (_, number) = await PlaceAsync(client, (sku, 2.5m));
+        var (_, number) = await PlaceLinesAsync(client, Ct, (sku, 2.5m));
 
-        await WaitUntilAsync(async () => await QuantityAsync(client, itemId) == -2.5m);
+        await Eventually.UntilAsync(async () => await BalanceAsync(client, itemId, Ct) == -2.5m, OrderReachesInventory, Ct);
         var movement = Assert.Single(await MovementsAsync(itemId));
         Assert.Equal((number, -2.5m, true), (movement.OrderNumber, movement.BalanceAfter, movement.Negative));
     }
@@ -38,14 +41,14 @@ public sealed class StockFromOrdersTests(AppFixture app)
     {
         using var client = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
-        var itemId = await CreateItemAsync(client, sku);
+        var itemId = await CreateItemAsync(client, Ct, sku);
 
         // EN: Five orders placed at once for the same item: a lost update would leave the balance above −5.
         // TR: Aynı kalem için aynı anda verilen beş sipariş: kayıp bir güncelleme bakiyeyi −5'in üstünde bırakırdı.
-        await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => PlaceAsync(client, (sku, 1m))));
+        await Task.WhenAll(Enumerable.Range(0, 5).Select(_ => PlaceLinesAsync(client, Ct, (sku, 1m))));
 
-        await WaitUntilAsync(async () => (await MovementsAsync(itemId)).Count == 5);
-        Assert.Equal(-5m, await QuantityAsync(client, itemId));
+        await Eventually.UntilAsync(async () => (await MovementsAsync(itemId)).Count == 5, OrderReachesInventory, Ct);
+        Assert.Equal(-5m, await BalanceAsync(client, itemId, Ct));
         Assert.Equal(
             [-5m, -4m, -3m, -2m, -1m],
             (await MovementsAsync(itemId)).Select(m => m.BalanceAfter).Order());
@@ -56,12 +59,12 @@ public sealed class StockFromOrdersTests(AppFixture app)
     {
         using var client = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
-        var itemId = await CreateItemAsync(client, sku);
+        var itemId = await CreateItemAsync(client, Ct, sku);
 
-        await PlaceAsync(client, ("NO-SUCH-SKU", 5m), (sku.ToLowerInvariant(), 1m));
+        await PlaceLinesAsync(client, Ct, ("NO-SUCH-SKU", 5m), (sku.ToLowerInvariant(), 1m));
 
         // EN: Matched case-insensitively, like the SKU uniqueness rule. TR: SKU benzersizlik kuralı gibi harf duyarsız eşlenir.
-        await WaitUntilAsync(async () => await QuantityAsync(client, itemId) == -1m);
+        await Eventually.UntilAsync(async () => await BalanceAsync(client, itemId, Ct) == -1m, OrderReachesInventory, Ct);
         Assert.Single(await MovementsAsync(itemId));
     }
 
@@ -71,13 +74,13 @@ public sealed class StockFromOrdersTests(AppFixture app)
         using var buyer = await CreateProClientAsync(app, Ct);
         using var other = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
-        var buyerItem = await CreateItemAsync(buyer, sku);
-        var otherItem = await CreateItemAsync(other, sku);
+        var buyerItem = await CreateItemAsync(buyer, Ct, sku);
+        var otherItem = await CreateItemAsync(other, Ct, sku);
 
-        await PlaceAsync(buyer, (sku, 3m));
+        await PlaceLinesAsync(buyer, Ct, (sku, 3m));
 
-        await WaitUntilAsync(async () => await QuantityAsync(buyer, buyerItem) == -3m);
-        Assert.Equal(0m, await QuantityAsync(other, otherItem));
+        await Eventually.UntilAsync(async () => await BalanceAsync(buyer, buyerItem, Ct) == -3m, OrderReachesInventory, Ct);
+        Assert.Equal(0m, await BalanceAsync(other, otherItem, Ct));
     }
 
     [Fact]
@@ -85,18 +88,18 @@ public sealed class StockFromOrdersTests(AppFixture app)
     {
         using var client = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
-        var itemId = await CreateItemAsync(client, sku);
-        await PlaceAsync(client, (sku, 1m));
-        await WaitUntilAsync(async () => (await MovementsAsync(itemId)).Count == 1);
+        var itemId = await CreateItemAsync(client, Ct, sku);
+        await PlaceLinesAsync(client, Ct, (sku, 1m));
+        await Eventually.UntilAsync(async () => (await MovementsAsync(itemId)).Count == 1, OrderReachesInventory, Ct);
 
         // EN: The balance −1 is in PCS; reading it as −1 KG would be wrong (ADR-019).
         // TR: −1 bakiyesi PCS cinsinden; onu −1 KG okumak yanlış olurdu (ADR-019).
-        using var read = await client.GetAsync($"/inventory/items/{itemId}", Ct);
+        using var read = await client.GetAsync($"{Items}/{itemId}", Ct);
         var etag = read.Headers.ETag!.ToString();
         using var toKg = await client.PutWithIfMatchAsync(
-            $"/inventory/items/{itemId}", new { sku, name = "Bolt", baseUnit = "KG" }, etag, Ct);
+            $"{Items}/{itemId}", new { sku, name = "Bolt", baseUnit = "KG" }, etag, Ct);
         using var rename = await client.PutWithIfMatchAsync(
-            $"/inventory/items/{itemId}", new { sku, name = "Bolt M8", baseUnit = "pcs" }, etag, Ct);
+            $"{Items}/{itemId}", new { sku, name = "Bolt M8", baseUnit = "pcs" }, etag, Ct);
 
         Assert.Equal(HttpStatusCode.Conflict, toKg.StatusCode);
         Assert.Equal(HttpStatusCode.OK, rename.StatusCode);
@@ -107,22 +110,21 @@ public sealed class StockFromOrdersTests(AppFixture app)
     {
         using var client = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
-        var itemId = await CreateItemAsync(client, sku);
-        var (_, number) = await PlaceAsync(client, (sku, 2m));
-        await WaitUntilAsync(async () => (await MovementsAsync(itemId)).Count == 1);
+        var itemId = await CreateItemAsync(client, Ct, sku);
+        var (_, number) = await PlaceLinesAsync(client, Ct, (sku, 2m));
+        await Eventually.UntilAsync(async () => (await MovementsAsync(itemId)).Count == 1, OrderReachesInventory, Ct);
 
-        using var received = await client.PostAsJsonAsync(
-            $"/inventory/items/{itemId}/movements", new { type = "In", quantity = 5m }, Ct);
-        var history = await client.GetFromJsonAsync<JsonElement>($"/inventory/items/{itemId}/movements", Ct);
+        using var received = await RecordAsync(client, itemId, new { type = "In", quantity = 5m }, Ct);
+        var history = await HistoryAsync(client, itemId, Ct);
 
         Assert.Equal(HttpStatusCode.Created, received.StatusCode);
         Assert.Equal(
             [("Manual", (int?)null, "PCS"), ("Order", number, "PCS")],
-            history.GetProperty("items").EnumerateArray().Select(m => (
+            history.Select(m => (
                 m.GetProperty("reason").GetString(),
                 m.GetProperty("orderNumber").ValueKind == JsonValueKind.Null ? null : (int?)m.GetProperty("orderNumber").GetInt32(),
                 m.GetProperty("unit").GetString())));
-        Assert.Equal(3m, await QuantityAsync(client, itemId));
+        Assert.Equal(3m, await BalanceAsync(client, itemId, Ct));
     }
 
     [Fact]
@@ -130,18 +132,18 @@ public sealed class StockFromOrdersTests(AppFixture app)
     {
         using var client = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
-        var itemId = await CreateItemAsync(client, sku);
-        var (orderId, number) = await PlaceAsync(client, (sku, 2m), ("NO-SUCH-SKU", 1m));
-        await WaitUntilAsync(async () => await QuantityAsync(client, itemId) == -2m);
+        var itemId = await CreateItemAsync(client, Ct, sku);
+        var (orderId, number) = await PlaceLinesAsync(client, Ct, (sku, 2m), ("NO-SUCH-SKU", 1m));
+        await Eventually.UntilAsync(async () => await BalanceAsync(client, itemId, Ct) == -2m, OrderReachesInventory, Ct);
 
         using var cancelled = await CancelAsync(client, orderId, await ETagOfAsync(client, orderId, Ct), Ct);
         Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
 
         // EN: Through RabbitMQ: OrderCancelled reaches Inventory, which returns exactly what it issued (T-040).
         // TR: RabbitMQ üzerinden: OrderCancelled Inventory'ye ulaşır; Inventory çıkardığını birebir geri verir (T-040).
-        await WaitUntilAsync(async () => await QuantityAsync(client, itemId) == 0m);
-        var history = await client.GetFromJsonAsync<JsonElement>($"/inventory/items/{itemId}/movements", Ct);
-        var newest = history.GetProperty("items")[0];
+        await Eventually.UntilAsync(
+            async () => await BalanceAsync(client, itemId, Ct) == 0m, "the cancellation to reach Inventory", Ct);
+        var newest = (await HistoryAsync(client, itemId, Ct))[0];
         Assert.Equal(("In", "OrderCancelled", number), (
             newest.GetProperty("type").GetString(), newest.GetProperty("reason").GetString(), newest.GetProperty("orderNumber").GetInt32()));
     }
@@ -152,64 +154,17 @@ public sealed class StockFromOrdersTests(AppFixture app)
         using var client = await CreateSignedInClientAsync(app, Ct);
         var tenantId = TenantOf(client);
 
-        await PlaceAsync(client, (NewSku(), 1m));
+        await PlaceLinesAsync(client, Ct, (NewSku(), 1m));
 
         // EN: Wait until Inventory has processed the event, so "nothing changed" isn't just "not yet".
         // TR: Inventory olayı işleyene kadar beklenir; böylece "hiçbir şey değişmedi", "henüz değil" demek olmaz.
-        await WaitUntilAsync(async () => await CountAsync(
-            "select count(*) from processed_events where tenant_id = @tenant and event_type = 'OrderPlaced'", tenantId) == 1);
+        await Eventually.UntilAsync(
+            async () => await CountAsync(
+                "select count(*) from processed_events where tenant_id = @tenant and event_type = 'OrderPlaced'", tenantId) == 1,
+            OrderReachesInventory,
+            Ct);
         Assert.Equal(0, await CountAsync("select count(*) from stock_movements where tenant_id = @tenant", tenantId));
     }
-
-    /// <summary>
-    /// EN: A SKU no other test uses.
-    /// TR: Başka hiçbir testin kullanmadığı bir SKU.
-    /// </summary>
-    /// <returns>EN: The SKU. TR: SKU.</returns>
-    private static string NewSku() => $"SKU-{Guid.NewGuid():N}"[..24].ToUpperInvariant();
-
-    /// <summary>
-    /// EN: Creates a stock item (balance 0) and returns its id.
-    /// TR: Bir stok kalemi (bakiye 0) oluşturur ve kimliğini döner.
-    /// </summary>
-    /// <param name="client">EN: Pro client. TR: Pro istemci.</param>
-    /// <param name="sku">EN: SKU. TR: SKU.</param>
-    /// <returns>EN: Item id. TR: Kalem kimliği.</returns>
-    private static async Task<Guid> CreateItemAsync(HttpClient client, string sku)
-    {
-        using var response = await client.PostAsJsonAsync(
-            "/inventory/items", new { sku, name = "Bolt", baseUnit = "PCS" }, Ct);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
-    }
-
-    /// <summary>
-    /// EN: Creates and places an order with the given lines.
-    /// TR: Verilen satırlarla bir sipariş oluşturur ve verir.
-    /// </summary>
-    /// <param name="client">EN: Signed-in client. TR: Giriş yapmış istemci.</param>
-    /// <param name="lines">EN: SKU and quantity per line. TR: Satır başına SKU ve miktar.</param>
-    /// <returns>EN: Order id and number. TR: Sipariş kimliği ve numarası.</returns>
-    private static async Task<(Guid Id, int Number)> PlaceAsync(HttpClient client, params (string Sku, decimal Quantity)[] lines)
-    {
-        var (id, etag) = await CreateDraftAsync(client, Ct, new
-        {
-            lines = lines.Select(l => new { sku = l.Sku, name = "Item", quantity = l.Quantity, unitPrice = 1m }).ToArray(),
-        });
-        using var placed = await OrdersApi.PlaceAsync(client, id, etag, Ct);
-        Assert.Equal(HttpStatusCode.OK, placed.StatusCode);
-        return (id, (await placed.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("number").GetInt32());
-    }
-
-    /// <summary>
-    /// EN: Reads an item's balance through the gateway.
-    /// TR: Bir kalemin bakiyesini gateway üzerinden okur.
-    /// </summary>
-    /// <param name="client">EN: Pro client. TR: Pro istemci.</param>
-    /// <param name="itemId">EN: Item id. TR: Kalem kimliği.</param>
-    /// <returns>EN: The balance. TR: Bakiye.</returns>
-    private static async Task<decimal> QuantityAsync(HttpClient client, Guid itemId) =>
-        (await client.GetFromJsonAsync<JsonElement>($"/inventory/items/{itemId}", Ct)).GetProperty("quantity").GetDecimal();
 
     /// <summary>
     /// EN: An item's movements, read from inventory-db (their API arrives with T-030).
@@ -271,20 +226,4 @@ public sealed class StockFromOrdersTests(AppFixture app)
         Guid.Parse(new JsonWebTokenHandler()
             .ReadJsonWebToken(client.DefaultRequestHeaders.Authorization!.Parameter)
             .GetClaim("tenant_id").Value);
-
-    /// <summary>
-    /// EN: Polls a condition until it holds; fails the test after 30 seconds.
-    /// TR: Bir koşulu sağlanana kadar yoklar; 30 saniye sonra testi düşürür.
-    /// </summary>
-    /// <param name="condition">EN: The condition. TR: Koşul.</param>
-    /// <returns>EN: A task. TR: Görev.</returns>
-    private static async Task WaitUntilAsync(Func<Task<bool>> condition)
-    {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
-        while (!await condition())
-        {
-            Assert.True(DateTime.UtcNow < deadline, "The order did not reach Inventory in time.");
-            await Task.Delay(TimeSpan.FromMilliseconds(200), Ct);
-        }
-    }
 }

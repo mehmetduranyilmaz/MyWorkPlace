@@ -122,4 +122,24 @@ internal static class OrdersApi
         Assert.Equal(HttpStatusCode.OK, placed.StatusCode);
         return (id, (await placed.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("number").GetInt32());
     }
+
+    /// <summary>
+    /// EN: Creates and places an order with the given lines (price 1 each); returns its id and number (T-047).
+    /// TR: Verilen satırlarla (her biri 1 fiyatlı) bir sipariş oluşturur ve verir; kimliğini ve numarasını döner (T-047).
+    /// </summary>
+    /// <param name="client">EN: Signed-in client. TR: Giriş yapmış istemci.</param>
+    /// <param name="ct">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <param name="lines">EN: SKU and quantity per line. TR: Satır başına SKU ve miktar.</param>
+    /// <returns>EN: Id and number. TR: Kimlik ve numara.</returns>
+    public static async Task<(Guid Id, int Number)> PlaceLinesAsync(
+        HttpClient client, CancellationToken ct, params (string Sku, decimal Quantity)[] lines)
+    {
+        var (id, etag) = await CreateDraftAsync(client, ct, new
+        {
+            lines = lines.Select(l => new { sku = l.Sku, name = "Item", quantity = l.Quantity, unitPrice = 1m }).ToArray(),
+        });
+        using var placed = await PlaceAsync(client, id, etag, ct);
+        Assert.Equal(HttpStatusCode.OK, placed.StatusCode);
+        return (id, (await placed.Content.ReadFromJsonAsync<JsonElement>(ct)).GetProperty("number").GetInt32());
+    }
 }

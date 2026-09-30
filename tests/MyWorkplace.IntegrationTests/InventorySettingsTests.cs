@@ -91,9 +91,7 @@ public sealed class InventorySettingsTests(AppFixture app)
     [Fact]
     public async Task Viewer_CanRead_Member_CannotChange()
     {
-        var (owner, _) = await CreateCompanyAsync(app, Ct);
-        using var upgrade = await UpgradeAsync(owner, Ct);
-        upgrade.EnsureSuccessStatusCode();
+        using var owner = await CreateProClientAsync(app, Ct);
         using var viewer = await SignInAsNewUserAsync(app, owner, "Viewer", Ct);
         using var member = await SignInAsNewUserAsync(app, owner, "Member", Ct);
 

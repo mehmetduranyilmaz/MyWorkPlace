@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <Compile Include="..\..\eng\PostgresImage.cs" Link="Shared\PostgresImage.cs" />
+    <Compile Include="..\Shared\ServiceDatabase.cs" Link="Shared\ServiceDatabase.cs" />
   </ItemGroup>
 
 </Project>

@@ -134,6 +134,18 @@ Copy [`CustomersApi.cs`](../../tests/MyWorkplace.IntegrationTests/CustomersApi.c
 [`CustomerListTests.cs`](../../tests/MyWorkplace.IntegrationTests/CustomerListTests.cs). The module is done when these
 pass through the gateway:
 
+Use the shared helpers instead of writing your own copies (T-047); your module only adds its `ProductsApi`:
+
+| Need | Helper |
+| --- | --- |
+| A signed-in Basic / Pro company owner | `IdentityApi.CreateSignedInClientAsync` / `CreateProClientAsync` |
+| Users with a role in that company | `UsersApi.SignInAsNewUserAsync` |
+| Wait for an event's effect (eventual consistency) | `Eventually.UntilAsync(condition, "what is awaited", ct)` — one 60 s timeout |
+| Prove an event was published | `EventTap` |
+| Read an event property in any case; a decimal without trailing zeros | `Json.Property`, `Json.Trim` |
+| Stock items, balances, movements; placed orders | `InventoryApi`, `OrdersApi.PlaceLinesAsync` |
+| Handler tests on a real database | Link [`tests/Shared/ServiceDatabase.cs`](../../tests/Shared/ServiceDatabase.cs) and add a one-line `XxxDatabase` subclass (see `OrdersDatabase`) |
+
 - [ ] Create → get → update → delete; the deleted item is `404`.
 - [ ] Invalid input → `400` naming the field; duplicate → `409`.
 - [ ] Update without `If-Match` → `428`; with a stale one → `412`.

@@ -813,8 +813,32 @@ production change must be justified in its task.
     runs in a row, 349 / 349 each, about 3 minutes each. The repeat matrix of the proof commit is removed in the next
     commit, so `main` runs once per push. Decided with the owner: three runs on the same commit through a temporary
     matrix instead of manual `workflow_dispatch` runs — a repeat of unchanged code is what proves stability.
-- **T-047** — Shared integration-test helpers: one place for "create a stock item", "read a balance", "wait until",
-  now duplicated across test classes
+- **T-047** — Shared test helpers — **Done**
+  - Goal: a test says what it checks; how to create an item, wait for an event or read JSON is written once.
+  - [x] `InventoryApi` (create an item, read its balance, record a movement, read its history) replaces the copies in
+        five test classes, following the existing `IdentityApi` / `UsersApi` / `OrdersApi` / `CustomersApi` pattern;
+        `OrdersApi.PlaceLinesAsync` replaces three copies of "place an order with these lines"
+  - [x] Found during the work: `IdentityApi.CreateProClientAsync` already returns an owner client carrying the upgraded
+        token, so no new method was added — it replaces the hand-written "register, upgrade (then authorize with the new
+        token)" in six test classes (Barcode, StockMovement, UnmatchedLine, UnitCatalog, InventorySettings,
+        RoleRestriction); the tests of the upgrade itself keep `UpgradeAsync`
+  - [x] `Eventually.UntilAsync(condition, what, ct)`: one wait for eventual consistency, 60 seconds (was 30), polling
+        every 200 ms, failing with what was awaited; replaces the three copies, `EventTap`'s loop and the outage test's
+        own loop
+  - [x] `Json` helpers (read a property in any case, a decimal without trailing zeros) replace their copies
+  - [x] A shared `ServiceDatabase<TContext>` (in `tests/Shared/`, linked like `eng/PostgresImage.cs`) replaces the
+        near-identical database fixtures of `Inventory.Tests` and `Orders.Tests`; each is now a one-line subclass
+  - [x] Nothing weakened: the test count stays 349; `Assert` calls are counted before and after, and the difference is
+        explained item by item (asserts inside removed helper copies minus those in the new shared helpers) — anything
+        unexplained is a lost check; all tests pass
+  - [x] `adding-a-module.md`: a new module uses the shared helpers and adds its own `XxxApi`
+  - Notes: `Assert` calls 704 → 694 (−10), all explained. Removed with the copies: 13 — "item created" ×5 (Barcode,
+    Resilience, StockFromOrders, StockMovement, UnmatchedLine), "order placed" ×3 (Resilience, StockFromOrders,
+    UnmatchedLine), "deadline not passed" ×5 (three `WaitUntilAsync`, `EventTap`, the outage loop). Added once in the
+    shared helpers: 3 (`InventoryApi.CreateItemAsync`, `OrdersApi.PlaceLinesAsync`, `Eventually.UntilAsync`). 13 − 3 =
+    10. Test assertions themselves are unchanged. The outage test keeps its own tolerant balance read (`TryBalanceAsync`:
+    Inventory is down on purpose there). `IdempotencyTests` keeps its in-process wait: it is a unit test in another
+    project and waits on a counter, not on an event. Local: 349 / 349.
 - **T-046** — Test pyramid: fast unit tests for domain rules now covered only through the API (order totals and
   rounding, last-Owner and anti-escalation, stock ledger rules), so most rules fail in milliseconds, not minutes
 - **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
@@ -824,6 +848,10 @@ production change must be justified in its task.
 
 ## Backlog
 
+- **T-059** — Merge through pull requests, with `main` protected: today "CI green and the owner approved before merge"
+  is a rule we keep; make GitHub enforce it. Branch protection on `main` (a PR and a green CI required, no direct
+  push — set by the owner in the repository settings), `/ship` opens the PR with the prepared message instead of merging
+  locally, and the owner presses "Squash and merge". Found while finishing T-051
 - **T-058** — Partial returns of a placed order: some lines or part of a quantity come back; the stock of what returned
   goes back in, the order records the return and its adjusted total. Found while refining T-040
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,

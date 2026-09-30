@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Aspire.Hosting.ApplicationModel;
 using static MyWorkplace.IntegrationTests.IdentityApi;
+using static MyWorkplace.IntegrationTests.InventoryApi;
 using static MyWorkplace.IntegrationTests.OrdersApi;
 
 namespace MyWorkplace.IntegrationTests;
@@ -39,8 +40,8 @@ public sealed class ResilienceTests(IsolatedAppFixture app) : IClassFixture<Isol
     public async Task OrdersAreAccepted_WhileInventoryIsDown_AndStockCatchesUpWhenItReturns()
     {
         using var client = await CreateProClientAsync(app, Ct);
-        var sku = $"RES-{Guid.NewGuid():N}"[..20].ToUpperInvariant();
-        var itemId = await CreateItemAsync(client, sku);
+        var sku = NewSku();
+        var itemId = await CreateItemAsync(client, Ct, sku);
 
         // EN: 1) Inventory goes down — really stopped, not simulated.
         // TR: 1) Inventory kapanır — gerçekten durdurulur, taklit edilmez.
@@ -58,20 +59,16 @@ public sealed class ResilienceTests(IsolatedAppFixture app) : IClassFixture<Isol
 
         // EN: 3) Orders keep working: Orders doesn't need Inventory.
         // TR: 3) Siparişler çalışmaya devam eder: Orders'ın Inventory'ye ihtiyacı yoktur.
-        await PlaceOrderAsync(client, sku, 1m);
-        await PlaceOrderAsync(client, sku, 2m);
+        await PlaceLinesAsync(client, Ct, (sku, 1m));
+        await PlaceLinesAsync(client, Ct, (sku, 2m));
 
         // EN: 4) Inventory comes back and processes what it missed.
         // TR: 4) Inventory geri gelir ve kaçırdıklarını işler.
         await ExecuteAsync(KnownResourceCommands.StartCommand);
         await app.App.ResourceNotifications.WaitForResourceHealthyAsync(Inventory, Ct);
 
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(60);
-        while (await QuantityAsync(client, itemId) != -3m)
-        {
-            Assert.True(DateTime.UtcNow < deadline, "Stock did not catch up after Inventory returned.");
-            await Task.Delay(TimeSpan.FromMilliseconds(500), Ct);
-        }
+        await Eventually.UntilAsync(
+            async () => await TryBalanceAsync(client, itemId) == -3m, "stock to catch up after Inventory returned", Ct);
     }
 
     /// <summary>
@@ -124,48 +121,17 @@ public sealed class ResilienceTests(IsolatedAppFixture app) : IClassFixture<Isol
     }
 
     /// <summary>
-    /// EN: Creates a stock item (balance 0) and returns its id.
-    /// TR: Bir stok kalemi (bakiye 0) oluşturur ve kimliğini döner.
-    /// </summary>
-    /// <param name="client">EN: Pro client. TR: Pro istemci.</param>
-    /// <param name="sku">EN: SKU. TR: SKU.</param>
-    /// <returns>EN: Item id. TR: Kalem kimliği.</returns>
-    private static async Task<Guid> CreateItemAsync(HttpClient client, string sku)
-    {
-        using var response = await client.PostAsJsonAsync(
-            "/inventory/items", new { sku, name = "Bolt", baseUnit = "PCS" }, Ct);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
-    }
-
-    /// <summary>
-    /// EN: Creates and places a one-line order; fails the test unless both succeed.
-    /// TR: Tek satırlı bir sipariş oluşturur ve verir; ikisi de başarılı olmazsa testi düşürür.
-    /// </summary>
-    /// <param name="client">EN: Signed-in client. TR: Giriş yapmış istemci.</param>
-    /// <param name="sku">EN: SKU. TR: SKU.</param>
-    /// <param name="quantity">EN: Quantity. TR: Miktar.</param>
-    /// <returns>EN: A task. TR: Görev.</returns>
-    private static async Task PlaceOrderAsync(HttpClient client, string sku, decimal quantity)
-    {
-        var (id, etag) = await CreateDraftAsync(client, Ct, new
-        {
-            lines = new[] { new { sku, name = "Bolt", quantity, unitPrice = 1m } },
-        });
-        using var placed = await PlaceAsync(client, id, etag, Ct);
-        Assert.Equal(HttpStatusCode.OK, placed.StatusCode);
-    }
-
-    /// <summary>
-    /// EN: Reads an item's balance through the gateway.
-    /// TR: Bir kalemin bakiyesini gateway üzerinden okur.
+    /// EN: Reads an item's balance through the gateway, or <see cref="decimal.MinValue"/> while Inventory can't answer
+    ///     yet — unlike <see cref="InventoryApi.BalanceAsync"/>, which fails on an error.
+    /// TR: Bir kalemin bakiyesini gateway üzerinden okur; Inventory henüz cevap veremiyorsa <see cref="decimal.MinValue"/> döner —
+    ///     hatada düşen <see cref="InventoryApi.BalanceAsync"/>'ın aksine.
     /// </summary>
     /// <param name="client">EN: Pro client. TR: Pro istemci.</param>
     /// <param name="itemId">EN: Item id. TR: Kalem kimliği.</param>
     /// <returns>EN: The balance. TR: Bakiye.</returns>
-    private static async Task<decimal> QuantityAsync(HttpClient client, Guid itemId)
+    private static async Task<decimal> TryBalanceAsync(HttpClient client, Guid itemId)
     {
-        using var response = await client.GetAsync($"/inventory/items/{itemId}", Ct);
+        using var response = await client.GetAsync($"{Items}/{itemId}", Ct);
         return response.IsSuccessStatusCode
             ? (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("quantity").GetDecimal()
             : decimal.MinValue;

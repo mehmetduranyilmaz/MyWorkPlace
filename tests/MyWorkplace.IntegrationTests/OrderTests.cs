@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using static MyWorkplace.IntegrationTests.IdentityApi;
+using static MyWorkplace.IntegrationTests.Json;
 using static MyWorkplace.IntegrationTests.OrdersApi;
 
 namespace MyWorkplace.IntegrationTests;
@@ -328,19 +329,6 @@ public sealed class OrderTests(AppFixture app)
             all.GetProperty("items").EnumerateArray().Select(o => o.GetProperty("id").GetGuid()));
         Assert.Equal(placedId, Assert.Single(byNumber.GetProperty("items").EnumerateArray()).GetProperty("id").GetGuid());
     }
-
-    /// <summary>
-    /// EN: Reads a property whatever its letter case (the wire format is the messaging library's choice).
-    /// TR: Bir özelliği harf büyüklüğünden bağımsız okur (kablo biçimi mesajlaşma kütüphanesinin tercihidir).
-    /// </summary>
-    /// <param name="element">EN: JSON object. TR: JSON nesnesi.</param>
-    /// <param name="name">EN: Property name. TR: Özellik adı.</param>
-    /// <returns>EN: The value, or null. TR: Değer veya null.</returns>
-    private static JsonElement? Property(JsonElement element, string name) =>
-        element.EnumerateObject()
-            .Where(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
-            .Select(p => (JsonElement?)p.Value)
-            .FirstOrDefault();
 
     /// <summary>
     /// EN: An order body with two lines of quantity 1 and the given prices.

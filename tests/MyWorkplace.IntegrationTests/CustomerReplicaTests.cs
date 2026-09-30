@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using static MyWorkplace.IntegrationTests.IdentityApi;
+using static MyWorkplace.IntegrationTests.Json;
 
 namespace MyWorkplace.IntegrationTests;
 
@@ -49,11 +50,14 @@ public sealed class CustomerReplicaTests(AppFixture app)
         using var renamed = await CustomersApi.UpdateAsync(client, customerId, new { name = "New Name" }, etag, Ct);
         Assert.Equal(HttpStatusCode.OK, renamed.StatusCode);
 
-        await WaitUntilAsync(async () =>
-        {
-            using var draft = await DraftAsync(client, customerId);
-            return (await draft.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("customerName").GetString() == "New Name";
-        });
+        await Eventually.UntilAsync(
+            async () =>
+            {
+                using var draft = await DraftAsync(client, customerId);
+                return (await draft.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("customerName").GetString() == "New Name";
+            },
+            "the rename to reach Orders",
+            Ct);
     }
 
     [Fact]
@@ -66,11 +70,14 @@ public sealed class CustomerReplicaTests(AppFixture app)
         using var deleted = await client.DeleteAsync($"/customers/{customerId}", Ct);
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
 
-        await WaitUntilAsync(async () =>
-        {
-            using var draft = await DraftAsync(client, customerId);
-            return draft.StatusCode == HttpStatusCode.BadRequest;
-        });
+        await Eventually.UntilAsync(
+            async () =>
+            {
+                using var draft = await DraftAsync(client, customerId);
+                return draft.StatusCode == HttpStatusCode.BadRequest;
+            },
+            "the deletion to reach Orders",
+            Ct);
     }
 
     [Fact]
@@ -101,17 +108,20 @@ public sealed class CustomerReplicaTests(AppFixture app)
     private static async Task<JsonElement> CreateDraftWhenReplicatedAsync(HttpClient client, Guid customerId, string? clientName = null)
     {
         JsonElement order = default;
-        await WaitUntilAsync(async () =>
-        {
-            using var draft = await DraftAsync(client, customerId, clientName);
-            if (draft.StatusCode != HttpStatusCode.Created)
+        await Eventually.UntilAsync(
+            async () =>
             {
-                return false;
-            }
+                using var draft = await DraftAsync(client, customerId, clientName);
+                if (draft.StatusCode != HttpStatusCode.Created)
+                {
+                    return false;
+                }
 
-            order = await draft.Content.ReadFromJsonAsync<JsonElement>(Ct);
-            return true;
-        });
+                order = await draft.Content.ReadFromJsonAsync<JsonElement>(Ct);
+                return true;
+            },
+            "the customer to reach Orders",
+            Ct);
         return order;
     }
 
@@ -131,32 +141,4 @@ public sealed class CustomerReplicaTests(AppFixture app)
             lines = new[] { new { sku = "A", name = "A", quantity = 1m, unitPrice = 1m } },
         }, Ct);
 
-    /// <summary>
-    /// EN: Reads a property whatever its letter case.
-    /// TR: Bir özelliği harf büyüklüğünden bağımsız okur.
-    /// </summary>
-    /// <param name="element">EN: JSON object. TR: JSON nesnesi.</param>
-    /// <param name="name">EN: Property name. TR: Özellik adı.</param>
-    /// <returns>EN: The value, or null. TR: Değer veya null.</returns>
-    private static JsonElement? Property(JsonElement element, string name) =>
-        element.EnumerateObject()
-            .Where(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
-            .Select(p => (JsonElement?)p.Value)
-            .FirstOrDefault();
-
-    /// <summary>
-    /// EN: Polls a condition until it holds; fails the test after 30 seconds.
-    /// TR: Bir koşulu sağlanana kadar yoklar; 30 saniye sonra testi düşürür.
-    /// </summary>
-    /// <param name="condition">EN: The condition. TR: Koşul.</param>
-    /// <returns>EN: A task. TR: Görev.</returns>
-    private static async Task WaitUntilAsync(Func<Task<bool>> condition)
-    {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
-        while (!await condition())
-        {
-            Assert.True(DateTime.UtcNow < deadline, "The customer event did not reach Orders in time.");
-            await Task.Delay(TimeSpan.FromMilliseconds(200), Ct);
-        }
-    }
 }

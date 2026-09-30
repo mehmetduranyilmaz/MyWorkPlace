@@ -173,10 +173,7 @@ public sealed class UnitCatalogTests(AppFixture app)
     [Fact]
     public async Task Roles_ViewerReads_MemberAdds_OnlyAdminDeletes()
     {
-        var (ownerClient, _) = await CreateCompanyAsync(app, Ct);
-        using var owner = ownerClient;
-        using var upgrade = await UpgradeAsync(owner, Ct);
-        upgrade.EnsureSuccessStatusCode();
+        using var owner = await CreateProClientAsync(app, Ct);
         using var viewer = await SignInAsNewUserAsync(app, owner, "Viewer", Ct);
         using var member = await SignInAsNewUserAsync(app, owner, "Member", Ct);
         using var admin = await SignInAsNewUserAsync(app, owner, "Admin", Ct);

@@ -76,17 +76,16 @@ internal sealed class EventTap : IAsyncDisposable
     /// <returns>EN: The message. TR: Mesaj.</returns>
     public async Task<JsonElement> WaitForAsync(Func<JsonElement, bool> match, CancellationToken ct)
     {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
-        while (true)
-        {
-            if (_received.FirstOrDefault(match) is { ValueKind: not JsonValueKind.Undefined } found)
+        JsonElement found = default;
+        await Eventually.UntilAsync(
+            () =>
             {
-                return found;
-            }
-
-            Assert.True(DateTime.UtcNow < deadline, "The expected event was not published in time.");
-            await Task.Delay(TimeSpan.FromMilliseconds(200), ct);
-        }
+                found = _received.FirstOrDefault(match);
+                return Task.FromResult(found.ValueKind != JsonValueKind.Undefined);
+            },
+            "the expected event to be published",
+            ct);
+        return found;
     }
 
     /// <inheritdoc />
