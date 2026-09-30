@@ -48,6 +48,15 @@ Anything that comes up outside the current task's scope:
 
 This is how scope creep is prevented.
 
+## A red CI run
+
+A red run is a finding, not bad luck (ADR-028):
+
+1. Read the failing tests (annotations and the job summary name them) and find the cause.
+2. Before re-running, write the cause down — on the task, or in the sprint notes if it belongs to no task. The CI
+   summary shows the attempt number, and a re-run shows a warning, so a silent re-run is visible.
+3. Fix the cause; if it is a flaky test, fix the test or its infrastructure. Tests are never retried automatically.
+
 ## Human checkpoints
 
 | Checkpoint | Who decides |

@@ -33,6 +33,15 @@ jobs:
     timeout-minutes: 20
 
     steps:
+      # EN: A re-run hides a flaky failure unless someone looks; the attempt is shown, and a re-run warns (ADR-028).
+      # TR: Biri bakmazsa bir yeniden çalıştırma kararsız bir hatayı gizler; deneme numarası gösterilir ve yeniden çalıştırma uyarır (ADR-028).
+      - name: Run attempt
+        run: |
+          echo "Run attempt: ${{ github.run_attempt }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.run_attempt }}" -gt 1 ]; then
+            echo "::warning title=Re-run::This is attempt ${{ github.run_attempt }}. Write down why the first attempt failed (board or Sprint Notes) before re-running (ADR-028)."
+          fi
+
       - name: Checkout
         uses: actions/checkout@v7
 
@@ -68,9 +77,15 @@ jobs:
       - name: Build
         run: dotnet build MyWorkplace.slnx --no-restore --configuration Release
 
+      # EN: Test projects run one after another: several of them start containers, and starting them in parallel can
+      #     lose a port race ("address already in use", T-051). Costs little; the cause is gone rather than retried
+      #     (ADR-028).
+      # TR: Test projeleri art arda çalışır: birkaçı konteyner başlatır ve onları paralel başlatmak bir port yarışını kaybedebilir
+      #     ("address already in use", T-051). Maliyeti az; neden yeniden denenmek yerine ortadan kalkar (ADR-028).
       - name: Test
         run: >-
           dotnet test --solution MyWorkplace.slnx --no-build --configuration Release
+          --max-parallel-test-modules 1
           --report-xunit-trx --results-directory TestResults
 
       # EN: Raw logs need a signed-in user; annotations and the job summary don't. So a failure names its tests

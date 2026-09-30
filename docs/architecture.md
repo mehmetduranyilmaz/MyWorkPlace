@@ -607,6 +607,21 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   takers only one wins. `IdempotencyCleanup` deletes expired keys hourly. The table is mapped by `ServiceDbContext`,
   like `processed_events`, so every service has it with its next migration.
 
+### ADR-028 — Flaky tests: fix the cause, never retry the test
+
+- **Context:** the suite grows (three test projects start containers, the integration tests start the whole system)
+  and some failures only happen sometimes — a port conflict between containers, a wait that is too short on a cold
+  machine. The easy answer is to retry a failed test automatically.
+- **Decision:** tests are **never retried automatically** — no retry attribute, no "run failed tests again" step in
+  CI. A red run is investigated and its cause written down (board or Sprint Notes) before anyone re-runs it; the CI
+  summary shows the attempt number, so a re-run is visible.
+- **Why:** in this project real bugs surfaced exactly as "sometimes red" tests — the owned-parts version gap (T-056),
+  events arriving in reverse order (T-040), lost stock updates (T-016). An automatic retry would have turned each of
+  them into a green run and a bug in production.
+- **Allowed:** fixing the cause in the **test infrastructure**, including a bounded retry of an infrastructure step
+  whose failure is not about our code (e.g. starting a container that lost a port race), named in its task.
+- **Cost:** a flaky test costs attention every time until its cause is found — intended.
+
 ---
 
 ## 4. Solution layout (planned)

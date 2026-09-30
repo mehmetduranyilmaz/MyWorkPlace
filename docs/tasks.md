@@ -787,6 +787,41 @@ only T-057 may change the core, and only by adding; the other three must not tou
 
 ---
 
+## Sprint 5 — Reliability and test debt
+
+Goal: a CI that is green for the right reasons and tests that are fast, shared and trustworthy, so the growing suite
+stays cheap to run and to change. Refined with `/refine` before starting. Core check (ADR-026): test code only; any
+production change must be justified in its task.
+
+- **T-051** — Flaky CI: containers competing for ports (ADR-028) — **Done**
+  - Goal: a red CI always means a real problem. Three test projects (BuildingBlocks, Inventory, Orders) start
+    Testcontainers and the integration tests start the system through Aspire, all in parallel; a container can then fail
+    with "address already in use" (CI #35, passed on re-run).
+  - [x] CI time is measured before and after the change and written here
+  - [x] Test projects run one after another (`--max-parallel-test-modules 1`) if that costs at most 1.5 minutes of CI
+        time; otherwise they stay parallel and a container start is retried once on a port conflict — in the test
+        infrastructure, never in a test
+  - [x] Proven: 5 full local runs in a row and 3 CI runs on the same commit (a temporary repeat matrix, removed before
+        merge) are green
+  - [x] The CI summary shows the run's attempt number (`run_attempt`), and `workflow.md` says a re-run needs its reason
+        written first (board or Sprint Notes)
+  - [x] ADR-028 records the rule: tests are never retried automatically
+  - [x] Out of scope: slow eventual-consistency waits (the 30-second `WaitUntil`) belong to T-047, which owns the helper
+  - Notes: measured. Before (last 8 green runs, parallel): Test step 2.04 min, job 2.86 min. After (sequential, three
+    runs of commit 46d9784 on separate machines, CI #57): Test step 2.60 / 2.85 / 2.73 min (average 2.73), job 3.57 min —
+    **+0.69 min**, under the 1.5-minute limit, so sequential stays and no container retry was needed. Local: 5 full
+    runs in a row, 349 / 349 each, about 3 minutes each. The repeat matrix of the proof commit is removed in the next
+    commit, so `main` runs once per push. Decided with the owner: three runs on the same commit through a temporary
+    matrix instead of manual `workflow_dispatch` runs — a repeat of unchanged code is what proves stability.
+- **T-047** — Shared integration-test helpers: one place for "create a stock item", "read a balance", "wait until",
+  now duplicated across test classes
+- **T-046** — Test pyramid: fast unit tests for domain rules now covered only through the API (order totals and
+  rounding, last-Owner and anti-escalation, stock ledger rules), so most rules fail in milliseconds, not minutes
+- **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
+  "Unknown", CI #28 / #29) — e.g. kill the process by its PID (closer to a real crash), check Aspire's known issues
+
+---
+
 ## Backlog
 
 - **T-058** — Partial returns of a placed order: some lines or part of a quantity come back; the stock of what returned
@@ -794,22 +829,13 @@ only T-057 may change the core, and only by adding; the other three must not tou
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
   publishing from CI on a tag; this repository consumes the packages. Start only when both signals of ADR-026 hold
   (the core has settled, and a second real consumer is about to start)
-- **T-051** — Flaky CI: a Testcontainers container can fail to start with "address already in use" while the three
-  test projects start containers in parallel (CI #35, passed on re-run). Options: run test projects one after another,
-  or retry container start on a port conflict; measure the cost in CI time
 - **T-050** — Link stock items to products: `ProductCreated` / `ProductUpdated` from Products, consumed by Inventory
   (ADR-019). Refine first: must every stock item have a product (raw materials?), and which fields does Inventory need?
-- **T-046** — Test pyramid: fast unit tests for domain rules now covered only through the API (order totals and
-  rounding, last-Owner and anti-escalation, stock ledger rules), so most rules fail in milliseconds, not minutes
-- **T-047** — Shared integration-test helpers: one place for "create a stock item", "read a balance", "wait until",
-  now duplicated across test classes
 - **T-048** — Row lock without a hand-written table name: the company lock in user management uses
   `SELECT … FROM tenants FOR UPDATE`; take the table name from the EF model so a naming change can't break it silently
 - **T-049** — Retry-in-a-fresh-scope as a building block: `PlaceOrder` runs its own retry loop and creates DI scopes;
   move the pattern to BuildingBlocks so endpoints only express the business step
 - **T-045** — `dotnet new` template for a module, generated from the guide (T-027) once the guide has been proven
-- **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
-  "Unknown", CI #28 / #29) — e.g. kill the process by its PID (closer to a real crash), check Aspire's known issues
 - **T-041** — Currency (a company setting) and VAT on orders (ADR-024)
 - **T-038** — Custom roles per company (named permission sets defined by the company)
 - **T-035** — Plan downgrade (Pro → Basic): what happens to Pro-module data must be decided first
