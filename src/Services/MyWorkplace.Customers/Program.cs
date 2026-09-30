@@ -4,6 +4,7 @@
 //     customers-db veritabanının sahibidir. Standart kurulum (kimlik, veritabanı, hatalar, dokümanlar, middleware sırası) BuildingBlocks'tan gelir.
 
 using MyWorkplace.BuildingBlocks.Hosting;
+using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Features;
 using MyWorkplace.Customers.Persistence;
@@ -11,6 +12,9 @@ using MyWorkplace.Customers.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceModule<CustomersDbContext>("customers-db", Permissions.Catalog);
+// EN: Publishes customer events, so Orders can keep a replica (T-039, ADR-023).
+// TR: Müşteri olaylarını yayınlar; böylece Orders bir kopya tutabilir (T-039, ADR-023).
+builder.AddServiceMessaging<CustomersDbContext>("customers-db");
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();

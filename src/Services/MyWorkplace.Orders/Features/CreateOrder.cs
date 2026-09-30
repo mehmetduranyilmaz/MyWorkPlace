@@ -39,15 +39,21 @@ public static class CreateOrder
     /// <param name="db">EN: Orders database. TR: Orders veritabanı.</param>
     /// <param name="http">EN: Current request. TR: Mevcut istek.</param>
     /// <param name="cancellationToken">EN: Request cancellation. TR: İstek iptali.</param>
-    /// <returns>EN: 201. TR: 201.</returns>
-    public static async Task<Created<OrderResponse>> HandleAsync(
+    /// <returns>EN: 201, or 400 for an unknown customer. TR: 201; bilinmeyen müşteride 400.</returns>
+    public static async Task<Results<Created<OrderResponse>, ValidationProblem>> HandleAsync(
         OrderInput input,
         OrdersDbContext db,
         HttpContext http,
         CancellationToken cancellationToken)
     {
+        var (customerName, unknownCustomer) = await OrderCustomer.ResolveAsync(input.CustomerId, db, cancellationToken);
+        if (unknownCustomer is not null)
+        {
+            return unknownCustomer;
+        }
+
         var order = new Order();
-        order.Update(input.CustomerId, input.CustomerName, input.LineValues());
+        order.Update(input.CustomerId, customerName, input.LineValues());
 
         db.Orders.Add(order);
         await db.SaveChangesAsync(cancellationToken);

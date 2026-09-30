@@ -40,8 +40,8 @@ public static class UpdateOrder
     /// <param name="db">EN: Orders database. TR: Orders veritabanı.</param>
     /// <param name="http">EN: Current request. TR: Mevcut istek.</param>
     /// <param name="cancellationToken">EN: Request cancellation. TR: İstek iptali.</param>
-    /// <returns>EN: 200, 404, 409, 412 or 428. TR: 200, 404, 409, 412 veya 428.</returns>
-    public static async Task<Results<Ok<OrderResponse>, NotFound, ProblemHttpResult>> HandleAsync(
+    /// <returns>EN: 200, 400, 404, 409, 412 or 428. TR: 200, 400, 404, 409, 412 veya 428.</returns>
+    public static async Task<Results<Ok<OrderResponse>, NotFound, ValidationProblem, ProblemHttpResult>> HandleAsync(
         Guid id,
         OrderInput input,
         OrdersDbContext db,
@@ -69,8 +69,14 @@ public static class UpdateOrder
             return ETags.PreconditionFailed();
         }
 
+        var (customerName, unknownCustomer) = await OrderCustomer.ResolveAsync(input.CustomerId, db, cancellationToken);
+        if (unknownCustomer is not null)
+        {
+            return unknownCustomer;
+        }
+
         db.ExpectVersion(order, expectedVersion);
-        order.Update(input.CustomerId, input.CustomerName, input.LineValues());
+        order.Update(input.CustomerId, customerName, input.LineValues());
 
         try
         {

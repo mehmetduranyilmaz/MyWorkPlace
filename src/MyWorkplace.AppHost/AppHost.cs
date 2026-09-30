@@ -54,10 +54,14 @@ var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
 
 // EN: Services reference Identity to fetch its public signing keys and validate tokens themselves (ADR-006).
 // TR: Servisler, açık imzalama anahtarlarını alıp token'ları kendileri doğrulamak için Identity'ye bağlanır (ADR-006).
+// EN: Customers publishes customer events (T-039), so it references the broker too.
+// TR: Customers müşteri olaylarını yayınlar (T-039); bu yüzden mesaj aracına da bağlanır.
 var customers = builder.AddProject<Projects.MyWorkplace_Customers>("customers")
     .WithTokenSettings(builder.Configuration)
     .WithReference(customersDb)
     .WaitFor(customersDb)
+    .WithReference(messaging)
+    .WaitFor(messaging)
     .WithReference(identity)
     .WaitFor(identity)
     .WithHttpHealthCheck("/health");

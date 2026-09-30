@@ -761,7 +761,29 @@ only T-057 may change the core, and only by adding; the other three must not tou
     on (tenant, order, SKU) keeps one entry per order and SKU even on redelivery. Red/green: with closing on cancel
     switched off, the handler test and the end-to-end test fail. Core check (ADR-026): no core project and no Contracts
     change — Inventory only. 339 tests pass.
-- **T-039** — Customer replica in Orders fed by customer events, so an order's `CustomerId` is validated (ADR-024)
+- **T-039** — Customer replica in Orders, fed by customer events (ADR-024) — **Done**
+  - Goal: an order can only name a customer that exists in the company, and its name comes from Customers — without
+    Orders ever calling Customers (ADR-007).
+  - [x] Customers publishes `CustomerCreated` / `CustomerUpdated` { `CustomerId`, `Name`, `ChangedAt` } and
+        `CustomerDeleted` { `CustomerId`, `ChangedAt` } through the outbox, in the same transaction as the change —
+        wired like any publishing module (guide), no core change
+  - [x] Orders keeps a per-company replica (id, name, deleted, changed at) and applies only newer changes (by
+        `ChangedAt`): an old update after a newer one, or a late `CustomerCreated` after `CustomerDeleted`, changes
+        nothing — proven with events delivered out of order
+  - [x] Creating or updating a draft with a `customerId` unknown to the replica, deleted, or of another company → `400`
+        on `CustomerId`; placing does not re-check (the order keeps its snapshot)
+  - [x] The order's customer name is taken from the replica; a `customerName` sent by the client is ignored, and the
+        "name required with a customer" rule goes away
+  - [x] No backfill: customers created before this task reach the replica when next updated; the ADR records that a
+        real deployment would need a one-time resync
+  - Notes: decided with the owner while planning — the out-of-order cases are proven at handler level on a real database
+    in a new `MyWorkplace.Orders.Tests` project, like T-040. Each event is one upsert
+    (`INSERT … ON CONFLICT DO UPDATE … WHERE changed_at < new`), names from the EF model (T-048); a removal keeps the last
+    name, and `Removed` is not the soft-delete flag, so the replica still sees a removed customer. Red/green: without the
+    newer-only condition the three deterministic out-of-order tests fail; the ten-parallel-updates test is a
+    supplementary check (a random order may end right by chance). Two changes with an identical `ChangedAt` keep the
+    first. Customers now references the broker (AppHost) — a registration point, not a core change. Core check
+    (ADR-026): no core project changed; Contracts only gained the three events. 349 tests pass.
 
 ---
 

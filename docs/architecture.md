@@ -517,6 +517,19 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   - **Out-of-order events are expected:** the two events travel on different exchanges, so a cancellation can be
     processed first. Inventory then remembers the order as cancelled, and a late `OrderPlaced` issues nothing —
     otherwise the stock would stay wrong for good.
+- **Refined (T-039) — customer replica:**
+  - **Customers publishes, Orders keeps a copy:** `CustomerCreated` / `CustomerUpdated` / `CustomerDeleted` through
+    the outbox; Orders keeps a per-company replica and validates `CustomerId` against it — never a synchronous call to
+    Customers (ADR-007), so orders keep working while Customers is down.
+  - **Last write wins, by `ChangedAt`:** events carry the time of the change; the replica applies only newer ones, so
+    an old name arriving late never overwrites a newer one, and a late creation never revives a deleted customer.
+  - **Checked on drafts, not on placing:** a draft names an existing, live customer (`400` otherwise); a placed order
+    keeps its snapshot even if the customer is deleted later. A customer created a moment ago may not be in the
+    replica yet — eventual consistency, accepted: the client retries.
+  - **The name comes from the replica,** not from the client: the source of truth is Customers. A client-sent name is
+    ignored, so existing clients don't break.
+  - **No backfill:** customers created before T-039 reach the replica on their next update. There is no production data
+    yet; a real deployment would need a one-time resync (republish every customer) before turning validation on.
 
 ### ADR-025 — Contracts is a registry; roles follow permission names
 

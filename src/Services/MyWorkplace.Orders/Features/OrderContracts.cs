@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 using MyWorkplace.Orders.Domain;
+using MyWorkplace.Orders.Persistence;
 
 namespace MyWorkplace.Orders.Features;
 
@@ -11,11 +13,16 @@ namespace MyWorkplace.Orders.Features;
 /// </summary>
 public sealed record OrderInput : IValidatableObject
 {
-    /// <summary>EN: Customer (optional). TR: Müşteri (isteğe bağlı).</summary>
+    /// <summary>
+    /// EN: Customer (optional): one of the company's live customers, checked against the replica (T-039).
+    /// TR: Müşteri (isteğe bağlı): firmanın canlı müşterilerinden biri; kopyaya göre kontrol edilir (T-039).
+    /// </summary>
     public Guid? CustomerId { get; init; }
 
-    /// <summary>EN: Customer name at the time of ordering; required with a customer. TR: Müşterinin sipariş anındaki adı; müşteriyle birlikte zorunlu.</summary>
-    [MaxLength(Order.CustomerNameMaxLength)]
+    /// <summary>
+    /// EN: Ignored since T-039: the name is taken from the customer replica. Still accepted, so older clients don't break.
+    /// TR: T-039'dan beri yok sayılır: ad müşteri kopyasından alınır. Eski istemciler bozulmasın diye hâlâ kabul edilir.
+    /// </summary>
     public string? CustomerName { get; init; }
 
     /// <summary>
@@ -30,18 +37,13 @@ public sealed record OrderInput : IValidatableObject
     public List<OrderLineInput>? Lines { get; init; }
 
     /// <summary>
-    /// EN: Cross-field rule: a customer reference comes with the name to keep.
-    /// TR: Alanlar arası kural: müşteri referansı, saklanacak adıyla birlikte gelir.
+    /// EN: Cross-field rules of the lines.
+    /// TR: Satırların alanlar arası kuralları.
     /// </summary>
     /// <param name="validationContext">EN: Validation context. TR: Doğrulama bağlamı.</param>
     /// <returns>EN: Errors. TR: Hatalar.</returns>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (CustomerId is not null && string.IsNullOrWhiteSpace(CustomerName))
-        {
-            yield return new ValidationResult("The customer's name is required with a customer.", [nameof(CustomerName)]);
-        }
-
         // EN: More decimals than the columns hold would be rounded silently by the database, and the stored price would
         //     no longer match the line total computed from it. Reject instead of guessing.
         // TR: Sütunların tuttuğundan fazla ondalık veritabanında sessizce yuvarlanır ve saklanan fiyat, ondan hesaplanan satır
@@ -213,6 +215,44 @@ internal static class OrderProblems
             detail: status == OrderStatus.Draft
                 ? "Only a placed order is cancelled; delete a draft instead."
                 : "A cancelled order is final.");
+}
+
+/// <summary>
+/// EN: Resolves a draft's customer against the replica (T-039).
+/// TR: Bir taslağın müşterisini kopyaya göre çözer (T-039).
+/// </summary>
+internal static class OrderCustomer
+{
+    /// <summary>
+    /// EN: The name to keep for <paramref name="customerId"/>, or a 400 if the company has no such live customer (unknown,
+    ///     deleted, another company's — or created a moment ago and not replicated yet: the client retries).
+    /// TR: <paramref name="customerId"/> için saklanacak ad; firmanın böyle canlı bir müşterisi yoksa 400 (bilinmeyen, silinmiş, başka firmanın
+    ///     — veya az önce oluşturulmuş ve henüz kopyalanmamış: istemci yeniden dener).
+    /// </summary>
+    /// <param name="customerId">EN: The customer, or null. TR: Müşteri veya null.</param>
+    /// <param name="db">EN: Orders database. TR: Orders veritabanı.</param>
+    /// <param name="cancellationToken">EN: Cancellation token. TR: İptal belirteci.</param>
+    /// <returns>EN: The name (null without a customer) or the 400. TR: Ad (müşteri yoksa null) veya 400.</returns>
+    public static async Task<(string? Name, ValidationProblem? Problem)> ResolveAsync(
+        Guid? customerId, OrdersDbContext db, CancellationToken cancellationToken)
+    {
+        if (customerId is not { } id)
+        {
+            return (null, null);
+        }
+
+        var name = await db.CustomerReplicas
+            .Where(c => c.Id == id && !c.Removed)
+            .Select(c => c.Name)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return name is not null
+            ? (name, null)
+            : (null, TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                [nameof(OrderInput.CustomerId)] = ["No such customer in your company (or it was deleted)."],
+            }));
+    }
 }
 
 /// <summary>

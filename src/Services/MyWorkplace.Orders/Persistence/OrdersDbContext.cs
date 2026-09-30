@@ -20,9 +20,19 @@ public sealed class OrdersDbContext(DbContextOptions<OrdersDbContext> options, I
     /// <summary>EN: Order number counters. TR: Sipariş numarası sayaçları.</summary>
     public DbSet<OrderNumberSequence> OrderNumberSequences => Set<OrderNumberSequence>();
 
+    /// <summary>EN: Replica of the current tenant's customers (T-039). TR: Aktif firmanın müşterilerinin kopyası (T-039).</summary>
+    public DbSet<CustomerReplica> CustomerReplicas => Set<CustomerReplica>();
+
     /// <inheritdoc />
     protected override void ConfigureModel(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<CustomerReplica>(customer =>
+        {
+            customer.ToTable("customer_replicas");
+            customer.Property(c => c.Id).ValueGeneratedNever();
+            customer.Property(c => c.Name).HasMaxLength(CustomerReplica.NameMaxLength);
+        });
+
         modelBuilder.Entity<Order>(order =>
         {
             // EN: Stored as text ("Draft") so the database stays readable. TR: Veritabanı okunur kalsın diye metin ("Draft") olarak saklanır.

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Events;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Persistence;
 
@@ -34,11 +36,15 @@ public static class DeleteCustomer
     /// </summary>
     /// <param name="id">EN: Customer id. TR: Müşteri kimliği.</param>
     /// <param name="db">EN: Customers database. TR: Customers veritabanı.</param>
+    /// <param name="outbox">EN: Event outbox. TR: Olay outbox'ı.</param>
+    /// <param name="time">EN: Clock. TR: Saat.</param>
     /// <param name="cancellationToken">EN: Request cancellation. TR: İstek iptali.</param>
     /// <returns>EN: 204 or 404. TR: 204 veya 404.</returns>
     public static async Task<Results<NoContent, NotFound>> HandleAsync(
         Guid id,
         CustomersDbContext db,
+        IEventOutbox outbox,
+        TimeProvider time,
         CancellationToken cancellationToken)
     {
         var customer = await db.Customers.FindForUpdateAsync(id, cancellationToken);
@@ -48,7 +54,13 @@ public static class DeleteCustomer
         }
 
         db.Customers.Remove(customer);
-        await db.SaveChangesAsync(cancellationToken);
+        await outbox.AddAsync(new CustomerDeleted
+        {
+            TenantId = customer.TenantId,
+            CustomerId = customer.Id,
+            ChangedAt = time.GetUtcNow(),
+        });
+        await outbox.SaveChangesAsync(cancellationToken);
         return TypedResults.NoContent();
     }
 }

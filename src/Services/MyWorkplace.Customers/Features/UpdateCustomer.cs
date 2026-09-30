@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
+using MyWorkplace.BuildingBlocks.Messaging;
+using MyWorkplace.Contracts.Events;
 using MyWorkplace.BuildingBlocks.Persistence;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Persistence;
@@ -38,6 +40,8 @@ public static class UpdateCustomer
     /// <param name="id">EN: Customer id. TR: Müşteri kimliği.</param>
     /// <param name="input">EN: Customer form. TR: Müşteri formu.</param>
     /// <param name="db">EN: Customers database. TR: Customers veritabanı.</param>
+    /// <param name="outbox">EN: Event outbox. TR: Olay outbox'ı.</param>
+    /// <param name="time">EN: Clock. TR: Saat.</param>
     /// <param name="http">EN: Current request. TR: Mevcut istek.</param>
     /// <param name="cancellationToken">EN: Request cancellation. TR: İstek iptali.</param>
     /// <returns>EN: 200, 404, 409, 412 or 428. TR: 200, 404, 409, 412 veya 428.</returns>
@@ -45,6 +49,8 @@ public static class UpdateCustomer
         Guid id,
         CustomerInput input,
         CustomersDbContext db,
+        IEventOutbox outbox,
+        TimeProvider time,
         HttpContext http,
         CancellationToken cancellationToken)
     {
@@ -76,9 +82,16 @@ public static class UpdateCustomer
             return CustomerProblems.EmailTaken();
         }
 
+        await outbox.AddAsync(new CustomerUpdated
+        {
+            TenantId = customer.TenantId,
+            CustomerId = customer.Id,
+            Name = customer.Name,
+            ChangedAt = time.GetUtcNow(),
+        });
         try
         {
-            await db.SaveChangesAsync(cancellationToken);
+            await outbox.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateConcurrencyException)
         {

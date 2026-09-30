@@ -6,6 +6,7 @@
 using MyWorkplace.BuildingBlocks.Hosting;
 using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.Contracts.Identity;
+using MyWorkplace.Orders.Domain;
 using MyWorkplace.Orders.Features;
 using MyWorkplace.Orders.Persistence;
 
@@ -13,6 +14,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceModule<OrdersDbContext>("orders-db", Permissions.Catalog);
 builder.AddServiceMessaging<OrdersDbContext>("orders-db");
+// EN: The customer replica, fed by Customers' events (T-039). TR: Customers'ın olaylarıyla beslenen müşteri kopyası (T-039).
+builder.Services.AddScoped<CustomerReplicas>();
 // EN: Must stay here: the validation source generator runs in the project declaring the request types (ADR-021).
 // TR: Burada kalmalı: doğrulama kaynak üreteci istek tiplerini tanımlayan projede çalışır (ADR-021).
 builder.Services.AddValidation();

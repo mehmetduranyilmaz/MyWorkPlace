@@ -21,12 +21,10 @@ public sealed class OrderTests(AppFixture app)
     public async Task CreateDraft_ServerComputesTotals_AndItCanBeRead()
     {
         using var client = await CreateSignedInClientAsync(app, Ct);
-        var customerId = Guid.NewGuid();
 
+        // EN: The customer part is covered by CustomerReplicaTests (T-039). TR: Müşteri kısmını CustomerReplicaTests kapsar (T-039).
         using var created = await CreateAsync(client, new
         {
-            customerId,
-            customerName = "Acme Ltd",
             total = 999_999m, // EN: ignored TR: yok sayılır
             lines = new[] { new { sku = "BOLT-1", name = "Bolt", quantity = 2.5m, unitPrice = 10.25m } },
         }, Ct);
@@ -37,7 +35,7 @@ public sealed class OrderTests(AppFixture app)
         var order = await read.Content.ReadFromJsonAsync<JsonElement>(Ct);
         Assert.Equal("Draft", order.GetProperty("status").GetString());
         Assert.Equal(JsonValueKind.Null, order.GetProperty("number").ValueKind);
-        Assert.Equal("Acme Ltd", order.GetProperty("customerName").GetString());
+        Assert.Equal(JsonValueKind.Null, order.GetProperty("customerName").ValueKind);
         Assert.Equal(25.63m, order.GetProperty("total").GetDecimal());
         var line = Assert.Single(order.GetProperty("lines").EnumerateArray());
         Assert.Equal(25.63m, line.GetProperty("lineTotal").GetDecimal());
@@ -64,7 +62,7 @@ public sealed class OrderTests(AppFixture app)
         {
             lines = new[] { new { sku = new string('A', 300), name = "A", quantity = 1m, unitPrice = 1m } },
         }, Ct);
-        using var customerWithoutName = await CreateAsync(client, new
+        using var unknownCustomer = await CreateAsync(client, new
         {
             customerId = Guid.NewGuid(),
             lines = new[] { new { sku = "A", name = "A", quantity = 1m, unitPrice = 1m } },
@@ -74,7 +72,7 @@ public sealed class OrderTests(AppFixture app)
         Assert.Equal(HttpStatusCode.BadRequest, zeroQuantity.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, tooPrecise.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, skuTooLong.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, customerWithoutName.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, unknownCustomer.StatusCode);
     }
 
     [Fact]

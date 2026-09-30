@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using MyWorkplace.BuildingBlocks.Http;
+using MyWorkplace.BuildingBlocks.Identity;
+using MyWorkplace.BuildingBlocks.Messaging;
 using MyWorkplace.BuildingBlocks.Persistence;
+using MyWorkplace.Contracts.Events;
 using MyWorkplace.Contracts.Identity;
 using MyWorkplace.Customers.Domain;
 using MyWorkplace.Customers.Persistence;
@@ -38,12 +41,18 @@ public static class CreateCustomer
     /// </summary>
     /// <param name="input">EN: Customer form. TR: Müşteri formu.</param>
     /// <param name="db">EN: Customers database. TR: Customers veritabanı.</param>
+    /// <param name="outbox">EN: Event outbox. TR: Olay outbox'ı.</param>
+    /// <param name="currentUser">EN: The caller. TR: Çağıran.</param>
+    /// <param name="time">EN: Clock. TR: Saat.</param>
     /// <param name="http">EN: Current request. TR: Mevcut istek.</param>
     /// <param name="cancellationToken">EN: Request cancellation. TR: İstek iptali.</param>
     /// <returns>EN: 201, or 409 for a duplicate email. TR: 201; tekrar eden e-postada 409.</returns>
     public static async Task<Results<Created<CustomerResponse>, ProblemHttpResult>> HandleAsync(
         CustomerInput input,
         CustomersDbContext db,
+        IEventOutbox outbox,
+        ICurrentUser currentUser,
+        TimeProvider time,
         HttpContext http,
         CancellationToken cancellationToken)
     {
@@ -59,9 +68,19 @@ public static class CreateCustomer
         }
 
         db.Customers.Add(customer);
+
+        // EN: Saved together with the customer, or not at all (T-039, ADR-023).
+        // TR: Müşteriyle birlikte kaydedilir ya da hiç kaydedilmez (T-039, ADR-023).
+        await outbox.AddAsync(new CustomerCreated
+        {
+            TenantId = currentUser.TenantId!.Value,
+            CustomerId = customer.Id,
+            Name = customer.Name,
+            ChangedAt = time.GetUtcNow(),
+        });
         try
         {
-            await db.SaveChangesAsync(cancellationToken);
+            await outbox.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex) when (ex.IsUniqueViolation())
         {
