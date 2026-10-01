@@ -152,10 +152,17 @@ Use the shared helpers instead of writing your own copies (T-047); your module o
 - [ ] Another company's item → `404` (tenant isolation).
 - [ ] Viewer create → `403`; Member delete → `403` (see `RoleRestrictionTests`).
 - [ ] List: paging, sort order, search.
-- [ ] Domain rules with no I/O also get plain unit tests (fast; T-046) in their own project
-      `tests/MyWorkplace.Products.Tests`: copy
-      [`MyWorkplace.Identity.Tests.csproj`](../../tests/MyWorkplace.Identity.Tests/MyWorkplace.Identity.Tests.csproj),
-      keep only `xunit.v3` and the reference to your service, and add it to the solution under `/tests/`.
+- [ ] Every rule gets all its cases at the lowest layer that can break it (ADR-029, T-046):
+
+      | The rule lives in… | Test it with… | Example |
+      | --- | --- | --- |
+      | Plain code: a calculation, a state change, input cleaning | A plain unit test — no Docker, network or fixture | `OrderRulesTests` |
+      | Atomic SQL or a lock | A handler test on a real database (`ServiceDatabase`) | `ManualMovementTests` |
+      | The wiring: route, sign-in, plan, permission, status code | One representative case through the gateway | `CustomerTests` |
+
+      Unit and handler tests live in the module's own project `tests/MyWorkplace.Products.Tests`: copy
+      [`MyWorkplace.Customers.Tests.csproj`](../../tests/MyWorkplace.Customers.Tests/MyWorkplace.Customers.Tests.csproj),
+      point it at your service, and add it to the solution under `/tests/`.
 
 ### 11. Finish
 

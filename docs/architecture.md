@@ -622,6 +622,22 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   whose failure is not about our code (e.g. starting a container that lost a port race), named in its task.
 - **Cost:** a flaky test costs attention every time until its cause is found — intended.
 
+### ADR-029 — Where a rule is tested: the lowest layer that can break it
+
+- **Context:** most business rules were proven only through the gateway. Such a test starts the whole system and
+  answers in minutes; a broken rounding rule should be seen in milliseconds (T-046).
+- **Decision:** each rule gets all its cases at the lowest layer that can break it:
+  - a **pure rule** (a calculation, a state transition, input cleaning) → a plain unit test: no Docker, no network,
+    no fixture;
+  - a rule that lives in **atomic SQL or a lock** (the Block stock policy, "no lost update") → a handler test on a
+    real database (`ServiceDatabase`, T-047);
+  - the **wiring** (routing, authentication, plan and permission checks, the status code a rule maps to) → one
+    representative case through the gateway.
+- **Why:** a unit test can't see a race, and a gateway test is too slow to hold every case; each layer tests what only
+  it can see.
+- **Existing tests:** gateway tests that already cover a rule are kept — they prove the wiring. New cases go down.
+- **Cost:** a rule's cases are split over two places; the test class names say which rule they cover.
+
 ---
 
 ## 4. Solution layout (planned)

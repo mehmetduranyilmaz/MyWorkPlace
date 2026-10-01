@@ -25,8 +25,8 @@ public sealed class InventoryDatabase() : ServiceDatabase<InventoryDbContext>((o
 /// <param name="database">EN: The test database. TR: Test veritabanı.</param>
 public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<InventoryDatabase>
 {
-    /// <summary>EN: A fresh company per test. TR: Test başına yeni bir firma.</summary>
-    private readonly Guid _tenant = Guid.CreateVersion7();
+    /// <summary>EN: A fresh company per test, with the shared steps. TR: Test başına yeni bir firma ve ortak adımlar.</summary>
+    private readonly InventoryData _data = new(database);
 
     /// <summary>EN: Test cancellation token. TR: Test iptal belirteci.</summary>
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -34,14 +34,14 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
     [Fact]
     public async Task PlacedThenCancelled_ReturnsExactlyWhatWasIssued()
     {
-        var itemId = await CreateItemAsync("BOLT", balance: 5m);
+        var itemId = await _data.CreateItemAsync("BOLT", balance: 5m, Ct);
         var order = NewOrder(("bolt", 3m), ("NO-SUCH", 1m));
 
         await PlaceAsync(order);
         await CancelAsync(order);
 
-        Assert.Equal(5m, await BalanceAsync(itemId));
-        var movements = await MovementsAsync(itemId);
+        Assert.Equal(5m, await _data.BalanceAsync(itemId, Ct));
+        var movements = await _data.MovementsAsync(itemId, Ct);
         Assert.Equal(
             [(StockMovementType.In, StockMovementReason.Manual, 5m), (StockMovementType.Out, StockMovementReason.Order, 3m),
                 (StockMovementType.In, StockMovementReason.OrderCancelled, 3m)],
@@ -52,38 +52,38 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
     [Fact]
     public async Task CancelledBeforePlaced_IssuesNothing()
     {
-        var itemId = await CreateItemAsync("NUT", balance: 5m);
+        var itemId = await _data.CreateItemAsync("NUT", balance: 5m, Ct);
         var order = NewOrder(("NUT", 2m));
 
         // EN: The two events delivered in reverse. TR: İki olay ters sırayla iletilir.
         await CancelAsync(order);
         await PlaceAsync(order);
 
-        Assert.Equal(5m, await BalanceAsync(itemId));
-        Assert.DoesNotContain(await MovementsAsync(itemId), m => m.Reason == StockMovementReason.Order);
+        Assert.Equal(5m, await _data.BalanceAsync(itemId, Ct));
+        Assert.DoesNotContain(await _data.MovementsAsync(itemId, Ct), m => m.Reason == StockMovementReason.Order);
     }
 
     [Fact]
     public async Task CancelledTwice_ReturnsOnce()
     {
-        var itemId = await CreateItemAsync("WASHER", balance: 5m);
+        var itemId = await _data.CreateItemAsync("WASHER", balance: 5m, Ct);
         var order = NewOrder(("WASHER", 2m));
         await PlaceAsync(order);
 
         await CancelAsync(order);
         await CancelAsync(order with { EventId = Guid.CreateVersion7() });
 
-        Assert.Equal(5m, await BalanceAsync(itemId));
+        Assert.Equal(5m, await _data.BalanceAsync(itemId, Ct));
     }
 
     [Fact]
     public async Task ItemDeletedMeanwhile_IsSkipped_TheCancellationStillCompletes()
     {
-        var kept = await CreateItemAsync("KEPT", balance: 5m);
-        var deleted = await CreateItemAsync("GONE", balance: 2m);
+        var kept = await _data.CreateItemAsync("KEPT", balance: 5m, Ct);
+        var deleted = await _data.CreateItemAsync("GONE", balance: 2m, Ct);
         var order = NewOrder(("KEPT", 1m), ("GONE", 2m));
         await PlaceAsync(order);
-        await using (var db = database.Create(_tenant))
+        await using (var db = _data.Context())
         {
             db.StockItems.Remove((await db.StockItems.FindForUpdateAsync(deleted, Ct))!);
             await db.SaveChangesAsync(Ct);
@@ -91,7 +91,7 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
 
         await CancelAsync(order);
 
-        Assert.Equal(5m, await BalanceAsync(kept));
+        Assert.Equal(5m, await _data.BalanceAsync(kept, Ct));
     }
 
     [Fact]
@@ -99,13 +99,13 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
     {
         // EN: Many orders, each placed and cancelled at once: whoever wins, the stock must end where it started.
         // TR: Birçok sipariş, her biri aynı anda verilip iptal edilir: kim kazanırsa kazansın stok başladığı yerde bitmelidir.
-        var itemId = await CreateItemAsync("RIVET", balance: 100m);
+        var itemId = await _data.CreateItemAsync("RIVET", balance: 100m, Ct);
         var orders = Enumerable.Range(0, 20).Select(_ => NewOrder(("RIVET", 1m))).ToList();
 
         await Task.WhenAll(orders.Select(order => Task.WhenAll(Task.Run(() => PlaceAsync(order)), Task.Run(() => CancelAsync(order)))));
 
-        Assert.Equal(100m, await BalanceAsync(itemId));
-        var movements = await MovementsAsync(itemId);
+        Assert.Equal(100m, await _data.BalanceAsync(itemId, Ct));
+        var movements = await _data.MovementsAsync(itemId, Ct);
         Assert.Equal(
             movements.Count(m => m.Reason == StockMovementReason.Order),
             movements.Count(m => m.Reason == StockMovementReason.OrderCancelled));
@@ -114,7 +114,7 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
     [Fact]
     public async Task UnmatchedLines_AreListedOncePerSku_UnlessIgnored()
     {
-        await using (var db = database.Create(_tenant))
+        await using (var db = _data.Context())
         {
             db.IgnoredSkus.Add(new IgnoredSku { Sku = "SHIPPING", NormalizedSku = "SHIPPING" });
             await db.SaveChangesAsync(Ct);
@@ -123,7 +123,7 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
         var order = NewOrder(("typo-1", 2m), ("TYPO-1", 3m), ("shipping", 1m));
         await PlaceAsync(order);
 
-        await using var check = database.Create(_tenant);
+        await using var check = _data.Context();
         var line = Assert.Single(await check.UnmatchedOrderLines.Where(l => l.OrderId == order.OrderId).ToListAsync(Ct));
         Assert.Equal(("typo-1", "TYPO-1", 5m, UnmatchedLineStatus.Open, order.Number),
             (line.Sku, line.NormalizedSku, line.Quantity, line.Status, line.OrderNumber));
@@ -137,34 +137,9 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
 
         await CancelAsync(order);
 
-        await using var check = database.Create(_tenant);
+        await using var check = _data.Context();
         Assert.Equal(UnmatchedLineStatus.OrderCancelled,
             (await check.UnmatchedOrderLines.SingleAsync(l => l.OrderId == order.OrderId, Ct)).Status);
-    }
-
-    /// <summary>
-    /// EN: Creates a stock item (base unit PCS) with a starting balance, and returns its id.
-    /// TR: Başlangıç bakiyeli bir stok kalemi (temel birim PCS) oluşturur ve kimliğini döner.
-    /// </summary>
-    /// <param name="sku">EN: SKU. TR: SKU.</param>
-    /// <param name="balance">EN: Starting balance. TR: Başlangıç bakiyesi.</param>
-    /// <returns>EN: Item id. TR: Kalem kimliği.</returns>
-    private async Task<Guid> CreateItemAsync(string sku, decimal balance)
-    {
-        var item = new StockItem();
-        item.Update(sku, sku, SystemUnits.Piece, []);
-        await using (var db = database.Create(_tenant))
-        {
-            db.StockItems.Add(item);
-            await db.SaveChangesAsync(Ct);
-        }
-
-        await InTransactionAsync(db => new StockLedger(db).RecordManualAsync(
-            item.Id,
-            new ManualMovement(StockMovementType.In, balance, SystemUnits.Piece, 1m, balance, null),
-            NegativeStockPolicy.Block,
-            Ct));
-        return item.Id;
     }
 
     /// <summary>
@@ -175,7 +150,7 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
     /// <returns>EN: The OrderPlaced event. TR: OrderPlaced olayı.</returns>
     private OrderPlaced NewOrder(params (string Sku, decimal Quantity)[] lines) => new()
     {
-        TenantId = _tenant,
+        TenantId = _data.Tenant,
         OrderId = Guid.CreateVersion7(),
         Number = Random.Shared.Next(1, int.MaxValue),
         Lines = [.. lines.Select(l => new OrderPlacedLine(l.Sku, l.Sku, l.Quantity))],
@@ -188,9 +163,9 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
     /// <param name="order">EN: The event. TR: Olay.</param>
     /// <returns>EN: A task. TR: Görev.</returns>
     private Task PlaceAsync(OrderPlaced order) =>
-        InTransactionAsync(db => new OrderPlacedHandler(
+        _data.InTransactionAsync(db => new OrderPlacedHandler(
             db, new StockLedger(db), new OrderStockClaims(db, TimeProvider.System), NullLogger<OrderPlacedHandler>.Instance)
-            .HandleAsync(order, Ct));
+            .HandleAsync(order, Ct), Ct);
 
     /// <summary>
     /// EN: Processes the order's OrderCancelled like the dispatcher: one transaction.
@@ -199,46 +174,7 @@ public sealed class OrderStockTests(InventoryDatabase database) : IClassFixture<
     /// <param name="order">EN: The order's OrderPlaced. TR: Siparişin OrderPlaced'i.</param>
     /// <returns>EN: A task. TR: Görev.</returns>
     private Task CancelAsync(OrderPlaced order) =>
-        InTransactionAsync(db => new OrderCancelledHandler(
+        _data.InTransactionAsync(db => new OrderCancelledHandler(
             db, new OrderStockClaims(db, TimeProvider.System), new StockLedger(db), NullLogger<OrderCancelledHandler>.Instance)
-            .HandleAsync(new OrderCancelled { TenantId = order.TenantId, OrderId = order.OrderId, Number = order.Number }, Ct));
-
-    /// <summary>
-    /// EN: Runs a unit of work in its own context and transaction, then saves and commits — as the dispatcher does.
-    /// TR: Bir iş birimini kendi context'i ve transaction'ında çalıştırır, sonra kaydeder ve onaylar — dağıtıcının yaptığı gibi.
-    /// </summary>
-    /// <param name="work">EN: The work. TR: İş.</param>
-    /// <returns>EN: A task. TR: Görev.</returns>
-    private async Task InTransactionAsync(Func<InventoryDbContext, Task> work)
-    {
-        await using var db = database.Create(_tenant);
-        await using var transaction = await db.Database.BeginTransactionAsync(Ct);
-        await work(db);
-        await db.SaveChangesAsync(Ct);
-        await transaction.CommitAsync(Ct);
-    }
-
-    /// <summary>
-    /// EN: An item's balance.
-    /// TR: Bir kalemin bakiyesi.
-    /// </summary>
-    /// <param name="itemId">EN: Item id. TR: Kalem kimliği.</param>
-    /// <returns>EN: The balance. TR: Bakiye.</returns>
-    private async Task<decimal> BalanceAsync(Guid itemId)
-    {
-        await using var db = database.Create(_tenant);
-        return await db.StockItems.Where(i => i.Id == itemId).Select(i => i.Quantity).SingleAsync(Ct);
-    }
-
-    /// <summary>
-    /// EN: An item's movements, oldest first.
-    /// TR: Bir kalemin hareketleri, en eski önce.
-    /// </summary>
-    /// <param name="itemId">EN: Item id. TR: Kalem kimliği.</param>
-    /// <returns>EN: The movements. TR: Hareketler.</returns>
-    private async Task<List<StockMovement>> MovementsAsync(Guid itemId)
-    {
-        await using var db = database.Create(_tenant);
-        return await db.StockMovements.Where(m => m.StockItemId == itemId).OrderBy(m => m.CreatedAt).ThenBy(m => m.Id).ToListAsync(Ct);
-    }
+            .HandleAsync(new OrderCancelled { TenantId = order.TenantId, OrderId = order.OrderId, Number = order.Number }, Ct), Ct);
 }

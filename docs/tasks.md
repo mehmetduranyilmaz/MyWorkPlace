@@ -839,8 +839,34 @@ production change must be justified in its task.
     10. Test assertions themselves are unchanged. The outage test keeps its own tolerant balance read (`TryBalanceAsync`:
     Inventory is down on purpose there). `IdempotencyTests` keeps its in-process wait: it is a unit test in another
     project and waits on a counter, not on an event. Local: 349 / 349.
-- **T-046** — Test pyramid: fast unit tests for domain rules now covered only through the API (order totals and
-  rounding, last-Owner and anti-escalation, stock ledger rules), so most rules fail in milliseconds, not minutes
+- **T-046** — Test pyramid: rules proven at the lowest layer that can break them (ADR-029) — **Done**
+  - Goal: a broken business rule is seen in milliseconds, not after the whole system has started.
+  - [x] `OrderRulesTests` (Orders.Tests, plain unit tests): line total rounded half away from zero to cents
+        (2.5 × 10.25 = 25.625 → 25.63, not 25.62), the total is the sum of the rounded lines, 1 to 200 lines,
+        quantity > 0 and price ≥ 0, SKU / name / customer name / reason trimmed (blank → null), a placed order refuses
+        every change, only a placed order can be cancelled — once, numbers start at 1001 and never repeat
+  - [x] `ManualMovementTests` (Inventory.Tests, on `InventoryDatabase`): Block refuses an issue beyond the balance and
+        records nothing; Allow and Warn apply it and flag it; a receipt never flags; an unknown item is NotFound;
+        parallel issues under Block never take the balance below zero; a change outside a transaction is refused
+  - [x] `CustomerRulesTests` (new `MyWorkplace.Customers.Tests`, plain unit tests, in the solution under `/tests/`):
+        fields trimmed, blank → null, email normalized to lower case — the same rule for saving and for uniqueness
+  - [x] Fast by construction: the plain test classes use no Docker, network or fixture and each finishes under
+        1 second; database tests stay in their own classes
+  - [x] Red / green proof per rule group with a temporary mutation (e.g. `AwayFromZero` → `ToEven`): the new unit test
+        turns red in milliseconds; the mutation is reverted
+  - [x] No gateway test is removed; the test count only grows; all tests pass
+  - [x] `adding-a-module.md`: the "domain rules" line becomes a three-row table — pure rule → unit test, atomic SQL /
+        lock → handler test, wiring → one gateway case (ADR-029)
+  - Out of scope: the last-Owner rule is a race under the company lock, not a pure rule → T-060. Anti-escalation
+    already has unit tests (T-037).
+  - Notes: tests 349 → 385 (+19 `OrderRulesTests`, +8 `ManualMovementTests`, +9 `CustomerRulesTests`); `Assert` calls
+    694 → 740, none removed. Speed (TRX test durations, run alone): `OrderRulesTests` 19 tests in 0.04 s,
+    `CustomerRulesTests` 9 in 0.015 s. Red / green, each mutation reverted: rounding `AwayFromZero` → `ToEven` → 3 red
+    (25.625 and 0.005 midpoints, sum of rounded lines); the Block check switched off → 2 red (beyond the balance,
+    parallel issues); email not lower-cased → 4 red. `ManualMovementTests` also proves another company's item is
+    NotFound and unchanged (ADR-004). The two handler test classes share `InventoryData` (owner's choice A: one fresh
+    company plus create item / run in a transaction / read balance and movements), moved out of `OrderStockTests`
+    without changing its asserts. Local: 385 / 385.
 - **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
   "Unknown", CI #28 / #29) — e.g. kill the process by its PID (closer to a real crash), check Aspire's known issues
 
@@ -848,6 +874,10 @@ production change must be justified in its task.
 
 ## Backlog
 
+- **T-060** — Last-Owner rule on a real database: the check ("is there another Owner?") runs in the delete and
+  change-access handlers under the company lock. Handler tests with an Identity `ServiceDatabase`: two parallel
+  demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split
+  from T-046 (ADR-029)
 - **T-059** — Merge through pull requests, with `main` protected: today "CI green and the owner approved before merge"
   is a rule we keep; make GitHub enforce it. Branch protection on `main` (a PR and a green CI required, no direct
   push — set by the owner in the repository settings), `/ship` opens the PR with the prepared message instead of merging
