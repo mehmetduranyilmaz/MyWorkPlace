@@ -23,7 +23,12 @@ $namespace = @{ t = 'http://microsoft.com/schemas/VisualStudio/TeamTest/2010' }
 $failed = @()
 
 foreach ($file in Get-ChildItem -Path $ResultsDirectory -Filter '*.trx' -Recurse) {
-    [xml] $trx = Get-Content -Raw -LiteralPath $file.FullName
+    # EN: Test output can carry control characters (ESC from colour codes), raw or as &#x1B;. XML 1.0 forbids both, so the
+    #     file would not parse and a red run would name no test (T-044). They are dropped before parsing.
+    # TR: Test çıktısı kontrol karakterleri (renk kodlarından ESC) taşıyabilir; ham ya da &#x1B; olarak. XML 1.0 ikisini de yasaklar; dosya
+    #     ayrıştırılamaz ve kırmızı bir çalıştırma hiçbir testin adını vermezdi (T-044). Ayrıştırmadan önce atılırlar.
+    $text = (Get-Content -Raw -LiteralPath $file.FullName) -replace '[\x00-\x08\x0B\x0C\x0E-\x1F]', ''
+    [xml] $trx = $text -replace '&#x(0?[0-8BCEbce]|1[0-9A-Fa-f]);', '' -replace '&#([0-8]|1[124-9]|2[0-9]|3[01]);', ''
     foreach ($match in Select-Xml -Xml $trx -XPath '//t:UnitTestResult[@outcome="Failed"]' -Namespace $namespace) {
         $result = $match.Node
         $message = "$($result.Output.ErrorInfo.Message)".Trim()

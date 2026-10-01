@@ -867,8 +867,41 @@ production change must be justified in its task.
     NotFound and unchanged (ADR-004). The two handler test classes share `InventoryData` (owner's choice A: one fresh
     company plus create item / run in a transaction / read balance and movements), moved out of `OrderStockTests`
     without changing its asserts. Local: 385 / 385.
-- **T-044** — Un-quarantine the outage test on Linux: find why Aspire can't stop a resource in Linux CI (state
-  "Unknown", CI #28 / #29) — e.g. kill the process by its PID (closer to a real crash), check Aspire's known issues
+- **T-044** — Un-quarantine the outage test on Linux (time-boxed investigation) — **Done**
+  - Goal: the outage test (Inventory down, orders still accepted, stock catches up) runs on Linux CI too — or we know
+    why it can't yet, with evidence, and keep the quarantine as a decision rather than a mystery.
+  - Context: on Linux CI Aspire's stop command fails and the resource's state becomes "Unknown" (CI #28 / #29, T-043);
+    the test passes on Windows and is skipped on Linux with a visible reason. Two earlier guesses were wrong because
+    they had no evidence.
+  - [x] Time-box: at most 6 experiment CI runs on the task branch — 6 used (CI #66–#71)
+  - [x] Evidence first: the test writes every state change of the stopped resource (with timestamps) to its output, and
+        CI keeps Aspire's DCP logs as an artifact; the first run's findings are written in the notes before any fix
+  - [x] Then Aspire's known issues and release notes within 13.x are checked; a newer 13.x patch that fixes it may be
+        taken (AppHost SDK and the CI bundle version kept in sync) — checked, not needed: the cause was ours
+  - [x] Last resort: the outage is a crash — the service process is killed by its PID — on Windows and Linux alike,
+        one code path — not needed: the graceful stop works once the cause is gone
+  - [x] Success: `SkipWhen` removed; the same commit green 3 times in a row on Linux CI (a temporary matrix, removed
+        afterwards, as in T-051 — CI #71); green locally on Windows; the full suite passes (385 / 385)
+  - [x] If the time-box runs out: … — did not apply
+  - Notes — the cause: tests run without the Aspire dashboard, yet every service was given an OpenTelemetry endpoint
+    (`OTEL_EXPORTER_OTLP_ENDPOINT`). On shutdown the exporter waited for that endpoint nobody listened to. Inventory's
+    host itself stopped in 0.3 s ("Hosting stopped"); the wait came after, while disposing. On Windows DCP killed the
+    process after ~8 s (exit 1 — the test passed by luck); on Linux the wait outlasted DCP's 12 s stop window, DCP
+    killed the `dotnet run` wrapper and lost track of the resource ("Unknown"). Without the endpoint: stop → exit in
+    0.8 s, exit code 0. `AppFixture` now removes the endpoint; development and production keep their telemetry.
+  - How it was found, run by run: #66 DCP logs — the stop times out after exactly 12 s and kills `dotnet run`, also
+    when the other system is torn down normally; #67–#69 the test's own output was unreadable (see below); #70 a probe
+    proved `dotnet run` does forward SIGTERM (not Aspire, not the wrapper), and Inventory's console showed it got the
+    signal and went silent once its listeners stopped; then locally, without CI runs, debug logs and one switch (the
+    endpoint) found and proved the cause; #71 the fix, three times green. Each run's findings went into its commit
+    message before the next change; this note collects them.
+  - Also fixed: `eng/ci/Report-FailedTests.ps1` could not parse a TRX whose test output carried colour codes (ESC is
+    invalid in XML 1.0), so a red run named no test — found because runs #67–#69 lost their messages; tested on a
+    crafted TRX. Kept: `ResourceStateLog` (states, exit codes, pids and shutdown lines of a stopped resource, in the
+    test output and any failure message) and the process list on a failed stop. Side effect: the local full suite
+    dropped from ~4.4 to ~2.9 minutes, as no service waits on shutdown any more. Security: run #66 published DCP lines
+    dumping a process environment as annotations, with that run's generated container passwords (containers gone,
+    passwords dead); later runs filter them — the owner may delete run #66.
 
 ---
 

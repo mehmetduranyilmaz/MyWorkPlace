@@ -1,4 +1,5 @@
 using Aspire.Hosting;
+using Aspire.Hosting.ApplicationModel;
 using MyWorkplace.IntegrationTests;
 
 [assembly: AssemblyFixture(typeof(AppFixture))]
@@ -51,6 +52,20 @@ public class AppFixture : IAsyncLifetime
         // TR: Bilerek yeniden deneyen HTTP handler yok: tekrarlanan bir POST iki kez kayıt yapıp gerçek davranışı gizleyebilir.
         var appHost = await DistributedApplicationTestingBuilder
             .CreateAsync<Projects.MyWorkplace_AppHost>(["Storage:Ephemeral=true"], timeout.Token);
+
+        // EN: Tests run without the Aspire dashboard, so nothing listens on the OpenTelemetry endpoint the services are
+        //     given. On shutdown their exporter then waits for it — ~8 s on Windows, over DCP's 12 s stop window on Linux,
+        //     where DCP kills the process and loses track of it (state "Unknown", T-044). No dashboard, no endpoint: the
+        //     services export nothing and stop in under a second. Development and production keep their telemetry.
+        // TR: Testler Aspire paneli olmadan çalışır; bu yüzden servislere verilen OpenTelemetry adresini kimse dinlemez. Kapanışta exporter
+        //     onu bekler — Windows'ta ~8 sn, Linux'ta DCP'nin 12 sn'lik durdurma süresinin üstünde; orada DCP süreci öldürür ve izini kaybeder
+        //     (durum "Unknown", T-044). Panel yoksa adres de yok: servisler hiçbir şey göndermez ve bir saniyenin altında durur. Geliştirme ve
+        //     production telemetrilerini korur.
+        foreach (var project in appHost.Resources.OfType<ProjectResource>())
+        {
+            project.Annotations.Add(new EnvironmentCallbackAnnotation(
+                context => context.EnvironmentVariables.Remove("OTEL_EXPORTER_OTLP_ENDPOINT")));
+        }
 
         App = await appHost.BuildAsync(timeout.Token);
         await App.StartAsync(timeout.Token);

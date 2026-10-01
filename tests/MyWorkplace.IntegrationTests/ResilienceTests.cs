@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Aspire.Hosting.ApplicationModel;
+using Microsoft.Extensions.DependencyInjection;
 using static MyWorkplace.IntegrationTests.IdentityApi;
 using static MyWorkplace.IntegrationTests.InventoryApi;
 using static MyWorkplace.IntegrationTests.OrdersApi;
@@ -26,18 +27,33 @@ public sealed class ResilienceTests(IsolatedAppFixture app) : IClassFixture<Isol
     /// <summary>EN: Test cancellation token. TR: Test iptal belirteci.</summary>
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
-    /// <summary>
-    /// EN: Quarantine (T-044): on Linux, Aspire fails to stop the resource and loses track of it (state "Unknown", CI #28
-    ///     and #29), while it works on Windows. Skipped there — visibly, with this reason — until T-044 finds the cause.
-    /// TR: Karantina (T-044): Linux'ta Aspire kaynağı durduramıyor ve izini kaybediyor (durum "Unknown", CI #28 ve #29); Windows'ta
-    ///     ise çalışıyor. T-044 sebebi bulana kadar orada atlanır — görünür şekilde, bu gerekçeyle.
-    /// </summary>
-    public static bool StopIsUnreliableHere => OperatingSystem.IsLinux();
-
-    [Fact(
-        Skip = "Quarantined on Linux: Aspire can't stop the resource there (state 'Unknown'). See T-044.",
-        SkipWhen = nameof(StopIsUnreliableHere))]
+    [Fact]
     public async Task OrdersAreAccepted_WhileInventoryIsDown_AndStockCatchesUpWhenItReturns()
+    {
+        // EN: Every state Inventory goes through is recorded, and a failure carries it (T-044).
+        // TR: Inventory'nin geçtiği her durum kaydedilir ve bir hata onu taşır (T-044).
+        await using var states = new ResourceStateLog(
+            app.App.ResourceNotifications, app.App.Services.GetRequiredService<ResourceLoggerService>(), Inventory);
+        try
+        {
+            await RunOutageAsync();
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new Xunit.Sdk.XunitException($"{e.Message}{Environment.NewLine}Inventory states:{Environment.NewLine}{states}", e);
+        }
+        finally
+        {
+            TestContext.Current.TestOutputHelper?.WriteLine($"Inventory states:{Environment.NewLine}{states}");
+        }
+    }
+
+    /// <summary>
+    /// EN: The outage scenario itself.
+    /// TR: Kesinti senaryosunun kendisi.
+    /// </summary>
+    /// <returns>EN: A task. TR: Görev.</returns>
+    private async Task RunOutageAsync()
     {
         using var client = await CreateProClientAsync(app, Ct);
         var sku = NewSku();
@@ -65,20 +81,33 @@ public sealed class ResilienceTests(IsolatedAppFixture app) : IClassFixture<Isol
         // EN: 4) Inventory comes back and processes what it missed.
         // TR: 4) Inventory geri gelir ve kaçırdıklarını işler.
         await ExecuteAsync(KnownResourceCommands.StartCommand);
-        await app.App.ResourceNotifications.WaitForResourceHealthyAsync(Inventory, Ct);
+        using (var healthy = CancellationTokenSource.CreateLinkedTokenSource(Ct))
+        {
+            // EN: Bounded, so a lost resource fails with its states instead of hanging the run.
+            // TR: Sınırlı; böylece kaybolan bir kaynak çalıştırmayı asmak yerine durumlarıyla birlikte başarısız olur.
+            healthy.CancelAfter(Eventually.Timeout);
+            try
+            {
+                await app.App.ResourceNotifications.WaitForResourceHealthyAsync(Inventory, healthy.Token);
+            }
+            catch (OperationCanceledException) when (!Ct.IsCancellationRequested)
+            {
+                Assert.Fail($"{Inventory} was not healthy within {Eventually.Timeout.TotalSeconds:0} s after the start command.");
+            }
+        }
 
         await Eventually.UntilAsync(
             async () => await TryBalanceAsync(client, itemId) == -3m, "stock to catch up after Inventory returned", Ct);
     }
 
     /// <summary>
-    /// EN: Stops Inventory and waits until it has really stopped. On Linux the command asks the process to shut down
-    ///     gracefully and may report a failure while the process is still finishing (CI #28, T-043); what counts is the
-    ///     final state, so that is what this waits for — and it reports the command's answer and the state if it never
-    ///     stops.
-    /// TR: Inventory'yi durdurur ve gerçekten durana kadar bekler. Linux'ta komut sürecin düzgün kapanmasını ister ve süreç hâlâ
-    ///     kapanırken hata bildirebilir (CI #28, T-043); önemli olan son durumdur, bu yüzden onu bekler — ve süreç hiç durmazsa
-    ///     komutun cevabını ve durumu raporlar.
+    /// EN: Stops Inventory and waits until it has really stopped. The command asks the process to shut down gracefully; if
+    ///     it doesn't exit within DCP's stop window (12 s on Linux) DCP kills it and loses track of it (T-044). What counts
+    ///     is the final state, so that is what this waits for — and it reports the command's answer, the state and the
+    ///     processes left if it never stops.
+    /// TR: Inventory'yi durdurur ve gerçekten durana kadar bekler. Komut sürecin düzgün kapanmasını ister; süreç DCP'nin durdurma süresi
+    ///     içinde (Linux'ta 12 sn) çıkmazsa DCP onu öldürür ve izini kaybeder (T-044). Önemli olan son durumdur, bu yüzden onu bekler — ve
+    ///     süreç hiç durmazsa komutun cevabını, durumu ve geride kalan süreçleri raporlar.
     /// </summary>
     /// <returns>EN: A task. TR: Görev.</returns>
     private async Task StopInventoryAsync()
@@ -104,8 +133,31 @@ public sealed class ResilienceTests(IsolatedAppFixture app) : IClassFixture<Isol
                 ? current.Snapshot.State?.Text
                 : "unknown";
             Assert.Fail($"{Inventory} did not stop within 60 s. Stop command: " +
-                $"{(result.Success ? "succeeded" : $"failed ({result.Message})")}; current state: {state}.");
+                $"{(result.Success ? "succeeded" : $"failed ({result.Message})")}; current state: {state}." +
+                $"{Environment.NewLine}Inventory processes:{Environment.NewLine}{await InventoryProcessesAsync()}");
         }
+    }
+
+    /// <summary>
+    /// EN: The operating system's processes whose command line mentions Inventory (Linux and macOS: <c>ps</c>), to see
+    ///     whether a process survived the stop (T-044).
+    /// TR: Komut satırı Inventory'den bahseden işletim sistemi süreçleri (Linux ve macOS: <c>ps</c>); durdurmadan sağ çıkan bir süreç
+    ///     olup olmadığını görmek için (T-044).
+    /// </summary>
+    /// <returns>EN: One line per process, or why there is none. TR: Süreç başına bir satır veya neden olmadığı.</returns>
+    private static async Task<string> InventoryProcessesAsync()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return "(not listed on Windows)";
+        }
+
+        using var ps = Process.Start(new ProcessStartInfo("ps", "-eo pid,ppid,etime,stat,args") { RedirectStandardOutput = true })!;
+        var output = await ps.StandardOutput.ReadToEndAsync();
+        await ps.WaitForExitAsync();
+        return string.Join(Environment.NewLine, output.Split('\n')
+            .Where(l => l.Contains("MyWorkplace.Inventory", StringComparison.Ordinal))
+            .Select(l => l.Length > 250 ? l[..250] : l));
     }
 
     /// <summary>
