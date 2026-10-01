@@ -905,16 +905,26 @@ production change must be justified in its task.
 
 ---
 
-## Backlog
+## Sprint 6 — Platform hygiene and security
 
-- **T-060** — Last-Owner rule on a real database: the check ("is there another Owner?") runs in the delete and
-  change-access handlers under the company lock. Handler tests with an Identity `ServiceDatabase`: two parallel
-  demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split
-  from T-046 (ADR-029)
+Goal: the rules we keep by hand are enforced by GitHub, dependencies update themselves, the last risky rule under a
+lock is proven, and users stay signed in safely. In this order; each task is refined with `/refine` before it starts.
+
 - **T-059** — Merge through pull requests, with `main` protected: today "CI green and the owner approved before merge"
   is a rule we keep; make GitHub enforce it. Branch protection on `main` (a PR and a green CI required, no direct
   push — set by the owner in the repository settings), `/ship` opens the PR with the prepared message instead of merging
   locally, and the owner presses "Squash and merge". Found while finishing T-051
+- **T-022** — Dependabot for NuGet packages and GitHub Actions
+- **T-060** — Last-Owner rule on a real database: the check ("is there another Owner?") runs in the delete and
+  change-access handlers under the company lock. Handler tests with an Identity `ServiceDatabase`: two parallel
+  demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split
+  from T-046 (ADR-029)
+- **T-020** — Refresh tokens
+
+---
+
+## Backlog
+
 - **T-058** — Partial returns of a placed order: some lines or part of a quantity come back; the stock of what returned
   goes back in, the order records the return and its adjusted total. Found while refining T-040
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
@@ -934,9 +944,7 @@ production change must be justified in its task.
 - **T-034** — Per-item override of the negative stock policy
 - **T-018** — Reporting service (Pro)
 - **T-019** — Per-plan rate limiting at the gateway (Basic: low, Pro: high)
-- **T-020** — Refresh tokens
 - **T-021** — User interface (Blazor or React; to be decided)
-- **T-022** — Dependabot for NuGet packages and GitHub Actions
 - **T-029** — "Someone is editing this record" presence indicator — informational, never a lock (ADR-017); needs the UI (T-021)
 
 ---
@@ -988,3 +996,99 @@ T-036 (module boilerplate) was discovered and added to Sprint 2.
 - *Look at the running system.* A glance at Docker Desktop revealed that tests and development ran different
   PostgreSQL versions (T-026).
 - *Know your shell.* Windows PowerShell 5.1 split a commit message at its quotes; commits now use `git commit -F`.
+
+### Sprint 2 — Plug-and-play core (closed)
+
+*Written afterwards, at the end of Sprint 5, from the task notes.*
+
+**Done:** T-025, T-037, T-032, T-015, T-014, T-016, T-017, T-036, T-043, T-027, T-013. Roles and permissions with
+user management; tenant settings; messaging through RabbitMQ with an outbox (Wolverine); the Orders service and its
+`OrderPlaced` decreasing stock in Inventory; resilience while a service is down; the module boilerplate moved into the
+core; the module guide — and the proof: Products built only by following it, with zero core changes. 87 → 189 tests.
+
+**Left:** nothing from the milestone. Unplanned: T-043 (CI failures readable without signing in); found: T-044 (the
+outage test on Linux), T-050 (stock items linked to products).
+
+**Learned:**
+
+- *A test can pass for the wrong reason.* The broker-outage test first passed because Wolverine delivered events in
+  memory; with local routing off, every event really crosses RabbitMQ.
+- *Prove a race by breaking the guard.* A read-then-write stock update, swapped in on purpose, lost four of five
+  parallel orders; the atomic `UPDATE` is what keeps the balance right (T-016).
+- *Migrations need their own test.* Integration tests start from an empty database and could never catch a broken data
+  step; a test upgrades a database from the previous migration (T-025).
+- *A refactor is proven by unchanged tests.* T-036 removed 169 lines while the existing tests passed untouched.
+- *A failure you can't read is a failure you can't fix.* CI #27 said only "exit code 2"; failed tests now become
+  annotations (T-043).
+- *Scripted edits corrupt documents silently.* `code-conventions.md` lost a rule to a shell edit; docs are edited with
+  the editor and checked afterwards.
+
+### Sprint 3 — Inventory depth (closed)
+
+*Written afterwards, at the end of Sprint 5, from the task notes.*
+
+**Done:** T-052, T-054, T-031, T-055, T-030, T-056. ADR-026 stage 1 — the core no longer knows the product's
+permissions, plans or token settings, and a test scans it for product terms; units and alternative units; barcodes;
+manual stock movements with the negative stock policy and history; the version check for owned-only changes, fixed
+once in the core. 189 → 301 tests.
+
+**Left:** nothing from the sprint goal. Known small races recorded (a unit or barcode removed at the moment it starts
+being used); T-048 and T-049 (core hygiene) went to the backlog.
+
+**Learned:**
+
+- *Hidden couplings show up when you move code.* Splitting Contracts revealed the core using a product permission and a
+  product plan name (T-052, T-054).
+- *The database is the last guard.* Four of five parallel barcode adds passed the application check; only the unique
+  index stopped them (T-055).
+- *Fix it once, where it belongs.* Two endpoints each patched EF skipping the owner's version check by hand; T-056
+  fixed it in the core and removed both patches.
+- *Correct the record.* A note claimed Orders was exposed to that gap; it wasn't, and the board says so.
+
+### Sprint 4 — Orders depth (closed)
+
+*Written afterwards, at the end of Sprint 5, from the task notes.*
+
+**Done:** T-057, T-040, T-042, T-039. Every authenticated POST is safe to retry with an `Idempotency-Key`; a placed
+order can be cancelled and returns exactly the stock it took; unmatched order lines are listed for review; Orders
+validates customers against its own replica fed by events. Only T-057 touched the core, and only by adding. 301 → 349
+tests.
+
+**Left:** nothing from the sprint goal. Found: T-058 (partial returns).
+
+**Learned:**
+
+- *Out-of-order events are the normal case.* Cancelling can reach Inventory before placing; a claim row per order
+  (`INSERT … ON CONFLICT`) makes every order of arrival end right (T-040).
+- *Last write wins only with a clock.* The customer replica applies a change only if it is newer than what it has
+  (T-039).
+- *Prove concurrency on a real database.* Handler tests on a throw-away PostgreSQL showed what end-to-end tests can't
+  stage — twenty orders placed and cancelled at the same moment.
+- *A middleware replays a response exactly.* Idempotency in one place, with no service code changed (T-057).
+
+### Sprint 5 — Reliability and test debt (closed)
+
+**Done:** T-051, T-047, T-046, T-044. CI test projects run one after another and a re-run is visible (ADR-028);
+shared test helpers (`InventoryApi`, `Eventually`, `Json`, `ServiceDatabase<TContext>`); a test pyramid — order,
+customer and manual-movement rules proven at the lowest layer that can break them (ADR-029); the outage test runs on
+Linux again. 349 → 385 tests. No production code changed: every change was in tests, CI or docs (the core check of the
+sprint goal held). The local full suite dropped from ~4.4 to ~2.9 minutes.
+
+**Left:** nothing from the sprint goal. Split off or found: T-060 (last-Owner race on a real database), T-059 (merge
+through pull requests).
+
+**Learned:**
+
+- *A red run is a finding.* Twice something looked like "the environment" — a port race (T-051), Aspire on Linux
+  (T-044) — and both times evidence pointed at our own setup. The T-044 cause (an OpenTelemetry endpoint nobody
+  listened to in tests) also made the Windows run pass by luck.
+- *Make evidence readable before you need it.* Three CI runs were lost because a TRX with colour codes couldn't be
+  parsed, so failures named no test; the reporter is fixed. Only annotations can be read without signing in.
+- *Time-box research.* Six runs were enough because each run answered one question, and the last question was
+  answered locally, for free.
+- *Probe the assumption directly.* A ten-line console app settled "does `dotnet run` forward SIGTERM?" in one step.
+- *Count what a refactor removes.* Deduplicating helpers lowered the `Assert` count; reconciling it line by line
+  (704 → 694, all explained) proved nothing was weakened.
+- *Mutate to prove a test.* Each new rule test was turned red on purpose (`ToEven` rounding, the Block check off) —
+  a test that never fails proves nothing.
+- *Logs can leak.* DCP's process dumps hold generated passwords; they must never be published as annotations.
