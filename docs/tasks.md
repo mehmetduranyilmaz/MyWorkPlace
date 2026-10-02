@@ -911,7 +911,7 @@ Goal: GitHub enforces how changes reach `main` (ADR-030); then the product gets 
 used in a browser instead of through the API. The core is settled (ADR-026), so the rest of the sprint is product
 work. Each task is refined with `/refine` before it starts.
 
-- **T-059** — Merge through pull requests, with `main` protected (ADR-030) — **In Review**
+- **T-059** — Merge through pull requests, with `main` protected (ADR-030) — **Done**
   - Goal: "CI green and the owner approved before merge" is enforced by GitHub, not kept by hand; the owner presses
     the merge button.
   - [x] The owner installs the GitHub CLI and signs in once (`gh auth login`); `gh auth status` shows the account. The
@@ -929,7 +929,7 @@ work. Each task is refined with `/refine` before it starts.
         `workflow.md`
   - [x] `git-conventions.md` and `workflow.md` (and their `tr/` mirrors): every change goes through a PR; task-less
         housekeeping uses branches like `docs/sprint-6-close`; commit bodies end with `Refs: T-xxx`
-  - [ ] Proof, written in the notes: a direct `git push origin main` is rejected (its output); a throw-away PR with a
+  - [x] Proof, written in the notes: a direct `git push origin main` is rejected (its output); a throw-away PR with a
         deliberately red CI shows the merge blocked (`gh pr view` merge state), then is closed unmerged; T-059 itself is
         the first change merged through its PR
   - Notes: settings read back through the API — squash only (`PR_TITLE` / `PR_BODY`), branch deleted on merge;
@@ -942,7 +942,8 @@ work. Each task is refined with `/refine` before it starts.
     `gh run view --log-failed` (test name, message and line — unreadable without sign-in until now). The first
     `gh auth login` failed with `EOF`: for a few minutes no program but the browser could open a TLS connection to
     github.com (api.github.com worked); it passed on retry. Decided with the owner: CI keeps running on every push and
-    on pull requests (two runs per push to an open PR — free for a public repository).
+    on pull requests (two runs per push to an open PR — free for a public repository). T-059 itself went through
+    PR #2, merged by the owner — the first change to reach `main` this way.
 - **T-021** — User interface (Blazor or React; to be decided — the first question of its refinement)
 
 ---
