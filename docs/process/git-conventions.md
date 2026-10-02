@@ -2,9 +2,11 @@
 
 ## Branches
 
-- `main`: always builds and passes tests. No direct commits (except the initial setup).
+- `main`: always builds and passes tests. Protected: it changes only through a pull request (ADR-030).
 - Task branch: `<type>/T-<no>-<short-description>`
   - Examples: `feat/T-012-create-customer`, `fix/T-020-tenant-filter`
+- Housekeeping that belongs to no task (sprint notes, sprint planning): `docs/sprint-<no>-<short-description>`
+  - Example: `docs/sprint-6-close`
 
 ## Commit messages: Conventional Commits
 
@@ -30,7 +32,13 @@ Refs: T-012
 
 Example: `feat(inventory): decrease stock on OrderPlaced event`
 
-## Merging
+The body ends with `Refs: T-xxx` (housekeeping: the sprint, e.g. `Refs: Sprint 6`) and the `Co-Authored-By` trailer
+when Claude wrote the change. Commits on a task branch may be short (`wip: …`) — only the squash commit stays.
 
-- When a task is done it is **squash merged** into `main`: every task becomes one meaningful commit in history.
-- Build and tests must pass before merging (CI enforces this once the repo is on GitHub).
+## Merging (ADR-030)
+
+- Every change reaches `main` through a **pull request**, merged as a **squash**: every task becomes one meaningful
+  commit in history. Merge commits and rebase merges are switched off.
+- The pull request's title and description become the squash commit's message, so they follow the format above.
+- A ruleset on `main` requires the green `Build & test` check and blocks direct pushes, force pushes and deletion —
+  with no bypass, the owner included. The owner presses **Squash and merge**; the branch is deleted on merge.
