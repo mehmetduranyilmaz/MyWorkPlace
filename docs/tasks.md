@@ -911,27 +911,38 @@ Goal: GitHub enforces how changes reach `main` (ADR-030); then the product gets 
 used in a browser instead of through the API. The core is settled (ADR-026), so the rest of the sprint is product
 work. Each task is refined with `/refine` before it starts.
 
-- **T-059** — Merge through pull requests, with `main` protected (ADR-030) — **In Progress**
+- **T-059** — Merge through pull requests, with `main` protected (ADR-030) — **In Review**
   - Goal: "CI green and the owner approved before merge" is enforced by GitHub, not kept by hand; the owner presses
     the merge button.
-  - [ ] The owner installs the GitHub CLI and signs in once (`gh auth login`); `gh auth status` shows the account. The
+  - [x] The owner installs the GitHub CLI and signs in once (`gh auth login`); `gh auth status` shows the account. The
         token lives in the OS credential store — nothing in the repository
-  - [ ] Repository settings (set by the owner, with step-by-step guidance): squash merge only; the squash commit uses
+  - [x] Repository settings (set by the owner, with step-by-step guidance): squash merge only; the squash commit uses
         the PR title and description; head branches are deleted on merge
-  - [ ] A ruleset on `main` (set by the owner, guided): pull request required with 0 approvals; status check
+  - [x] A ruleset on `main` (set by the owner, guided): pull request required with 0 approvals; status check
         `Build & test` required; direct push, force push and deletion blocked; no bypass, the owner included;
         "branch up to date before merging" off
-  - [ ] `/ship`: verifies as today, sets In Review, pushes the branch and opens the PR with `gh pr create` — title and
+  - [x] `/ship`: verifies as today, sets In Review, pushes the branch and opens the PR with `gh pr create` — title and
         body are the prepared Conventional Commit message ending with `Refs: T-xxx` and the `Co-Authored-By` trailer —
         and reports the PR link. After the owner's "ok" it pushes the Done commit to the PR; the owner presses
         **Squash and merge**; then Claude pulls `main`, deletes the local branch and checks `main`'s CI
-  - [ ] CI is read with `gh` (run status, the failed step's log) instead of anonymous API polling, in `/ship` and in
+  - [x] CI is read with `gh` (run status, the failed step's log) instead of anonymous API polling, in `/ship` and in
         `workflow.md`
-  - [ ] `git-conventions.md` and `workflow.md` (and their `tr/` mirrors): every change goes through a PR; task-less
+  - [x] `git-conventions.md` and `workflow.md` (and their `tr/` mirrors): every change goes through a PR; task-less
         housekeeping uses branches like `docs/sprint-6-close`; commit bodies end with `Refs: T-xxx`
   - [ ] Proof, written in the notes: a direct `git push origin main` is rejected (its output); a throw-away PR with a
         deliberately red CI shows the merge blocked (`gh pr view` merge state), then is closed unmerged; T-059 itself is
         the first change merged through its PR
+  - Notes: settings read back through the API — squash only (`PR_TITLE` / `PR_BODY`), branch deleted on merge;
+    ruleset `protect-main` active on the default branch with deletion and force push blocked, pull request (0
+    approvals, squash only), required `Build & test`, not strict, no bypass (`current_user_can_bypass: never`). Proof:
+    `git push origin HEAD:main` → `GH013: Repository rule violations … Changes must be made through a pull request …
+    Required status check "Build & test" is expected`, `main` unchanged. PR #1 with a deliberately failing test: two
+    red `Build & test` runs (push and pull request), merge state `BLOCKED`; it was closed unmerged and its branch
+    deleted — no merge was attempted, so a red change could never reach `main`. The failed step's log was read with
+    `gh run view --log-failed` (test name, message and line — unreadable without sign-in until now). The first
+    `gh auth login` failed with `EOF`: for a few minutes no program but the browser could open a TLS connection to
+    github.com (api.github.com worked); it passed on retry. Decided with the owner: CI keeps running on every push and
+    on pull requests (two runs per push to an open PR — free for a public repository).
 - **T-021** — User interface (Blazor or React; to be decided — the first question of its refinement)
 
 ---
