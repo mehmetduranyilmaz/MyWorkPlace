@@ -950,6 +950,10 @@ work. Each task is refined with `/refine` before it starts.
 
 ## Backlog
 
+- **T-061** — CI on Ubuntu 26 before the switch (**due before 2026-10-19**): GitHub moves the `ubuntu-latest` label to
+  Ubuntu 26 from 19 October 2026 (CI notice, seen on CI #82). Run the whole suite once on the new image before that
+  date; if anything breaks, fix the cause (ADR-028) or pin the runner to the current image with a dated note and a
+  task to move on. Linux differences have bitten before (T-043, T-044). Found while finishing T-059
 - **T-060** — Last-Owner rule on a real database: the check ("is there another Owner?") runs in the delete and
   change-access handlers under the company lock. Handler tests with an Identity `ServiceDatabase`: two parallel
   demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split
