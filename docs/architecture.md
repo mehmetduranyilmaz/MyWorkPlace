@@ -638,6 +638,20 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Existing tests:** gateway tests that already cover a rule are kept — they prove the wiring. New cases go down.
 - **Cost:** a rule's cases are split over two places; the test class names say which rule they cover.
 
+### ADR-030 — `main` changes only through a pull request with a green CI, squash-merged by the owner
+
+- **Context:** "CI green and the owner approved before merge" was a rule we kept by hand: Claude merged locally after a
+  "yes" in the chat, and housekeeping commits went straight to `main`. Nothing stopped a red or unapproved change.
+- **Decision:** a GitHub ruleset on `main` requires a pull request and the green `Build & test` check, blocks direct
+  pushes, force pushes and deletion, and has **no bypass** — the owner included. Only squash merges are allowed; the
+  squash commit takes the PR's title and description; the branch is deleted on merge. Required approvals: 0 — GitHub
+  doesn't let an author approve their own PR, so the owner's approval is pressing **Squash and merge**. Claude opens the
+  PR with the GitHub CLI, signed in once by the owner (the token stays in the OS credential store, never in the repo).
+  Every change goes this way, housekeeping too.
+- **Why:** a rule GitHub enforces can't be skipped by mistake or in a hurry; the merge button stays with the owner.
+- **Not required:** "branch up to date before merging" — with one developer it only adds update rounds.
+- **Cost:** a PR per change, even for a sprint note; a CI run before every merge.
+
 ---
 
 ## 4. Solution layout (planned)

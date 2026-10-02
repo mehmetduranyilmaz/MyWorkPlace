@@ -53,8 +53,13 @@ The repository is **public**. Code quality, documentation and commit history are
 | Run all tests | `dotnet test --solution MyWorkplace.slnx` |
 | Restore local tools (`dotnet-ef`) | `dotnet tool restore` |
 | Add a migration | `dotnet ef migrations add <Name> --project src/Services/<Service> --output-dir Persistence/Migrations` |
+| Open a pull request (via `/ship`) | `gh pr create --title "<subject>" --body-file <message file>` |
+| Read CI (status, failed step's log) | `gh run list --branch <branch>`, `gh run view <id> --log-failed` |
 
 Notes:
+
+- `main` is protected (ADR-030): every change goes through a pull request with a green `Build & test`; the owner
+  presses **Squash and merge**. `gh` is signed in by the owner; never store a token in the repository.
 
 - The first build of the AppHost needs the **Aspire CLI bundle** (DCP + dashboard). If the build fails with
   `ASPIRE009`, install it with `dnx aspire.cli -- setup`, then rebuild with `--no-incremental`.

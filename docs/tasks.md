@@ -905,26 +905,45 @@ production change must be justified in its task.
 
 ---
 
-## Sprint 6 — Platform hygiene and security
+## Sprint 6 — Protected main, then the product on screen
 
-Goal: the rules we keep by hand are enforced by GitHub, dependencies update themselves, the last risky rule under a
-lock is proven, and users stay signed in safely. In this order; each task is refined with `/refine` before it starts.
+Goal: GitHub enforces how changes reach `main` (ADR-030); then the product gets its first user interface, so it can be
+used in a browser instead of through the API. The core is settled (ADR-026), so the rest of the sprint is product
+work. Each task is refined with `/refine` before it starts.
 
-- **T-059** — Merge through pull requests, with `main` protected: today "CI green and the owner approved before merge"
-  is a rule we keep; make GitHub enforce it. Branch protection on `main` (a PR and a green CI required, no direct
-  push — set by the owner in the repository settings), `/ship` opens the PR with the prepared message instead of merging
-  locally, and the owner presses "Squash and merge". Found while finishing T-051
-- **T-022** — Dependabot for NuGet packages and GitHub Actions
-- **T-060** — Last-Owner rule on a real database: the check ("is there another Owner?") runs in the delete and
-  change-access handlers under the company lock. Handler tests with an Identity `ServiceDatabase`: two parallel
-  demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split
-  from T-046 (ADR-029)
-- **T-020** — Refresh tokens
+- **T-059** — Merge through pull requests, with `main` protected (ADR-030) — **In Progress**
+  - Goal: "CI green and the owner approved before merge" is enforced by GitHub, not kept by hand; the owner presses
+    the merge button.
+  - [ ] The owner installs the GitHub CLI and signs in once (`gh auth login`); `gh auth status` shows the account. The
+        token lives in the OS credential store — nothing in the repository
+  - [ ] Repository settings (set by the owner, with step-by-step guidance): squash merge only; the squash commit uses
+        the PR title and description; head branches are deleted on merge
+  - [ ] A ruleset on `main` (set by the owner, guided): pull request required with 0 approvals; status check
+        `Build & test` required; direct push, force push and deletion blocked; no bypass, the owner included;
+        "branch up to date before merging" off
+  - [ ] `/ship`: verifies as today, sets In Review, pushes the branch and opens the PR with `gh pr create` — title and
+        body are the prepared Conventional Commit message ending with `Refs: T-xxx` and the `Co-Authored-By` trailer —
+        and reports the PR link. After the owner's "ok" it pushes the Done commit to the PR; the owner presses
+        **Squash and merge**; then Claude pulls `main`, deletes the local branch and checks `main`'s CI
+  - [ ] CI is read with `gh` (run status, the failed step's log) instead of anonymous API polling, in `/ship` and in
+        `workflow.md`
+  - [ ] `git-conventions.md` and `workflow.md` (and their `tr/` mirrors): every change goes through a PR; task-less
+        housekeeping uses branches like `docs/sprint-6-close`; commit bodies end with `Refs: T-xxx`
+  - [ ] Proof, written in the notes: a direct `git push origin main` is rejected (its output); a throw-away PR with a
+        deliberately red CI shows the merge blocked (`gh pr view` merge state), then is closed unmerged; T-059 itself is
+        the first change merged through its PR
+- **T-021** — User interface (Blazor or React; to be decided — the first question of its refinement)
 
 ---
 
 ## Backlog
 
+- **T-060** — Last-Owner rule on a real database: the check ("is there another Owner?") runs in the delete and
+  change-access handlers under the company lock. Handler tests with an Identity `ServiceDatabase`: two parallel
+  demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split
+  from T-046 (ADR-029)
+- **T-022** — Dependabot for NuGet packages and GitHub Actions (after T-059: its updates arrive as PRs)
+- **T-020** — Refresh tokens
 - **T-058** — Partial returns of a placed order: some lines or part of a quantity come back; the stock of what returned
   goes back in, the order records the return and its adjusted total. Found while refining T-040
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
@@ -944,7 +963,6 @@ lock is proven, and users stay signed in safely. In this order; each task is ref
 - **T-034** — Per-item override of the negative stock policy
 - **T-018** — Reporting service (Pro)
 - **T-019** — Per-plan rate limiting at the gateway (Basic: low, Pro: high)
-- **T-021** — User interface (Blazor or React; to be decided)
 - **T-029** — "Someone is editing this record" presence indicator — informational, never a lock (ADR-017); needs the UI (T-021)
 
 ---
