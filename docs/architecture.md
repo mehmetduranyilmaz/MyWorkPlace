@@ -652,6 +652,32 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
 - **Not required:** "branch up to date before merging" — with one developer it only adds update rounds.
 - **Cost:** a PR per change, even for a sprint note; a CI run before every merge.
 
+### ADR-031 — The web client: a React + TypeScript single-page app, served through the gateway
+
+- **Context:** the product had no user interface; everything was reached through the gateway's API. The owner wants
+  a first screen, and to learn the skill the job market asks for most.
+- **Decision:**
+  - **React + TypeScript**, built with **Vite** as a single-page app in `src/MyWorkplace.Web`. No server-side
+    framework (Next.js): the back end is already .NET, and a second server layer would add nothing here.
+  - **Served through the gateway**, same origin: a lowest-priority catch-all route sends everything that isn't a
+    service route to the web app. No CORS, and the gateway stays the only door. In development Aspire starts the Vite
+    dev server, so `dotnet run --project src/MyWorkplace.AppHost` still starts the whole system.
+  - **The access token** is kept in memory and in `sessionStorage`: a reload keeps the session, closing the tab ends
+    it; when the 15-minute token expires the user signs in again, until refresh tokens (T-020). Never in
+    `localStorage`, never in a cookie readable by scripts.
+  - **Libraries:** MUI for components, TanStack Query for API calls, React Router, `react-i18next` (Turkish first; every
+    text in a translation file from the start). Tests: Vitest + React Testing Library.
+  - **CI:** a web job runs lint, type check, tests and build; it is a required check on `main` (ADR-030), like
+    `Build & test`.
+- **Why:** React is the most asked-for front-end skill; a client that only talks to the public API proves the API-first
+  design (sign-in, plans, permissions, paging) from the outside. React Native can reuse the language, the API client
+  and the types for a mobile app later.
+- **Options not taken:** Blazor (C# end to end and quicker to start, but a much smaller market and ecosystem); a
+  back-end-for-frontend with an httpOnly cookie (the safest token handling, but a large piece of infrastructure before
+  the first screen — revisit with T-020).
+- **Cost:** a second toolchain (Node.js, npm) to install and keep up to date; scripts in the page can read the token
+  while it lives — mitigated by its 15-minute lifetime, a strict Content Security Policy and no third-party scripts.
+
 ---
 
 ## 4. Solution layout (planned)
