@@ -909,7 +909,8 @@ production change must be justified in its task.
 
 Goal: GitHub enforces how changes reach `main` (ADR-030); then the product gets its first user interface, so it can be
 used in a browser instead of through the API. The core is settled (ADR-026), so the rest of the sprint is product
-work. Each task is refined with `/refine` before it starts.
+work — after one security fix found in the review before it (T-066). Each task is refined with `/refine` before it
+starts.
 
 - **T-059** — Merge through pull requests, with `main` protected (ADR-030) — **Done**
   - Goal: "CI green and the owner approved before merge" is enforced by GitHub, not kept by hand; the owner presses
@@ -944,12 +945,44 @@ work. Each task is refined with `/refine` before it starts.
     github.com (api.github.com worked); it passed on retry. Decided with the owner: CI keeps running on every push and
     on pull requests (two runs per push to an open PR — free for a public repository). T-059 itself went through
     PR #2, merged by the owner — the first change to reach `main` this way.
-- **T-021** — User interface (Blazor or React; to be decided — the first question of its refinement)
+- **T-066** — Protect the token signing key: the RSA private key is stored as plain bytes in Identity's database and is
+  never rotated, so a leaked backup lets anyone mint valid tokens for any company. Encrypt it at rest (ASP.NET Data
+  Protection; a vault in production) and rotate it on a schedule, keeping old public keys in the JWKS until their
+  tokens expire. Refine first. Found in the review before the web client — done before T-021
+- **T-021** — Web client, first slice: sign in and customers (ADR-031)
+  - Goal: the product can be used in a browser — a company signs up, signs in and works with its customers — through
+    the same public API every other client would use.
+  - [ ] The owner installs Node.js LTS; `node --version` and `npm --version` work. The version is pinned for the
+        project (`.nvmrc` / `engines`) and used by CI
+  - [ ] `src/MyWorkplace.Web`: Vite + React + TypeScript (strict), MUI, TanStack Query, React Router, `react-i18next`
+        with Turkish texts in a translation file — no hard-coded text in components
+  - [ ] Aspire starts the web app; the gateway serves it through a lowest-priority catch-all route, so the browser
+        talks to one address (no CORS) and `dotnet run --project src/MyWorkplace.AppHost` starts everything
+  - [ ] Sign up (company name, email, password) and sign in; a field error from the API (`400`) appears under its
+        field, wrong credentials (`401`) as one message; sign out clears the session
+  - [ ] The token lives in memory and `sessionStorage`; a reload keeps the session, a new tab or a closed tab does
+        not; an expired token (`401` on any call) sends the user back to sign in, keeping the page they were on
+  - [ ] Shell: the signed-in email, the plan (Basic / Pro), a menu built from the token's plan and permissions — a
+        module the plan doesn't include is shown locked with "Pro"; one the role lacks is hidden
+  - [ ] Customers: a paged list with search (the paging standard, ADR-016), and a "new customer" form; validation
+        errors under their fields; a Viewer sees the list but no "new" button
+  - [ ] Tests (Vitest + React Testing Library) with the API mocked: sign-in errors, the expired-token redirect, the
+        menu for Basic / Pro and for a Viewer, the customer form's field errors, the list's paging and search
+  - [ ] CI: a web job (lint, type check, tests, build) required on `main` next to `Build & test`; `README.md` and
+        `README.tr.md` say how to open the app
+  - Out of scope (backlog): customer edit / delete (T-062), stock screens (T-063), order screens (T-064), the company
+    name in the shell (T-065, needs an API), English texts, a mobile app
 
 ---
 
 ## Backlog
 
+- **T-062** — Web: customer detail, edit and delete — `If-Match` with the ETag; a `412` (someone else changed it)
+  reloads with a message; delete asks first; role rules as in the API (after T-021)
+- **T-063** — Web: stock items, units, barcodes and movements screens (Pro; after T-021)
+- **T-064** — Web: order screens — drafts, placing, cancelling, unmatched lines (after T-021)
+- **T-065** — "Who am I" for clients: an Identity endpoint with the user's email, roles and the company's name and plan,
+  so the web shell shows the company (the token carries ids only). Found while refining T-021
 - **T-061** — CI on Ubuntu 26 before the switch (**due before 2026-10-19**): GitHub moves the `ubuntu-latest` label to
   Ubuntu 26 from 19 October 2026 (CI notice, seen on CI #82). Run the whole suite once on the new image before that
   date; if anything breaks, fix the cause (ADR-028) or pin the runner to the current image with a dated note and a
@@ -959,7 +992,22 @@ work. Each task is refined with `/refine` before it starts.
   demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split
   from T-046 (ADR-029)
 - **T-022** — Dependabot for NuGet packages and GitHub Actions (after T-059: its updates arrive as PRs)
-- **T-020** — Refresh tokens
+- **T-067** — Decide the identity provider before it grows (ADR): keep our own token issuer or move to OpenIddict (or a
+  hosted provider). Refresh tokens, key rotation, lockout, email confirmation, password reset and MFA are all still
+  ahead; compare the cost of building them with adopting a proven server. Before T-020. Found in the review
+- **T-068** — PostgreSQL Row-Level Security as a second tenant-isolation layer: today only EF's global query filter
+  separates companies, and hand-written SQL bypasses it by design. A policy per tenant-owned table, the tenant set per
+  connection; a test proves a query without the filter still sees only its own company. Found in the review
+- **T-069** — A way to production: container images, Aspire publish / deploy to a target to be decided, separate
+  environments and settings; Wolverine's static code generation for production (it runs in dynamic mode and says so
+  at start-up). Found in the review
+- **T-070** — CodeQL code scanning on pull requests (free for a public repository). Found in the review
+- **T-071** — How integration events evolve (ADR): additive changes only, no field removed or renamed; a breaking
+  change gets a new event name; consumers ignore unknown fields — before services are deployed independently. Found
+  in the review
+- **T-072** — Architecture and test-quality tooling: ArchUnitNET instead of the text scan in `CoreBoundaryTests`;
+  Stryker.NET to automate the mutation proofs done by hand; coverage reported in CI. Found in the review
+- **T-020** — Refresh tokens (after T-067)
 - **T-058** — Partial returns of a placed order: some lines or part of a quantity come back; the stock of what returned
   goes back in, the order records the return and its adjusted total. Found while refining T-040
 - **T-053** — Publish the core as versioned NuGet packages, stage 2 of ADR-026: GitHub Packages, SemVer, changelog,
@@ -978,7 +1026,8 @@ work. Each task is refined with `/refine` before it starts.
 - **T-033** — Variable-weight items (e.g. cheese sold by piece and by kg with a different weight per piece)
 - **T-034** — Per-item override of the negative stock policy
 - **T-018** — Reporting service (Pro)
-- **T-019** — Per-plan rate limiting at the gateway (Basic: low, Pro: high)
+- **T-019** — Per-plan rate limiting at the gateway (Basic: low, Pro: high); first the sign-in and sign-up endpoints,
+  which today accept unlimited password guesses (raised in the review)
 - **T-029** — "Someone is editing this record" presence indicator — informational, never a lock (ADR-017); needs the UI (T-021)
 
 ---
