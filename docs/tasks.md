@@ -945,7 +945,7 @@ starts.
     github.com (api.github.com worked); it passed on retry. Decided with the owner: CI keeps running on every push and
     on pull requests (two runs per push to an open PR — free for a public repository). T-059 itself went through
     PR #2, merged by the owner — the first change to reach `main` this way.
-- **T-066** — Protect the token signing key: encrypted at rest, rotated (ADR-032) — **In Review**
+- **T-066** — Protect the token signing key: encrypted at rest, rotated (ADR-032) — **Done**
   - Goal: a leaked database backup can't be used to sign tokens, and no key is used forever. Found in the review
     before the web client — done before T-021.
   - [x] Signing keys are stored encrypted (AES-GCM) under a 256-bit master key from an Aspire secret parameter
