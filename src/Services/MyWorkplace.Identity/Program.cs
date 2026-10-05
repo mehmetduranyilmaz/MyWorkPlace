@@ -37,7 +37,15 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     });
 
 builder.Services.AddSingleton<IPasswordHasher<User>, PasswordHasher<User>>();
+// EN: Signing keys are encrypted with a master secret from the AppHost and rotated (ADR-032); a missing secret stops the
+//     service at start-up with a message naming the setting.
+// TR: İmzalama anahtarları AppHost'tan gelen bir ana sırla şifrelenir ve değiştirilir (ADR-032); eksik bir sır servisi açılışta, ayarı söyleyen
+//     bir mesajla durdurur.
+builder.Services.AddOptions<SigningKeyOptions>().BindConfiguration(SigningKeyOptions.SectionName).ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<SigningKeyOptions>, SigningKeyOptionsValidator>();
+builder.Services.AddSingleton<ISigningKeyProtector, AesGcmSigningKeyProtector>();
 builder.Services.AddSingleton<SigningKeyProvider>();
+builder.Services.AddHostedService<SigningKeyRotation>();
 builder.Services.AddSingleton<TokenIssuer>();
 
 var app = builder.Build();

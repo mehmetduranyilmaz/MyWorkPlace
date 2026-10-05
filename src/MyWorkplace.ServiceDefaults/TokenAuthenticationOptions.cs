@@ -28,6 +28,17 @@ public sealed class TokenAuthenticationOptions
     /// </summary>
     [Required(ErrorMessage = "Auth:MetadataAddress is required: the issuer's discovery document, set in the AppHost.")]
     public string MetadataAddress { get; set; } = "";
+
+    /// <summary>
+    /// EN: How often a verifier refetches the issuer's public keys (default 12 hours, the JWT middleware's own default). The
+    ///     issuer must publish a new key for longer than this before signing with it. At least 5 minutes: the JWT library
+    ///     refuses less, and would then fail every request instead of the start-up (found in T-066).
+    /// TR: Bir doğrulayıcının üreticinin açık anahtarlarını ne sıklıkla yeniden aldığı (varsayılan 12 saat, JWT middleware'inin kendi
+    ///     varsayılanı). Üretici yeni bir anahtarı onunla imzalamadan önce bundan daha uzun süre yayınlamalıdır. En az 5 dakika: JWT kütüphanesi
+    ///     daha azını reddeder ve o zaman açılış yerine her isteği başarısız kılardı (T-066'da bulundu).
+    /// </summary>
+    [Range(typeof(TimeSpan), "00:05:00", "1.00:00:00")]
+    public TimeSpan MetadataRefreshInterval { get; set; } = TimeSpan.FromHours(12);
 }
 
 /// <summary>

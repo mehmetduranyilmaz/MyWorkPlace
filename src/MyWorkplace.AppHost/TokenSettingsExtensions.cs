@@ -27,4 +27,36 @@ internal static class TokenSettingsExtensions
 
         return project;
     }
+
+    /// <summary>
+    /// EN: Passes the signing key settings (<c>SigningKeys:*</c>) and the master secret to Identity (ADR-032). Stops the
+    ///     AppHost if a new key could start signing before every verifier has fetched it: <c>PublishAhead</c> must be longer
+    ///     than <c>Auth:MetadataRefreshInterval</c>.
+    /// TR: İmzalama anahtarı ayarlarını (<c>SigningKeys:*</c>) ve ana sırrı Identity'ye geçirir (ADR-032). Yeni bir anahtar, her doğrulayıcı onu
+    ///     almadan imzalamaya başlayabilecekse AppHost'u durdurur: <c>PublishAhead</c>, <c>Auth:MetadataRefreshInterval</c>'dan uzun olmalıdır.
+    /// </summary>
+    /// <param name="project">EN: The Identity project. TR: Identity projesi.</param>
+    /// <param name="configuration">EN: The AppHost configuration. TR: AppHost yapılandırması.</param>
+    /// <param name="masterSecret">EN: The secret parameter. TR: Gizli parametre.</param>
+    /// <returns>EN: The same resource for chaining. TR: Zincirleme kullanım için aynı kaynak.</returns>
+    public static IResourceBuilder<ProjectResource> WithSigningKeys(
+        this IResourceBuilder<ProjectResource> project, IConfiguration configuration, IResourceBuilder<ParameterResource> masterSecret)
+    {
+        var settings = configuration.GetRequiredSection("SigningKeys");
+        var publishAhead = settings.GetValue<TimeSpan>("PublishAhead");
+        var refresh = configuration.GetValue<TimeSpan>("Auth:MetadataRefreshInterval");
+        if (publishAhead <= refresh)
+        {
+            throw new InvalidOperationException(
+                $"SigningKeys:PublishAhead ({publishAhead}) must be longer than Auth:MetadataRefreshInterval ({refresh}): " +
+                "a new signing key must reach every verifier before it signs (ADR-032).");
+        }
+
+        foreach (var setting in settings.GetChildren())
+        {
+            project.WithEnvironment($"SigningKeys__{setting.Key}", setting.Value);
+        }
+
+        return project.WithEnvironment("SigningKeys__MasterSecret", masterSecret);
+    }
 }

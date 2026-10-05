@@ -945,10 +945,43 @@ starts.
     github.com (api.github.com worked); it passed on retry. Decided with the owner: CI keeps running on every push and
     on pull requests (two runs per push to an open PR — free for a public repository). T-059 itself went through
     PR #2, merged by the owner — the first change to reach `main` this way.
-- **T-066** — Protect the token signing key: the RSA private key is stored as plain bytes in Identity's database and is
-  never rotated, so a leaked backup lets anyone mint valid tokens for any company. Encrypt it at rest (ASP.NET Data
-  Protection; a vault in production) and rotate it on a schedule, keeping old public keys in the JWKS until their
-  tokens expire. Refine first. Found in the review before the web client — done before T-021
+- **T-066** — Protect the token signing key: encrypted at rest, rotated (ADR-032) — **In Review**
+  - Goal: a leaked database backup can't be used to sign tokens, and no key is used forever. Found in the review
+    before the web client — done before T-021.
+  - [x] Signing keys are stored encrypted (AES-GCM) under a 256-bit master key from an Aspire secret parameter
+        (user-secrets in development, generated per run in tests and CI), behind `ISigningKeyProtector`; nothing that
+        could decrypt them is in the database
+  - [x] A key's life: published → signing → retiring → deleted. A new key is created every 90 days, published 24 h
+        before it signs; a key that stopped signing stays in the JWKS 24 h, then is deleted. Checked at start-up and
+        every hour (`SigningKeys:CheckInterval`); a database lock lets only one instance create a key
+  - [x] Migration (expand / contract, owner's choice A): the plaintext key is retired — a new encrypted key signs at
+        once, the old one verifies for 24 h and is then deleted; its plaintext bytes are wiped at start-up and the
+        empty column is dropped in a later release (T-073)
+  - [x] Missing or wrong master key: Identity stops at start-up with a message naming the cause; no key is created.
+        The recovery (delete the keys on purpose, restart, everyone signs in again) is documented
+  - [x] Tests: the stored bytes are not a readable PKCS#8 key and can't be read without the master key; a wrong master
+        key fails start-up; with a fake clock 90 days on, the new key is published before it signs and the old one
+        leaves the JWKS 24 h after it stopped signing; a database with a plaintext key is upgraded as above
+  - [x] The rotation's chain, proven link by link (owner's choice B, replacing one slow end-to-end test): a new key is
+        in the JWKS at least `PublishAhead` before it signs; verifiers take `Auth:MetadataRefreshInterval` and refuse
+        less than 5 minutes; the AppHost refuses a `PublishAhead` not longer than it; the JWKS read through the gateway
+        verifies a token on its own. That the JWT library refetches on its schedule is its contract (ADR-032)
+  - [x] Red / green: with encryption switched off the "not readable" test fails; with the publish-ahead step removed
+        the rotation test fails
+  - Notes: tests 385 → 408 — `SigningKeyProtectorTests` (5) and `SigningKeyScheduleTests` (8) without Docker,
+    `SigningKeyProviderTests` 1 → 6 on PostgreSQL, `TokenSettingsTests` +2, `SigningKeySettingsTests` (3) for the
+    AppHost guard. Red / green: encryption switched off → 6 red; publish-ahead removed → 3 red (two schedule tests and
+    the 90-day rotation); a first try at the encryption mutation didn't compile (unreachable code is an error here), so
+    it proved nothing and was redone. Found on the way: (1) the first planned end-to-end test (verifiers refetching
+    every 10 s) failed to start — the JWT library refuses an automatic refresh under 5 minutes, but only on the first
+    request, so every service failed every request while looking alive; `Auth:MetadataRefreshInterval` is now
+    validated at start-up (5 minutes to 1 day). A real end-to-end test would then wait over 5 minutes per CI run, so
+    the owner chose the link-by-link proof. (2) Queries don't track by default (`ServiceDbContext`), so the plaintext
+    key's wipe wasn't saved and a delete failed on the row version; the refresh query is tracked on purpose. (3) Docker
+    was down at first; the failures named the cause (no containers) before anything was rerun. Only public keys are
+    loaded for the JWKS and verification; private keys are decrypted only for keys that sign. Core check (ADR-026):
+    ServiceDefaults gained one setting, `Auth:MetadataRefreshInterval` (additive; the default keeps today's 12 h).
+    Local: 408 / 408.
 - **T-021** — Web client, first slice: sign in and customers (ADR-031)
   - Goal: the product can be used in a browser — a company signs up, signs in and works with its customers — through
     the same public API every other client would use.
@@ -977,6 +1010,9 @@ starts.
 
 ## Backlog
 
+- **T-073** — Drop the emptied plaintext signing key column (`signing_keys.private_key`) — the "contract" half of T-066's
+  expand / contract, in a release after T-066 has run everywhere; a migration that refuses to run while any row still
+  holds plaintext bytes
 - **T-062** — Web: customer detail, edit and delete — `If-Match` with the ETag; a `412` (someone else changed it)
   reloads with a message; delete asks first; role rules as in the API (after T-021)
 - **T-063** — Web: stock items, units, barcodes and movements screens (Pro; after T-021)

@@ -46,8 +46,16 @@ var productsDb = postgres.AddDatabase("products-db");
 
 // EN: Every project gets the same token settings from the "Auth" section of appsettings.json (ADR-026).
 // TR: Her proje aynı token ayarlarını appsettings.json'daki "Auth" bölümünden alır (ADR-026).
+// EN: The master secret that encrypts the token signing keys — never in the database (ADR-032). Generated once and kept in
+//     the AppHost's user secrets in development; tests and CI get a new one per run.
+// TR: Token imzalama anahtarlarını şifreleyen ana sır — asla veritabanında değil (ADR-032). Geliştirmede bir kez üretilir ve AppHost'un
+//     user-secrets'ında tutulur; testler ve CI her çalıştırmada yenisini alır.
+var signingKeySecret = builder.AddParameter(
+    "signing-key-master-secret", new GenerateParameterDefault { MinLength = 48, Special = false }, secret: true, persist: true);
+
 var identity = builder.AddProject<Projects.MyWorkplace_Identity>("identity")
     .WithTokenSettings(builder.Configuration)
+    .WithSigningKeys(builder.Configuration, signingKeySecret)
     .WithReference(identityDb)
     .WaitFor(identityDb)
     .WithHttpHealthCheck("/health");
