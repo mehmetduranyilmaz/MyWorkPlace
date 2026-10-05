@@ -51,6 +51,9 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
             key.Property(k => k.KeyId).HasMaxLength(64);
             key.Property(k => k.Algorithm).HasMaxLength(16);
             key.HasIndex(k => k.KeyId).IsUnique();
+            // EN: The old column keeps its name until T-073 drops it (expand / contract, ADR-032).
+            // TR: Eski sütun, T-073 onu kaldırana kadar adını korur (genişlet / daralt, ADR-032).
+            key.Property(k => k.LegacyPrivateKey).HasColumnName("private_key");
         });
     }
 }

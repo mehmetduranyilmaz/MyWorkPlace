@@ -49,6 +49,13 @@ public static class AuthenticationExtensions
                 // TR: Mantıksal "https+http" şeması harfiyen "https://" değildir; bkz. ADR-006.
                 options.RequireHttpsMetadata = false;
 
+                // EN: Refetch the keys on this schedule; an unknown key may trigger a refetch no more often than that either.
+                // TR: Anahtarları bu takvimle yeniden al; bilinmeyen bir anahtar da bundan daha sık yeniden almayı tetikleyemez.
+                options.AutomaticRefreshInterval = auth.Value.MetadataRefreshInterval;
+                options.RefreshInterval = auth.Value.MetadataRefreshInterval < options.RefreshInterval
+                    ? auth.Value.MetadataRefreshInterval
+                    : options.RefreshInterval;
+
                 // EN: Keep claim names exactly as issued ("sub", "tenant_id", "plan").
                 // TR: Claim adlarını üretildiği gibi tut ("sub", "tenant_id", "plan").
                 options.MapInboundClaims = false;

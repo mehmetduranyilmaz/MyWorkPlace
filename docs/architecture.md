@@ -211,6 +211,7 @@ Every company (tenant) is on a plan: **Basic** or **Professional**.
 - **Why:** Tokens survive restarts, no manual setup, works unchanged in CI.
 - **Alternatives:** In-memory key per start (every restart signs everyone out); user-secrets PEM (manual, extra CI setup).
 - **Cost:** The private key sits unencrypted in the database. Production must use a key vault or HSM.
+  **Amended by ADR-032:** keys are encrypted with a master key kept outside the database, and rotated.
 
 ### ADR-013 — Identity rules
 
@@ -677,6 +678,37 @@ Set by the reference module (Customers, T-009 / T-028) and copied by every later
   the first screen — revisit with T-020).
 - **Cost:** a second toolchain (Node.js, npm) to install and keep up to date; scripts in the page can read the token
   while it lives — mitigated by its 15-minute lifetime, a strict Content Security Policy and no third-party scripts.
+
+### ADR-032 — Signing keys encrypted with a master key kept outside the database, and rotated (amends ADR-012)
+
+- **Context:** ADR-012 stored the RSA private key unencrypted in `identity-db` and never replaced it; its cost line said
+  production must do better. A leaked backup would let anyone sign valid tokens for any company, forever.
+- **Decision:**
+  - **Envelope encryption.** Each signing key is stored encrypted with AES-GCM under a 256-bit **master key** that is
+    **not in the database**: an Aspire secret parameter (user-secrets in development, generated per run in tests
+    and CI). The encryption sits behind `ISigningKeyProtector`, so production can swap in a key vault (T-069).
+  - **Rotation.** A new key every 90 days. It is **published in the JWKS 24 hours before it signs**, so every service
+    knows it in advance; a key that stopped signing stays in the JWKS for 24 more hours (tokens live 15 minutes),
+    then it is deleted. Checked at start-up and daily; a database lock lets only one instance create a key.
+  - **The existing plaintext key is retired, not encrypted:** a key that sat in clear text counts as exposed. On
+    upgrade a new encrypted key signs at once (no 24-hour wait — verifiers refetch the JWKS on an unknown `kid`); the
+    old key verifies for 24 hours, then is deleted. The plaintext column is dropped.
+  - **Fail loudly.** If the keys can't be decrypted (missing or wrong master key), Identity stops at start-up with a
+    clear message. It never silently creates a new key — that would hide the misconfiguration and sign everyone out
+    without a reason. Recovery is documented: delete the keys on purpose and restart (everyone signs in again).
+  - **Verifiers** refetch the JWKS every `Auth:MetadataRefreshInterval` (default 12 hours; at least 5 minutes — the JWT
+    library refuses less, so a shorter value stops a service at start-up). The AppHost refuses a `PublishAhead` that
+    isn't longer. Our side of the chain is tested link by link (T-066); that the library refetches on that schedule is
+    its own contract — it refetches lazily, on traffic, so an idle verifier may answer one `401` for a brand-new key.
+- **Operations:** the master secret is the AppHost parameter `signing-key-master-secret`, kept in the AppHost's
+  user-secrets in development. If it is lost: delete the rows of `signing_keys` in `identity-db` and restart Identity —
+  a new key is created and every user signs in again.
+- **Why:** a backup alone is useless without the master key; rotation limits how long any one key matters; publishing
+  ahead keeps every token valid during a rotation.
+- **Option not taken:** ASP.NET Data Protection — the idiomatic choice, but its own key ring must be protected too:
+  stored in the database it brings back the same problem, protected with a certificate it needs certificate
+  management on every platform. Reconsider with a key vault (T-069).
+- **Cost:** the master key is one more secret to keep — lost, it signs everyone out (by the documented recovery).
 
 ---
 

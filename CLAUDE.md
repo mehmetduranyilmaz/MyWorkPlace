@@ -60,6 +60,8 @@ Notes:
 
 - `main` is protected (ADR-030): every change goes through a pull request with a green `Build & test`; the owner
   presses **Squash and merge**. `gh` is signed in by the owner; never store a token in the repository.
+- Token signing keys are encrypted with the AppHost parameter `signing-key-master-secret` (generated into the AppHost's
+  user-secrets on first run). Losing it signs everyone out — see ADR-032 for the recovery.
 
 - The first build of the AppHost needs the **Aspire CLI bundle** (DCP + dashboard). If the build fails with
   `ASPIRE009`, install it with `dnx aspire.cli -- setup`, then rebuild with `--no-incremental`.
