@@ -982,16 +982,20 @@ starts.
     loaded for the JWKS and verification; private keys are decrypted only for keys that sign. Core check (ADR-026):
     ServiceDefaults gained one setting, `Auth:MetadataRefreshInterval` (additive; the default keeps today's 12 h).
     Local: 408 / 408.
-- **T-061** — CI on Ubuntu 26.04 before the switch (**due before 2026-10-19**) — **In Progress**
+- **T-061** — CI on Ubuntu 26.04 before the switch (**due before 2026-10-19**) — **In Review**
   - Goal: CI doesn't change under us. GitHub moves `ubuntu-latest` to Ubuntu 26.04 over several weeks from 19 October
     2026 (runner-images #14748, notice on CI #82); Linux differences have bitten before (T-043, T-044).
-  - [ ] A temporary job, separate from `Build & test` (its name is the required check of the `main` ruleset, ADR-030),
+  - [x] A temporary job, separate from `Build & test` (its name is the required check of the `main` ruleset, ADR-030),
         runs the whole suite on `ubuntu-26.04` three times on the same commit; removed before merge
-  - [ ] Green three times: `Build & test` is pinned to `runs-on: ubuntu-26.04` (no `ubuntu-latest`), so the next image
+  - [x] Green three times: `Build & test` is pinned to `runs-on: ubuntu-26.04` (no `ubuntu-latest`), so the next image
         change is a deliberate pull request; its name stays, so the required check still matches
-  - [ ] Red: the cause is written down first (ADR-028); fixed in this task if small, otherwise `Build & test` is pinned
-        to `ubuntu-24.04` with a dated note and a backlog task for the move
+  - [x] Red: the cause is written down first (ADR-028); fixed in this task if small, otherwise `Build & test` is pinned
+        to `ubuntu-24.04` with a dated note and a backlog task for the move — did not apply
   - [ ] The pull request's own `Build & test` passes on the pinned image
+  - Notes: CI #94, commit f1f8b05: three runs on `ubuntu-26.04`, each 408 / 408 with nothing skipped (the outage test
+    runs on Linux since T-044), in 2m58s, 3m48s and 3m16s — the 24.04 job took 4m04s. Nothing in the suite depended
+    on the image: Docker 29, PowerShell 7.6 and OpenSSL 3.5 behaved like before, and the dev-certificate step needed
+    no change. Pinning means the 26.04 → 28.04 move later is a task like this one, not a surprise.
 - **T-021** — Web client, first slice: sign in and customers (ADR-031)
   - Goal: the product can be used in a browser — a company signs up, signs in and works with its customers — through
     the same public API every other client would use.
