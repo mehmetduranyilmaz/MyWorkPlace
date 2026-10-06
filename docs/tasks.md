@@ -982,6 +982,16 @@ starts.
     loaded for the JWKS and verification; private keys are decrypted only for keys that sign. Core check (ADR-026):
     ServiceDefaults gained one setting, `Auth:MetadataRefreshInterval` (additive; the default keeps today's 12 h).
     Local: 408 / 408.
+- **T-061** — CI on Ubuntu 26.04 before the switch (**due before 2026-10-19**) — **In Progress**
+  - Goal: CI doesn't change under us. GitHub moves `ubuntu-latest` to Ubuntu 26.04 over several weeks from 19 October
+    2026 (runner-images #14748, notice on CI #82); Linux differences have bitten before (T-043, T-044).
+  - [ ] A temporary job, separate from `Build & test` (its name is the required check of the `main` ruleset, ADR-030),
+        runs the whole suite on `ubuntu-26.04` three times on the same commit; removed before merge
+  - [ ] Green three times: `Build & test` is pinned to `runs-on: ubuntu-26.04` (no `ubuntu-latest`), so the next image
+        change is a deliberate pull request; its name stays, so the required check still matches
+  - [ ] Red: the cause is written down first (ADR-028); fixed in this task if small, otherwise `Build & test` is pinned
+        to `ubuntu-24.04` with a dated note and a backlog task for the move
+  - [ ] The pull request's own `Build & test` passes on the pinned image
 - **T-021** — Web client, first slice: sign in and customers (ADR-031)
   - Goal: the product can be used in a browser — a company signs up, signs in and works with its customers — through
     the same public API every other client would use.
@@ -1019,10 +1029,6 @@ starts.
 - **T-064** — Web: order screens — drafts, placing, cancelling, unmatched lines (after T-021)
 - **T-065** — "Who am I" for clients: an Identity endpoint with the user's email, roles and the company's name and plan,
   so the web shell shows the company (the token carries ids only). Found while refining T-021
-- **T-061** — CI on Ubuntu 26 before the switch (**due before 2026-10-19**): GitHub moves the `ubuntu-latest` label to
-  Ubuntu 26 from 19 October 2026 (CI notice, seen on CI #82). Run the whole suite once on the new image before that
-  date; if anything breaks, fix the cause (ADR-028) or pin the runner to the current image with a dated note and a
-  task to move on. Linux differences have bitten before (T-043, T-044). Found while finishing T-059
 - **T-060** — Last-Owner rule on a real database: the check ("is there another Owner?") runs in the delete and
   change-access handlers under the company lock. Handler tests with an Identity `ServiceDatabase`: two parallel
   demotions or removals of the only two Owners → exactly one succeeds, the other gets the last-Owner conflict. Split

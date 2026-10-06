@@ -104,3 +104,80 @@ jobs:
           name: test-results
           path: TestResults/**/*.trx
           if-no-files-found: ignore
+
+  # EN: TEMPORARY (T-061): the whole suite on Ubuntu 26.04, three times on the same commit, before ubuntu-latest moves
+  #     there (from 2026-10-19). A separate job: "Build & test" is the required check of main (ADR-030). Removed before merge.
+  # TR: GEÇİCİ (T-061): ubuntu-latest oraya geçmeden önce (2026-10-19'dan itibaren) tüm test paketi Ubuntu 26.04'te, aynı commit üzerinde üç kez.
+  #     Ayrı bir iş: "Build & test" main'in zorunlu kontrolüdür (ADR-030). Merge'den önce kaldırılır.
+  ubuntu-26-trial:
+    name: Ubuntu 26.04 trial (${{ matrix.attempt }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2, 3]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET (version from global.json)
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # EN: The AppHost needs the Aspire CLI bundle (DCP + dashboard). Keep the version in sync with
+      #     Aspire.AppHost.Sdk in MyWorkplace.AppHost.csproj.
+      # TR: AppHost, Aspire CLI paketine (DCP + dashboard) ihtiyaç duyar. Sürüm, MyWorkplace.AppHost.csproj
+      #     içindeki Aspire.AppHost.Sdk ile aynı tutulmalı.
+      - name: Install Aspire CLI bundle
+        run: dotnet dnx --yes aspire.cli@13.5.4 -- setup
+
+      # EN: Integration tests may start services over HTTPS. Linux has no single trust store, so `--trust`
+      #     only trusts the certificate for OpenSSL (under ~/.aspnet/dev-certs/trust) and exits non-zero
+      #     when browser stores can't be updated. We verify the result explicitly and point .NET
+      #     (which uses OpenSSL on Linux) at that directory via SSL_CERT_DIR.
+      # TR: Entegrasyon testleri servisleri HTTPS ile başlatabilir. Linux'ta tek bir güven deposu yoktur; `--trust`
+      #     sertifikayı sadece OpenSSL için güvenilir yapar (~/.aspnet/dev-certs/trust altında) ve tarayıcı
+      #     depoları güncellenemediğinde sıfır olmayan kodla çıkar. Sonucu açıkça doğrular ve .NET'e
+      #     (Linux'ta OpenSSL kullanır) bu klasörü SSL_CERT_DIR ile gösteririz.
+      - name: Trust HTTPS development certificate
+        run: |
+          dotnet dev-certs https --trust || echo "::notice::dev-certs reported partial trust (expected on Linux)"
+          test -n "$(ls -A "$HOME/.aspnet/dev-certs/trust")"
+          echo "SSL_CERT_DIR=$HOME/.aspnet/dev-certs/trust:/usr/lib/ssl/certs" >> "$GITHUB_ENV"
+
+      - name: Restore
+        run: dotnet restore MyWorkplace.slnx
+
+      - name: Build
+        run: dotnet build MyWorkplace.slnx --no-restore --configuration Release
+
+      # EN: Test projects run one after another: several of them start containers, and starting them in parallel can
+      #     lose a port race ("address already in use", T-051). Costs little; the cause is gone rather than retried
+      #     (ADR-028).
+      # TR: Test projeleri art arda çalışır: birkaçı konteyner başlatır ve onları paralel başlatmak bir port yarışını kaybedebilir
+      #     ("address already in use", T-051). Maliyeti az; neden yeniden denenmek yerine ortadan kalkar (ADR-028).
+      - name: Test
+        run: >-
+          dotnet test --solution MyWorkplace.slnx --no-build --configuration Release
+          --max-parallel-test-modules 1
+          --report-xunit-trx --results-directory TestResults
+
+      # EN: Raw logs need a signed-in user; annotations and the job summary don't. So a failure names its tests
+      #     where anyone (and any tool) can read them (T-043).
+      # TR: Ham loglar giriş yapmış kullanıcı ister; uyarılar (annotation) ve iş özeti istemez. Böylece bir hata, testlerinin
+      #     adını herkesin (ve her aracın) okuyabileceği yerde söyler (T-043).
+      - name: Report failed tests
+        if: failure()
+        shell: pwsh
+        run: ./eng/ci/Report-FailedTests.ps1 -ResultsDirectory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-ubuntu-26-${{ matrix.attempt }}
+          path: TestResults/**/*.trx
+          if-no-files-found: ignore
