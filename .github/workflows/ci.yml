@@ -29,7 +29,11 @@ env:
 jobs:
   build-and-test:
     name: Build & test
-    runs-on: ubuntu-latest
+    # EN: Pinned, not "ubuntu-latest": that label moves to a new image on GitHub's schedule, so CI could change under
+    #     us. Moving to a new image is a deliberate pull request, proven first (T-061: 26.04, three green runs).
+    # TR: "ubuntu-latest" değil, sabit: o etiket GitHub'ın takvimiyle yeni bir imaja geçer; böylece CI haberimiz olmadan değişebilirdi.
+    #     Yeni bir imaja geçmek, önce kanıtlanan bilinçli bir pull request'tir (T-061: 26.04, üç yeşil çalıştırma).
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
 
     steps:
